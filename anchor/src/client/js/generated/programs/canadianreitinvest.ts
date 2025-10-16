@@ -16,7 +16,7 @@ import {
 import { type ParsedGreetInstruction } from '../instructions';
 
 export const CANADIANREITINVEST_PROGRAM_ADDRESS =
-  '7s6k4nDF8z1hbHMxGeDqovfjqUG28L4ikjMVY6DQVm6B' as Address<'7s6k4nDF8z1hbHMxGeDqovfjqUG28L4ikjMVY6DQVm6B'>;
+  'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B' as Address<'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B'>;
 
 export enum CanadianreitinvestInstruction {
   Greet,
@@ -43,7 +43,7 @@ export function identifyCanadianreitinvestInstruction(
 }
 
 export type ParsedCanadianreitinvestInstruction<
-  TProgram extends string = '7s6k4nDF8z1hbHMxGeDqovfjqUG28L4ikjMVY6DQVm6B',
+  TProgram extends string = 'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B',
 > = {
   instructionType: CanadianreitinvestInstruction.Greet;
 } & ParsedGreetInstruction<TProgram>;

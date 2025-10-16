@@ -5,14 +5,14 @@ package_manager = "yarn"
 resolution = true
 skip-lint = false
 
-[programs.localnet]
-canadianreitinvest = "7s6k4nDF8z1hbHMxGeDqovfjqUG28L4ikjMVY6DQVm6B"
+[programs.devnet]
+canadianreitinvest = "HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "localnet"
+cluster = "devnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

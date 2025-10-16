@@ -15,6 +15,9 @@ export function useGreetMutation({ account }: { account: UiWalletAccount }) {
     onSuccess: (signature) => {
       toastTx(signature)
     },
-    onError: () => toast.error('Failed to run program'),
+    onError: (error) => {
+  console.error('Full error details:', error)
+  toast.error('Failed to run program')
+},
   })
 }

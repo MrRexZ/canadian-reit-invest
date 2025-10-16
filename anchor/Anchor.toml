@@ -6,7 +6,7 @@ resolution = true
 skip-lint = false
 
 [programs.localnet]
-canadianreitinvest = "JAVuBXeBZqXNtS73azhBDAoYaaAFfo4gWXoZe2e7Jf8H"
+canadianreitinvest = "7s6k4nDF8z1hbHMxGeDqovfjqUG28L4ikjMVY6DQVm6B"
 
 [registry]
 url = "https://api.apr.dev"

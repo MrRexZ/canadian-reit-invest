@@ -29,11 +29,7 @@ dist-ssr
 
 # Anchor
 /anchor/.anchor
-/anchor/target/debug
-/anchor/target/deploy
-/anchor/target/release
-/anchor/target/sbf-solana-solana
-/anchor/target/test-ledger
+/anchor/target/
 /anchor/target/.rustc_info.json
 test-ledger
 **/*.rs.bk

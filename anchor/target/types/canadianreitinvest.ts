@@ -5,19 +5,28 @@
  * IDL can be found at `target/idl/canadianreitinvest.json`.
  */
 export type Canadianreitinvest = {
-  address: 'JAVuBXeBZqXNtS73azhBDAoYaaAFfo4gWXoZe2e7Jf8H'
-  metadata: {
-    name: 'canadianreitinvest'
-    version: '0.1.0'
-    spec: '0.1.0'
-    description: 'Created with Anchor'
-  }
-  instructions: [
+  "address": "7s6k4nDF8z1hbHMxGeDqovfjqUG28L4ikjMVY6DQVm6B",
+  "metadata": {
+    "name": "canadianreitinvest",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
     {
-      name: 'greet'
-      discriminator: [203, 194, 3, 150, 228, 58, 181, 62]
-      accounts: []
-      args: []
-    },
+      "name": "greet",
+      "discriminator": [
+        203,
+        194,
+        3,
+        150,
+        228,
+        58,
+        181,
+        62
+      ],
+      "accounts": [],
+      "args": []
+    }
   ]
-}
+};

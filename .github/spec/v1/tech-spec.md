@@ -15,14 +15,17 @@
         
         ```json
         #[account]
-        pub struct TokenMetadata {
-            pub mint: Pubkey,           // Address of the REIT token mint
-            pub name: String,           // REIT name (e.g., "Canadian REIT A")
-            pub symbol: String,         // Token symbol (e.g., "REITA")
-            pub currency: String,         // Currency for share (e.g., "USD", "CAD")
-            pub share_price: u64,       // Price per share for the currency in decimals (e.g., 1000000 = 1)
-            pub decimals: u8,           // Token decimals (e.g., 6)
-        }
+        pub struct Fundraiser {
+                pub admin: Pubkey,         // Admin key
+                pub usdc_mint: Pubkey,     // USDC mint
+                pub reit_mint: Pubkey,     // REIT token mint
+                pub escrow_vault: Pubkey,  // Escrow token account
+                pub funding_goal: u64,     // Target USDC
+                pub total_raised: u64,     // Total USDC raised
+                pub released_amount: u64,  // Total USDC released to admin
+                pub reit_id: String,       // Unique REIT ID
+                pub investment_counter: u64, // Increments for unique PDA derivation
+            }
         ```
         
 - **Escrow Vault**:

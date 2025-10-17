@@ -43,6 +43,7 @@
             pub amount: u64,            // USDC invested in this entry
             pub reit_amount: u64,       // Minted REIT tokens for this entry (0 until minted)
             pub released: bool,         // True if this investment’s USDC is released
+            pub refunded: bool,         // True if this investment has been refunded
             pub investment_date: i64,   // Unix timestamp of investment
         }
         ```

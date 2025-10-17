@@ -28,6 +28,7 @@ Implement the Invest flow where users send USDC to the escrow vault and an Inves
    - `amount` (u64)
    - `reit_amount` (u64) - initialized to 0
    - `released` (bool) - initialized to false
+   - `refunded` (bool) - initialized to false
    - `investment_date` (i64)
    - `bump` (u8)
 

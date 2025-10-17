@@ -59,7 +59,7 @@
         
         ```json
         #[account]
-        pub struct TokenMetadata {
+        pub struct MetaplexTokenMetadata {
             pub mint: Pubkey,           // Address of the REIT token mint
             pub update_authority: Pubkey, // Authority to update metadata
             pub name: String,           // REIT name (e.g., "Canadian REIT A")

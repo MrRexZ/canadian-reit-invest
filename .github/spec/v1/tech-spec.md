@@ -31,14 +31,14 @@
 - **Escrow Vault**:
     - **Role**: Holds user USDC until released to Admin USDC ATA.
     - **Schema**: SPL Token Account (mint: USDC, authority: Fundraiser PDA).
-- **Investor State PDA**:
-    - **Role**: Tracks individual investment entries, multiple PDAs per user, identified by PDA address as investment_id.
+- **Investment PDA**:
+    - **Role**: Tracks individual investment entries, multiple PDAs per investor, identified by PDA address as investment_id.
     - **Schema**
         
         ```json
         #[account]
-        pub struct InvestorState {
-            pub user: Pubkey,           // User’s public key
+        pub struct Investment {
+            pub investor: Pubkey,           // Investor’s public key
             pub fundraiser: Pubkey,     // Linked Fundraiser PDA
             pub amount: u64,            // USDC invested in this entry
             pub reit_amount: u64,       // Minted REIT tokens for this entry (0 until minted)
@@ -48,7 +48,7 @@
         }
         ```
         
-        Note: Derived with seeds [b"investor", user.key(), fundraiser.key(), investment_counter], investment_id is the PDA address.
+        Note: Derived with seeds [b"investment", investor.key(), fundraiser.key(), investment_counter], investment_id is the PDA address.
         
 - **REIT Token Mint**:
     - **Role**: Defines REIT tokens, includes share price in metadata.

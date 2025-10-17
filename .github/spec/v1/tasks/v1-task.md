@@ -1,7 +1,7 @@
 # Task Breakdown: Invest Flow Implementation
 
 ## Overview
-Implement the Invest flow where users send USDC to the escrow vault and an Investor State PDA is created to track their investment.
+Implement the Invest flow where investors send USDC to the escrow vault and an Investment PDA is created to track their investment.
 
 ---
 
@@ -22,8 +22,8 @@ Implement the Invest flow where users send USDC to the escrow vault and an Inves
    - `investment_counter` (u64)
    - `bump` (u8)
 
-2. Create `InvestorState` PDA struct with fields:
-   - `user` (Pubkey)
+2. Create `Investment` PDA struct with fields:
+   - `investor` (Pubkey)
    - `fundraiser` (Pubkey)
    - `amount` (u64)
    - `reit_amount` (u64) - initialized to 0
@@ -101,10 +101,10 @@ Implement the Invest flow where users send USDC to the escrow vault and an Inves
 
 **Subtasks**:
 1. Define `Invest` context struct with accounts:
-   - `user` (Signer, mut) - the investor
+   - `investor` (Signer, mut) - the investor
    - `fundraiser` (PDA, mut, seeds: [b"fundraiser", admin.key()])
-   - `investor_state` (PDA, init, seeds: [b"investor", user.key(), fundraiser.key(), &fundraiser.investment_counter.to_le_bytes()], payer: user)
-   - `user_usdc_ata` (Account, mut, constraint: user owns account)
+   - `investment` (PDA, init, seeds: [b"investment", investor.key(), fundraiser.key(), &fundraiser.investment_counter.to_le_bytes()], payer: investor)
+   - `investor_usdc_ata` (Account, mut, constraint: investor owns account)
    - `escrow_vault` (Account, mut, constraint: vault belongs to fundraiser)
    - `token_program` (Program)
    - `system_program` (Program)
@@ -112,22 +112,22 @@ Implement the Invest flow where users send USDC to the escrow vault and an Inves
 
 2. Implement `invest` handler with parameter `amount: u64`:
    - Validate amount > 0
-   - Check user has sufficient USDC balance
-   - Transfer USDC from user_usdc_ata to escrow_vault
-   - Initialize investor_state with:
-     - user: user.key()
+   - Check investor has sufficient USDC balance
+   - Transfer USDC from investor_usdc_ata to escrow_vault
+   - Initialize investment with:
+     - investor: investor.key()
      - fundraiser: fundraiser.key()
      - amount: amount
      - reit_amount: 0
      - released: false
      - investment_date: Clock::get()?.unix_timestamp
-     - bump: ctx.bumps.investor_state
+     - bump: ctx.bumps.investment
    - Increment fundraiser.investment_counter (with overflow check)
    - Increment fundraiser.total_raised by amount
 
 3. Add account constraints:
    - Verify escrow_vault authority is fundraiser PDA
-   - Verify user_usdc_ata is owned by user
+   - Verify investor_usdc_ata is owned by investor
    - Verify escrow_vault mint matches USDC mint
 
 **Files to modify**:
@@ -139,13 +139,13 @@ Implement the Invest flow where users send USDC to the escrow vault and an Inves
 ### Task 5: Implement Offchain Tracking Backend
 **Priority**: Medium  
 **Dependencies**: Task 4 (for PDA structures), init.md (setup completed)  
-**Description**: Implement data syncing, API endpoints, and testing for the offchain tracking backend (Node.js/TypeScript with PostgreSQL), assuming initial setup from init.md is complete. This enables efficient querying of InvestorState PDAs and investment data.
+**Description**: Implement data syncing, API endpoints, and testing for the offchain tracking backend (Node.js/TypeScript with PostgreSQL), assuming initial setup from init.md is complete. This enables efficient querying of Investment PDAs and investment data.
 
 **Subtasks**:
 1. Implement data syncing:
    - Use Helius webhooks (devnet) to listen for invest events and insert PDA data into DB
    - For localnet, poll Solana connection periodically to sync PDAs
-   - Add functions to query all InvestorState PDAs for a user/fundraiser
+   - Add functions to query all Investment PDAs for a user/fundraiser
 
 2. Integrate with frontend:
    - Expose API endpoints (e.g., GET /investments/:userPubkey) for React hooks
@@ -178,7 +178,7 @@ Implement the Invest flow where users send USDC to the escrow vault and an Inves
 
 2. Test invest instruction:
    - Successfully transfers USDC to escrow
-   - Creates Investor State PDA with correct data
+   - Creates Investment PDA with correct data
    - Increments investment_counter
    - Updates total_raised
    - Multiple investments from same user create separate PDAs
@@ -210,15 +210,15 @@ Implement the Invest flow where users send USDC to the escrow vault and an Inves
 1. Create `useInvest` hook in `src/features/canadianreitinvest/`:
    - Accept amount as parameter
    - Fetch fundraiser PDA
-   - Derive investor_state PDA using investment_counter
-   - Get user USDC ATA
+   - Derive investment PDA using investment_counter
+   - Get investor USDC ATA
    - Build and send invest transaction
    - Return mutation with loading/error states
 
 2. Add helper functions:
    - `getFundraiserPDA(adminPubkey: PublicKey)`
-   - `getInvestorStatePDA(user: PublicKey, fundraiser: PublicKey, counter: number)`
-   - `getUserUsdcAta(user: PublicKey, usdcMint: PublicKey)`
+   - `getInvestmentPDA(investor: PublicKey, fundraiser: PublicKey, counter: number)`
+   - `getInvestorUsdcAta(investor: PublicKey, usdcMint: PublicKey)`
 
 **Files to create**:
 - `src/features/canadianreitinvest/hooks/use-invest.ts`
@@ -240,7 +240,7 @@ Implement the Invest flow where users send USDC to the escrow vault and an Inves
    - Error/success toast notifications
 
 2. Create `InvestmentHistory` component:
-   - Fetch all Investor State PDAs for connected user
+   - Fetch all Investment PDAs for connected investor
    - Display list of investments with:
      - Investment date
      - USDC amount
@@ -358,7 +358,7 @@ Implement the Invest flow where users send USDC to the escrow vault and an Inves
 - [ ] Fundraiser initialization succeeds
 - [ ] Escrow vault created with correct authority
 - [ ] Invest instruction transfers USDC correctly
-- [ ] Investor State PDA created with correct data
+- [ ] Investment PDA created with correct data
 - [ ] Investment counter increments
 - [ ] Total raised updates correctly
 - [ ] Error handling for zero amount
@@ -387,7 +387,7 @@ Implement the Invest flow where users send USDC to the escrow vault and an Inves
 ## Success Criteria
 
 1. ✅ User can successfully invest USDC through the UI
-2. ✅ Investor State PDA is created with accurate data
+2. ✅ Investment PDA is created with accurate data
 3. ✅ USDC is transferred to escrow vault
 4. ✅ Investment counter increments properly
 5. ✅ Investment history displays all user investments

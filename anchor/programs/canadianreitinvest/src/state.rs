@@ -3,6 +3,7 @@ use anchor_lang::prelude::*;
 #[account]
 pub struct Fundraiser {
     pub admin: Pubkey,
+    pub reit_id: String,
     pub token_metadata: Pubkey,
     pub escrow_vault: Pubkey,
     pub total_raised: u64,

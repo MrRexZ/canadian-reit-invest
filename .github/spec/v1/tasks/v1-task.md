@@ -15,6 +15,7 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
 **Subtasks**:
 1. Create `Fundraiser` PDA struct with fields:
    - `admin` (Pubkey)
+   - `reit_id` (String) - unique identifier for the REIT (e.g., "REIT-001")
    - `token_metadata` (Pubkey)
    - `escrow_vault` (Pubkey)
    - `total_raised` (u64)
@@ -72,7 +73,7 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
 **Subtasks**:
 1. Define `InitializeFundraiser` context struct with accounts:
    - `admin` (Signer, mut) - pays for accounts
-   - `fundraiser` (PDA, init, seeds: [b"fundraiser", admin.key()], payer: admin)
+   - `fundraiser` (PDA, init, seeds: [b"fundraiser", admin.key(), reit_id.as_bytes()], payer: admin)
    - `token_metadata` (Account, mut)
    - `escrow_vault` (Account, init, token::mint = usdc_mint, token::authority = fundraiser)
    - `usdc_mint` (Account)
@@ -80,9 +81,10 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
    - `token_program` (Program)
    - `rent` (Sysvar)
 
-2. Implement `initialize_fundraiser` handler:
+2. Implement `initialize_fundraiser` handler with parameter `reit_id: String`:
    - Initialize fundraiser fields
    - Set admin authority
+   - Set reit_id
    - Set total_raised and total_released to 0
    - Set investment_counter to 0
    - Link to token_metadata and escrow_vault
@@ -100,7 +102,7 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
 **Subtasks**:
 1. Define `Invest` context struct with accounts:
    - `investor` (Signer, mut) - the investor
-   - `fundraiser` (PDA, mut, seeds: [b"fundraiser", admin.key()])
+   - `fundraiser` (PDA, mut, seeds: [b"fundraiser", fundraiser.admin, fundraiser.reit_id.as_bytes()])
    - `investment` (PDA, init, seeds: [b"investment", investor.key(), fundraiser.key(), &fundraiser.investment_counter.to_le_bytes()], payer: investor)
    - `investor_usdc_ata` (Account, mut, constraint: investor owns account)
    - `escrow_vault` (Account, mut, constraint: vault belongs to fundraiser)

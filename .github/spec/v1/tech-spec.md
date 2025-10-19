@@ -59,14 +59,11 @@
         
         ```json
         #[account]
-        pub struct MetaplexTokenMetadata {
+        pub struct ReitMintMetadata {
             pub mint: Pubkey,           // Address of the REIT token mint
-            pub update_authority: Pubkey, // Authority to update metadata
-            pub name: String,           // REIT name (e.g., "Canadian REIT A")
-            pub symbol: String,         // Token symbol (e.g., "REITA")
-            pub uri: String,            // URI to off-chain JSON with details
             pub share_price: u64,       // Price per share in USDC (e.g., 1000000 = 1 USDC)
             pub decimals: u8,           // Token decimals (e.g., 6)
+            pub currency: String,       // Currency code (e.g., "CAD")
         }
         ```
         

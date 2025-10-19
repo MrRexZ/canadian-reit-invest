@@ -155,16 +155,16 @@
       ]
     },
     {
-      "name": "MetaplexTokenMetadata",
+      "name": "ReitMintMetadata",
       "discriminator": [
-        135,
-        120,
-        138,
-        40,
-        65,
-        171,
-        234,
-        69
+        7,
+        203,
+        205,
+        100,
+        252,
+        27,
+        87,
+        105
       ]
     }
   ],
@@ -242,7 +242,7 @@
       }
     },
     {
-      "name": "MetaplexTokenMetadata",
+      "name": "ReitMintMetadata",
       "type": {
         "kind": "struct",
         "fields": [
@@ -251,19 +251,15 @@
             "type": "pubkey"
           },
           {
-            "name": "update_authority",
-            "type": "pubkey"
+            "name": "share_price",
+            "type": "u64"
           },
           {
-            "name": "name",
-            "type": "string"
+            "name": "decimals",
+            "type": "u8"
           },
           {
-            "name": "symbol",
-            "type": "string"
-          },
-          {
-            "name": "uri",
+            "name": "currency",
             "type": "string"
           }
         ]

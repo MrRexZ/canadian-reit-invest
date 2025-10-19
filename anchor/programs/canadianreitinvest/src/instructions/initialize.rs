@@ -19,7 +19,7 @@ pub struct InitializeFundraiser<'info> {
     pub admin: Signer<'info>,
 
     #[account(mut)]
-    pub token_metadata: Account<'info, state::MetaplexTokenMetadata>,
+    pub token_metadata: Account<'info, state::ReitMintMetadata>,
 
     #[account(
         init,

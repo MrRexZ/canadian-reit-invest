@@ -161,16 +161,16 @@ export type Canadianreitinvest = {
       ]
     },
     {
-      "name": "metaplexTokenMetadata",
+      "name": "reitMintMetadata",
       "discriminator": [
-        135,
-        120,
-        138,
-        40,
-        65,
-        171,
-        234,
-        69
+        7,
+        203,
+        205,
+        100,
+        252,
+        27,
+        87,
+        105
       ]
     }
   ],
@@ -248,7 +248,7 @@ export type Canadianreitinvest = {
       }
     },
     {
-      "name": "metaplexTokenMetadata",
+      "name": "reitMintMetadata",
       "type": {
         "kind": "struct",
         "fields": [
@@ -257,19 +257,15 @@ export type Canadianreitinvest = {
             "type": "pubkey"
           },
           {
-            "name": "updateAuthority",
-            "type": "pubkey"
+            "name": "sharePrice",
+            "type": "u64"
           },
           {
-            "name": "name",
-            "type": "string"
+            "name": "decimals",
+            "type": "u8"
           },
           {
-            "name": "symbol",
-            "type": "string"
-          },
-          {
-            "name": "uri",
+            "name": "currency",
             "type": "string"
           }
         ]

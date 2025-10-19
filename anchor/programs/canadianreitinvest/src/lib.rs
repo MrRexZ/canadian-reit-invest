@@ -23,11 +23,10 @@ pub mod canadianreitinvest {
         fundraiser.bump = ctx.bumps.fundraiser;
 
         let token_metadata = &mut ctx.accounts.token_metadata;
-        token_metadata.mint = Pubkey::default();
-        token_metadata.update_authority = ctx.accounts.admin.key();
-        token_metadata.name = format!("REIT {} Token", reit_id);
-        token_metadata.symbol = "REIT".to_string();
-        token_metadata.uri = "".to_string();
+        token_metadata.mint = Pubkey::default(); // Will be set when mint is created
+        token_metadata.share_price = 1000000; // 1 USDC in smallest units
+        token_metadata.decimals = 6;
+        token_metadata.currency = "CAD".to_string();
 
         Ok(())
     }
@@ -51,11 +50,11 @@ pub struct InitializeFundraiser<'info> {
     #[account(
         init,
         payer = admin,
-        space = 8 + std::mem::size_of::<state::MetaplexTokenMetadata>(),
+        space = 8 + std::mem::size_of::<state::ReitMintMetadata>(),
         seeds = [b"token_metadata", reit_id.as_bytes()],
         bump
     )]
-    pub token_metadata: Account<'info, state::MetaplexTokenMetadata>,
+    pub token_metadata: Account<'info, state::ReitMintMetadata>,
 
     #[account(
         init,

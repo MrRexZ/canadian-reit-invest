@@ -2,8 +2,8 @@ import { useSolana } from '@/components/solana/use-solana'
 import { WalletDropdown } from '@/components/wallet-dropdown'
 import { AppHero } from '@/components/app-hero'
 import { CanadianreitinvestUiProgramExplorerLink } from './ui/canadianreitinvest-ui-program-explorer-link'
-import { CanadianreitinvestUiCreate } from './ui/canadianreitinvest-ui-create'
 import { CanadianreitinvestUiProgram } from '@/features/canadianreitinvest/ui/canadianreitinvest-ui-program'
+import { CanadianreitinvestUiInitializeFundraiser } from './ui/canadianreitinvest-ui-initialize-fundraiser'
 
 export default function CanadianreitinvestFeature() {
   const { account } = useSolana()
@@ -22,11 +22,11 @@ export default function CanadianreitinvestFeature() {
 
   return (
     <div>
-      <AppHero title="Canadianreitinvest" subtitle={'Run the program by clicking the "Run program" button.'}>
+      <AppHero title="Canadianreitinvest" subtitle={'Initialize a fundraiser for Canadian REIT investment.'}>
         <p className="mb-6">
           <CanadianreitinvestUiProgramExplorerLink />
         </p>
-        <CanadianreitinvestUiCreate account={account} />
+        <CanadianreitinvestUiInitializeFundraiser account={account} />
       </AppHero>
       <CanadianreitinvestUiProgram />
     </div>

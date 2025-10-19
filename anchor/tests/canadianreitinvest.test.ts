@@ -48,9 +48,12 @@ describe('canadianreitinvest', () => {
     await program.methods
       .initializeFundraiser(reitId)
       .accounts({
+        // @ts-ignore
         fundraiser: fundraiserPda,
         admin: admin.publicKey,
+        // @ts-ignore
         tokenMetadata,
+        // @ts-ignore
         escrowVault,
         usdcMint,
         tokenProgram: TOKEN_PROGRAM_ID,

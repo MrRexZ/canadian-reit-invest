@@ -12,8 +12,8 @@ canadianreitinvest = "HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B"
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "devnet"
+cluster = "Localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]
-test = "vitest"
+test = "npx vitest"

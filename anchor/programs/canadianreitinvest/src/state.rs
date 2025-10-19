@@ -25,10 +25,14 @@ pub struct Investment {
 }
 
 #[account]
+#[derive(InitSpace)]
 pub struct MetaplexTokenMetadata {
     pub mint: Pubkey,
     pub update_authority: Pubkey,
+    #[max_len(100)]
     pub name: String,
+    #[max_len(10)]
     pub symbol: String,
+    #[max_len(200)]
     pub uri: String,
 }

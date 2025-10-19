@@ -4,6 +4,7 @@ import { AppHero } from '@/components/app-hero'
 import { CanadianreitinvestUiProgramExplorerLink } from './ui/canadianreitinvest-ui-program-explorer-link'
 import { CanadianreitinvestUiProgram } from '@/features/canadianreitinvest/ui/canadianreitinvest-ui-program'
 import { CanadianreitinvestUiInitializeFundraiser } from './ui/canadianreitinvest-ui-initialize-fundraiser'
+import { CanadianreitinvestUiCreateUsdcMint } from './ui/canadianreitinvest-ui-create-usdc-mint'
 
 export default function CanadianreitinvestFeature() {
   const { account } = useSolana()
@@ -26,7 +27,10 @@ export default function CanadianreitinvestFeature() {
         <p className="mb-6">
           <CanadianreitinvestUiProgramExplorerLink />
         </p>
-        <CanadianreitinvestUiInitializeFundraiser account={account} />
+        <CanadianreitinvestUiCreateUsdcMint account={account} />
+        <div className="mt-6">
+          <CanadianreitinvestUiInitializeFundraiser account={account} />
+        </div>
       </AppHero>
       <CanadianreitinvestUiProgram />
     </div>

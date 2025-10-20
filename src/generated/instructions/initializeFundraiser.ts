@@ -60,7 +60,6 @@ export type InitializeFundraiserInstruction<
   TProgram extends string = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
   TAccountFundraiser extends string | AccountMeta<string> = string,
   TAccountAdmin extends string | AccountMeta<string> = string,
-  TAccountTokenMetadata extends string | AccountMeta<string> = string,
   TAccountEscrowVault extends string | AccountMeta<string> = string,
   TAccountUsdcMint extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
@@ -84,9 +83,6 @@ export type InitializeFundraiserInstruction<
         ? WritableSignerAccount<TAccountAdmin> &
             AccountSignerMeta<TAccountAdmin>
         : TAccountAdmin,
-      TAccountTokenMetadata extends string
-        ? WritableAccount<TAccountTokenMetadata>
-        : TAccountTokenMetadata,
       TAccountEscrowVault extends string
         ? WritableAccount<TAccountEscrowVault>
         : TAccountEscrowVault,
@@ -146,7 +142,6 @@ export function getInitializeFundraiserInstructionDataCodec(): Codec<
 export type InitializeFundraiserAsyncInput<
   TAccountFundraiser extends string = string,
   TAccountAdmin extends string = string,
-  TAccountTokenMetadata extends string = string,
   TAccountEscrowVault extends string = string,
   TAccountUsdcMint extends string = string,
   TAccountTokenProgram extends string = string,
@@ -155,7 +150,6 @@ export type InitializeFundraiserAsyncInput<
 > = {
   fundraiser?: Address<TAccountFundraiser>;
   admin: TransactionSigner<TAccountAdmin>;
-  tokenMetadata?: Address<TAccountTokenMetadata>;
   escrowVault?: Address<TAccountEscrowVault>;
   usdcMint: Address<TAccountUsdcMint>;
   tokenProgram?: Address<TAccountTokenProgram>;
@@ -167,7 +161,6 @@ export type InitializeFundraiserAsyncInput<
 export async function getInitializeFundraiserInstructionAsync<
   TAccountFundraiser extends string,
   TAccountAdmin extends string,
-  TAccountTokenMetadata extends string,
   TAccountEscrowVault extends string,
   TAccountUsdcMint extends string,
   TAccountTokenProgram extends string,
@@ -178,7 +171,6 @@ export async function getInitializeFundraiserInstructionAsync<
   input: InitializeFundraiserAsyncInput<
     TAccountFundraiser,
     TAccountAdmin,
-    TAccountTokenMetadata,
     TAccountEscrowVault,
     TAccountUsdcMint,
     TAccountTokenProgram,
@@ -191,7 +183,6 @@ export async function getInitializeFundraiserInstructionAsync<
     TProgramAddress,
     TAccountFundraiser,
     TAccountAdmin,
-    TAccountTokenMetadata,
     TAccountEscrowVault,
     TAccountUsdcMint,
     TAccountTokenProgram,
@@ -207,7 +198,6 @@ export async function getInitializeFundraiserInstructionAsync<
   const originalAccounts = {
     fundraiser: { value: input.fundraiser ?? null, isWritable: true },
     admin: { value: input.admin ?? null, isWritable: true },
-    tokenMetadata: { value: input.tokenMetadata ?? null, isWritable: true },
     escrowVault: { value: input.escrowVault ?? null, isWritable: true },
     usdcMint: { value: input.usdcMint ?? null, isWritable: false },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
@@ -231,21 +221,6 @@ export async function getInitializeFundraiserInstructionAsync<
           new Uint8Array([102, 117, 110, 100, 114, 97, 105, 115, 101, 114])
         ),
         getAddressEncoder().encode(expectAddress(accounts.admin.value)),
-        addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()).encode(
-          expectSome(args.reitId)
-        ),
-      ],
-    });
-  }
-  if (!accounts.tokenMetadata.value) {
-    accounts.tokenMetadata.value = await getProgramDerivedAddress({
-      programAddress,
-      seeds: [
-        getBytesEncoder().encode(
-          new Uint8Array([
-            116, 111, 107, 101, 110, 95, 109, 101, 116, 97, 100, 97, 116, 97,
-          ])
-        ),
         addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()).encode(
           expectSome(args.reitId)
         ),
@@ -283,7 +258,6 @@ export async function getInitializeFundraiserInstructionAsync<
     accounts: [
       getAccountMeta(accounts.fundraiser),
       getAccountMeta(accounts.admin),
-      getAccountMeta(accounts.tokenMetadata),
       getAccountMeta(accounts.escrowVault),
       getAccountMeta(accounts.usdcMint),
       getAccountMeta(accounts.tokenProgram),
@@ -298,7 +272,6 @@ export async function getInitializeFundraiserInstructionAsync<
     TProgramAddress,
     TAccountFundraiser,
     TAccountAdmin,
-    TAccountTokenMetadata,
     TAccountEscrowVault,
     TAccountUsdcMint,
     TAccountTokenProgram,
@@ -310,7 +283,6 @@ export async function getInitializeFundraiserInstructionAsync<
 export type InitializeFundraiserInput<
   TAccountFundraiser extends string = string,
   TAccountAdmin extends string = string,
-  TAccountTokenMetadata extends string = string,
   TAccountEscrowVault extends string = string,
   TAccountUsdcMint extends string = string,
   TAccountTokenProgram extends string = string,
@@ -319,7 +291,6 @@ export type InitializeFundraiserInput<
 > = {
   fundraiser: Address<TAccountFundraiser>;
   admin: TransactionSigner<TAccountAdmin>;
-  tokenMetadata: Address<TAccountTokenMetadata>;
   escrowVault: Address<TAccountEscrowVault>;
   usdcMint: Address<TAccountUsdcMint>;
   tokenProgram?: Address<TAccountTokenProgram>;
@@ -331,7 +302,6 @@ export type InitializeFundraiserInput<
 export function getInitializeFundraiserInstruction<
   TAccountFundraiser extends string,
   TAccountAdmin extends string,
-  TAccountTokenMetadata extends string,
   TAccountEscrowVault extends string,
   TAccountUsdcMint extends string,
   TAccountTokenProgram extends string,
@@ -342,7 +312,6 @@ export function getInitializeFundraiserInstruction<
   input: InitializeFundraiserInput<
     TAccountFundraiser,
     TAccountAdmin,
-    TAccountTokenMetadata,
     TAccountEscrowVault,
     TAccountUsdcMint,
     TAccountTokenProgram,
@@ -354,7 +323,6 @@ export function getInitializeFundraiserInstruction<
   TProgramAddress,
   TAccountFundraiser,
   TAccountAdmin,
-  TAccountTokenMetadata,
   TAccountEscrowVault,
   TAccountUsdcMint,
   TAccountTokenProgram,
@@ -369,7 +337,6 @@ export function getInitializeFundraiserInstruction<
   const originalAccounts = {
     fundraiser: { value: input.fundraiser ?? null, isWritable: true },
     admin: { value: input.admin ?? null, isWritable: true },
-    tokenMetadata: { value: input.tokenMetadata ?? null, isWritable: true },
     escrowVault: { value: input.escrowVault ?? null, isWritable: true },
     usdcMint: { value: input.usdcMint ?? null, isWritable: false },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
@@ -403,7 +370,6 @@ export function getInitializeFundraiserInstruction<
     accounts: [
       getAccountMeta(accounts.fundraiser),
       getAccountMeta(accounts.admin),
-      getAccountMeta(accounts.tokenMetadata),
       getAccountMeta(accounts.escrowVault),
       getAccountMeta(accounts.usdcMint),
       getAccountMeta(accounts.tokenProgram),
@@ -418,7 +384,6 @@ export function getInitializeFundraiserInstruction<
     TProgramAddress,
     TAccountFundraiser,
     TAccountAdmin,
-    TAccountTokenMetadata,
     TAccountEscrowVault,
     TAccountUsdcMint,
     TAccountTokenProgram,
@@ -435,12 +400,11 @@ export type ParsedInitializeFundraiserInstruction<
   accounts: {
     fundraiser: TAccountMetas[0];
     admin: TAccountMetas[1];
-    tokenMetadata: TAccountMetas[2];
-    escrowVault: TAccountMetas[3];
-    usdcMint: TAccountMetas[4];
-    tokenProgram: TAccountMetas[5];
-    systemProgram: TAccountMetas[6];
-    rent: TAccountMetas[7];
+    escrowVault: TAccountMetas[2];
+    usdcMint: TAccountMetas[3];
+    tokenProgram: TAccountMetas[4];
+    systemProgram: TAccountMetas[5];
+    rent: TAccountMetas[6];
   };
   data: InitializeFundraiserInstructionData;
 };
@@ -453,7 +417,7 @@ export function parseInitializeFundraiserInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
 ): ParsedInitializeFundraiserInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 8) {
+  if (instruction.accounts.length < 7) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -468,7 +432,6 @@ export function parseInitializeFundraiserInstruction<
     accounts: {
       fundraiser: getNextAccount(),
       admin: getNextAccount(),
-      tokenMetadata: getNextAccount(),
       escrowVault: getNextAccount(),
       usdcMint: getNextAccount(),
       tokenProgram: getNextAccount(),

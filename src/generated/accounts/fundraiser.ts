@@ -56,24 +56,32 @@ export function getFundraiserDiscriminatorBytes() {
 export type Fundraiser = {
   discriminator: ReadonlyUint8Array;
   admin: Address;
-  reitId: string;
-  tokenMetadata: Address;
+  usdcMint: Address;
+  reitMint: Address;
   escrowVault: Address;
   totalRaised: bigint;
-  totalReleased: bigint;
+  releasedAmount: bigint;
+  reitId: string;
   investmentCounter: bigint;
   bump: number;
+  sharePrice: bigint;
+  reitTokenDecimals: number;
+  reitAcceptedCurrency: string;
 };
 
 export type FundraiserArgs = {
   admin: Address;
-  reitId: string;
-  tokenMetadata: Address;
+  usdcMint: Address;
+  reitMint: Address;
   escrowVault: Address;
   totalRaised: number | bigint;
-  totalReleased: number | bigint;
+  releasedAmount: number | bigint;
+  reitId: string;
   investmentCounter: number | bigint;
   bump: number;
+  sharePrice: number | bigint;
+  reitTokenDecimals: number;
+  reitAcceptedCurrency: string;
 };
 
 export function getFundraiserEncoder(): Encoder<FundraiserArgs> {
@@ -81,13 +89,20 @@ export function getFundraiserEncoder(): Encoder<FundraiserArgs> {
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['admin', getAddressEncoder()],
-      ['reitId', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-      ['tokenMetadata', getAddressEncoder()],
+      ['usdcMint', getAddressEncoder()],
+      ['reitMint', getAddressEncoder()],
       ['escrowVault', getAddressEncoder()],
       ['totalRaised', getU64Encoder()],
-      ['totalReleased', getU64Encoder()],
+      ['releasedAmount', getU64Encoder()],
+      ['reitId', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
       ['investmentCounter', getU64Encoder()],
       ['bump', getU8Encoder()],
+      ['sharePrice', getU64Encoder()],
+      ['reitTokenDecimals', getU8Encoder()],
+      [
+        'reitAcceptedCurrency',
+        addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
+      ],
     ]),
     (value) => ({ ...value, discriminator: FUNDRAISER_DISCRIMINATOR })
   );
@@ -97,13 +112,20 @@ export function getFundraiserDecoder(): Decoder<Fundraiser> {
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['admin', getAddressDecoder()],
-    ['reitId', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ['tokenMetadata', getAddressDecoder()],
+    ['usdcMint', getAddressDecoder()],
+    ['reitMint', getAddressDecoder()],
     ['escrowVault', getAddressDecoder()],
     ['totalRaised', getU64Decoder()],
-    ['totalReleased', getU64Decoder()],
+    ['releasedAmount', getU64Decoder()],
+    ['reitId', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ['investmentCounter', getU64Decoder()],
     ['bump', getU8Decoder()],
+    ['sharePrice', getU64Decoder()],
+    ['reitTokenDecimals', getU8Decoder()],
+    [
+      'reitAcceptedCurrency',
+      addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder()),
+    ],
   ]);
 }
 

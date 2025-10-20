@@ -40,7 +40,7 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
           id="usdcMint"
           value={usdcMint}
           onChange={(e) => setUsdcMint(e.target.value)}
-          placeholder="USDC mint public key"
+          placeholder="Paste USDC mint address from above"
         />
       </div>
       <Button

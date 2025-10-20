@@ -63,37 +63,6 @@ export type Canadianreitinvest = {
           "signer": true
         },
         {
-          "name": "tokenMetadata",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  116,
-                  111,
-                  107,
-                  101,
-                  110,
-                  95,
-                  109,
-                  101,
-                  116,
-                  97,
-                  100,
-                  97,
-                  116,
-                  97
-                ]
-              },
-              {
-                "kind": "arg",
-                "path": "reitId"
-              }
-            ]
-          }
-        },
-        {
           "name": "escrowVault",
           "writable": true,
           "pda": {
@@ -159,19 +128,6 @@ export type Canadianreitinvest = {
         204,
         196
       ]
-    },
-    {
-      "name": "reitMintMetadata",
-      "discriminator": [
-        7,
-        203,
-        205,
-        100,
-        252,
-        27,
-        87,
-        105
-      ]
     }
   ],
   "errors": [
@@ -217,11 +173,11 @@ export type Canadianreitinvest = {
             "type": "pubkey"
           },
           {
-            "name": "reitId",
-            "type": "string"
+            "name": "usdcMint",
+            "type": "pubkey"
           },
           {
-            "name": "tokenMetadata",
+            "name": "reitMint",
             "type": "pubkey"
           },
           {
@@ -233,8 +189,12 @@ export type Canadianreitinvest = {
             "type": "u64"
           },
           {
-            "name": "totalReleased",
+            "name": "releasedAmount",
             "type": "u64"
+          },
+          {
+            "name": "reitId",
+            "type": "string"
           },
           {
             "name": "investmentCounter",
@@ -243,29 +203,17 @@ export type Canadianreitinvest = {
           {
             "name": "bump",
             "type": "u8"
-          }
-        ]
-      }
-    },
-    {
-      "name": "reitMintMetadata",
-      "type": {
-        "kind": "struct",
-        "fields": [
-          {
-            "name": "mint",
-            "type": "pubkey"
           },
           {
             "name": "sharePrice",
             "type": "u64"
           },
           {
-            "name": "decimals",
+            "name": "reitTokenDecimals",
             "type": "u8"
           },
           {
-            "name": "currency",
+            "name": "reitAcceptedCurrency",
             "type": "string"
           }
         ]

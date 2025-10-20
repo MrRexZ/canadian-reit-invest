@@ -22,8 +22,12 @@
                 pub escrow_vault: Pubkey,  // Escrow token account
                 pub total_raised: u64,     // Total USDC raised
                 pub released_amount: u64,  // Total USDC released to admin
-                pub reit_id: String,       // Unique REIT ID
+                pub reit_id: String,       // Unique REIT ID (max_len: 32)
                 pub investment_counter: u64, // Increments for unique PDA derivation
+                pub bump: u8,              // PDA bump seed
+                pub share_price: u64,      // Share price in USDC (0 initially, set by admin)
+                pub reit_token_decimals: u8, // Number of decimals for REIT tokens
+                pub reit_accepted_currency: String, // Currency code (max_len: 3)
             }
         ```
         
@@ -39,11 +43,12 @@
         pub struct Investment {
             pub investor: Pubkey,           // Investor’s public key
             pub fundraiser: Pubkey,     // Linked Fundraiser PDA
-            pub amount: u64,            // USDC invested in this entry
+            pub usdc_amount: u64,       // USDC invested in this entry
             pub reit_amount: u64,       // Minted REIT tokens for this entry (0 until minted)
             pub released: bool,         // True if this investment’s USDC is released
             pub refunded: bool,         // True if this investment has been refunded
             pub investment_date: i64,   // Unix timestamp of investment
+            pub bump: u8,               // PDA bump seed
         }
         ```
         
@@ -52,19 +57,6 @@
 - **REIT Token Mint**:
     - **Role**: Defines REIT tokens, includes share price in metadata.
     - **Schema**: SPL Mint Account (decimals: 6, authority: Fundraiser PDA, metadata with share price).
-- **Token Metadata**:
-    - **Role**: Stores REIT token details, including share price.
-    - **Schema**
-        
-        ```json
-        #[account]
-        pub struct ReitMintMetadata {
-            pub mint: Pubkey,           // Address of the REIT token mint
-            pub share_price: u64,       // Price per share in USDC (e.g., 1000000 = 1 USDC)
-            pub decimals: u8,           // Token decimals (e.g., 6)
-            pub currency: String,       // Currency code (e.g., "CAD")
-        }
-        ```
         
 - **User USDC ATA**:
     - **Role**: User’s source of USDC for investment and to receives dividends.

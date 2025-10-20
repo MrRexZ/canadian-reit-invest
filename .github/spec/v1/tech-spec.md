@@ -20,7 +20,6 @@
                 pub usdc_mint: Pubkey,     // USDC mint
                 pub reit_mint: Pubkey,     // REIT token mint
                 pub escrow_vault: Pubkey,  // Escrow token account
-                pub funding_goal: u64,     // Target USDC
                 pub total_raised: u64,     // Total USDC raised
                 pub released_amount: u64,  // Total USDC released to admin
                 pub reit_id: String,       // Unique REIT ID

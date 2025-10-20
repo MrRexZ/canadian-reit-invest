@@ -3,6 +3,26 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::state;
 
+pub fn handler(ctx: Context<InitializeFundraiser>, reit_id: String) -> Result<()> {
+    let fundraiser = &mut ctx.accounts.fundraiser;
+    fundraiser.admin = ctx.accounts.admin.key();
+    fundraiser.reit_id = reit_id.clone();
+    fundraiser.token_metadata = ctx.accounts.token_metadata.key();
+    fundraiser.escrow_vault = ctx.accounts.escrow_vault.key();
+    fundraiser.total_raised = 0;
+    fundraiser.total_released = 0;
+    fundraiser.investment_counter = 0;
+    fundraiser.bump = ctx.bumps.fundraiser;
+
+    let token_metadata = &mut ctx.accounts.token_metadata;
+    token_metadata.mint = Pubkey::default(); // Will be set when mint is created
+    token_metadata.share_price = 1000000; // 1 USDC in smallest units
+    token_metadata.decimals = 6;
+    token_metadata.currency = "CAD".to_string();
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction(reit_id: String)]
 pub struct InitializeFundraiser<'info> {
@@ -18,7 +38,13 @@ pub struct InitializeFundraiser<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 
-    #[account(mut)]
+    #[account(
+        init,
+        payer = admin,
+        space = 8 + std::mem::size_of::<state::ReitMintMetadata>(),
+        seeds = [b"token_metadata", reit_id.as_bytes()],
+        bump
+    )]
     pub token_metadata: Account<'info, state::ReitMintMetadata>,
 
     #[account(

@@ -11,7 +11,7 @@ Key features:
 
 ## Architecture
 - **Backend (Solana Programs)**: Written in Rust using Anchor framework. Located in `anchor/` directory. Includes programs for investment, token minting, and escrow management.
-- **Frontend**: React application built with Vite, TypeScript, and Tailwind CSS. Located in `src/` directory. Handles user wallets, transactions, and UI components.
+- **Frontend**: React application built with Vite, TypeScript, Tailwind CSS, and Shadcn UI components. Located in `src/` directory. Handles user wallets, transactions, and UI components. Design theme must fit within the Shadcn framework.
 - **Tests**: Unit tests for Solana programs in `tests/`, integration tests in `anchor/tests/`.
 - **Configuration**: Anchor.toml for Solana deployment, package.json for frontend dependencies, tsconfig files for TypeScript.
 - **External Integrations**: Notion API for documentation (via MCP server), external CAD conversion services (off-chain).
@@ -29,7 +29,7 @@ Key features:
 
 ## Coding Guidelines
 - **Rust (Anchor)**: Follow Anchor best practices. Use PDAs for state, validate accounts strictly. Handle errors with custom error codes.
-- **TypeScript/React**: Use functional components, hooks (e.g., useWallet from @solana/wallet-adapter). Ensure type safety with TypeScript.
+- **TypeScript/React**: Use functional components, hooks (e.g., useWallet from @solana/wallet-adapter). Ensure type safety with TypeScript. Use Shadcn UI components for consistent design and theming.
 - **Security**: Validate all inputs, use proper authority checks. Avoid reentrancy in Solana programs.
 - **Testing**: Write comprehensive tests for all onchain logic. Use Anchor's testing framework.
 - **Dependencies**: Pin versions in package.json and Cargo.toml. Use audited crates.
@@ -44,7 +44,7 @@ Key features:
 ## File Structure Notes
 - `anchor/programs/canadianreitinvest/src/lib.rs`: Main program logic.
 - `src/features/`: Frontend features (account, cluster, dashboard).
-- `src/components/`: Reusable UI components (wallet, modals, explorers).
+- `src/components/`: Reusable UI components using Shadcn (wallet, modals, explorers).
 - `tests/`: End-to-end tests for Solana programs.
 
 ## Additional Context

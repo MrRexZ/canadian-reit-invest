@@ -20,7 +20,6 @@ export const CANADIANREITINVEST_PROGRAM_ADDRESS =
 
 export enum CanadianreitinvestAccount {
   Fundraiser,
-  ReitMintMetadata,
 }
 
 export function identifyCanadianreitinvestAccount(
@@ -37,17 +36,6 @@ export function identifyCanadianreitinvestAccount(
     )
   ) {
     return CanadianreitinvestAccount.Fundraiser;
-  }
-  if (
-    containsBytes(
-      data,
-      fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([7, 203, 205, 100, 252, 27, 87, 105])
-      ),
-      0
-    )
-  ) {
-    return CanadianreitinvestAccount.ReitMintMetadata;
   }
   throw new Error(
     'The provided account could not be identified as a canadianreitinvest account.'

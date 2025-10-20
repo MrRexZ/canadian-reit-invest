@@ -3,6 +3,55 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::state;
 
+pub fn handler(ctx: Context<InitializeFundraiser>, reit_id: String) -> Result<()> {
+    // Log entry so we can see the instruction hit in transaction logs
+    msg!("InitializeFundraiser handler start");
+
+    // Inspect the raw usdc_mint account info (we intentionally use UncheckedAccount
+    // in the accounts struct so Anchor does not attempt to deserialize a Mint
+    // before we can log and provide a helpful error message).
+    let usdc_ai = &ctx.accounts.usdc_mint.to_account_info();
+    msg!("usdc_mint key: {}", usdc_ai.key);
+    msg!("usdc_mint owner: {}", usdc_ai.owner);
+    // lamports is a RefCell; borrow to log
+    msg!("usdc_mint lamports: {}", usdc_ai.lamports.borrow());
+    match usdc_ai.try_borrow_data() {
+        Ok(data) => {
+            msg!("usdc_mint data len: {}", data.len());
+            // Log first 16 bytes in hex to help identify account type in logs
+            let sample_len = core::cmp::min(16usize, data.len());
+            let mut hex_buf = String::new();
+            for b in &data[0..sample_len] {
+                use core::fmt::Write;
+                write!(hex_buf, "{:02x}", b).ok();
+            }
+            msg!("usdc_mint data sample (hex): {}", hex_buf);
+        }
+        Err(_) => {
+            msg!("unable to borrow usdc_mint data");
+        }
+    }
+
+    let fundraiser = &mut ctx.accounts.fundraiser;
+    fundraiser.admin = ctx.accounts.admin.key();
+    fundraiser.usdc_mint = ctx.accounts.usdc_mint.key();
+    fundraiser.reit_mint = Pubkey::default();
+    fundraiser.escrow_vault = ctx.accounts.escrow_vault.key();
+    fundraiser.total_raised = 0;
+    fundraiser.released_amount = 0;
+    fundraiser.reit_id = reit_id.clone();
+    fundraiser.investment_counter = 0;
+    fundraiser.bump = ctx.bumps.fundraiser;
+    // Flattened metadata
+    fundraiser.share_price = 0; // To be set later by admin
+    fundraiser.reit_token_decimals = 6;
+    fundraiser.reit_accepted_currency = "CAD".to_string();
+
+    msg!("InitializeFundraiser handler complete");
+
+    Ok(())
+}
+
 #[derive(Accounts)]
 #[instruction(reit_id: String)]
 pub struct InitializeFundraiser<'info> {
@@ -17,9 +66,6 @@ pub struct InitializeFundraiser<'info> {
 
     #[account(mut)]
     pub admin: Signer<'info>,
-
-    #[account(mut)]
-    pub token_metadata: Account<'info, state::ReitMintMetadata>,
 
     #[account(
         init,

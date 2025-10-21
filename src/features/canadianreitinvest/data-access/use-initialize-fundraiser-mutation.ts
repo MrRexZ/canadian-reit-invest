@@ -23,11 +23,6 @@ export function useInitializeFundraiserMutation({ account }: { account: UiWallet
         Buffer.from(reitId),
       ], programId)
 
-      const [tokenMetadataPda] = await PublicKey.findProgramAddress([
-        Buffer.from('token_metadata'),
-        Buffer.from(reitId),
-      ], programId)
-
       const [escrowVaultPda] = await PublicKey.findProgramAddress([
         Buffer.from('escrow_vault'),
         fundraiserPda.toBuffer(),
@@ -36,7 +31,6 @@ export function useInitializeFundraiserMutation({ account }: { account: UiWallet
       const instruction = await getInitializeFundraiserInstructionAsync({
         fundraiser: fundraiserPda.toBase58() as Address,
         admin: txSigner,
-        tokenMetadata: tokenMetadataPda.toBase58() as Address,
         escrowVault: escrowVaultPda.toBase58() as Address,
         usdcMint: usdcMint.toBase58() as Address,
         reitId,

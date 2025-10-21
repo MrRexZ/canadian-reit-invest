@@ -36,10 +36,6 @@ describe('canadianreitinvest', () => {
       [Buffer.from('fundraiser'), admin.publicKey.toBuffer(), Buffer.from(reitId)],
       program.programId
     )
-    const [tokenMetadata] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('token_metadata'), Buffer.from(reitId)],
-      program.programId
-    )
     const [escrowVault] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from('escrow_vault'), fundraiserPda.toBuffer()],
       program.programId
@@ -51,8 +47,6 @@ describe('canadianreitinvest', () => {
         // @ts-ignore
         fundraiser: fundraiserPda,
         admin: admin.publicKey,
-        // @ts-ignore
-        tokenMetadata,
         // @ts-ignore
         escrowVault,
         usdcMint,
@@ -67,10 +61,10 @@ describe('canadianreitinvest', () => {
     const fundraiserAccount = await program.account.fundraiser.fetch(fundraiserPda)
     expect(fundraiserAccount.admin.toString()).toBe(admin.publicKey.toString())
     expect(fundraiserAccount.reitId).toBe(reitId)
-    expect(fundraiserAccount.tokenMetadata.toString()).toBe(tokenMetadata.toString())
     expect(fundraiserAccount.escrowVault.toString()).toBe(escrowVault.toString())
     expect(fundraiserAccount.totalRaised.toNumber()).toBe(0)
-    expect(fundraiserAccount.totalReleased.toNumber()).toBe(0)
+  // tokenMetadata removed from account
+  expect(fundraiserAccount.releasedAmount.toNumber()).toBe(0)
     expect(fundraiserAccount.investmentCounter.toNumber()).toBe(0)
 
     // Check escrow vault exists

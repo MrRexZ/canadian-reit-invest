@@ -3,10 +3,7 @@ import { AppLayout } from '@/components/app-layout.tsx'
 import { AppRoutes } from '@/app-routes.tsx'
 
 const links: { label: string; path: string }[] = [
-  //
-  { label: 'Home', path: '/' },
-  { label: 'Account', path: '/account' },
-  { label: 'Canadianreitinvest Program', path: '/canadianreitinvest' },
+  { label: 'Admin Fundraiser Dashboard', path: '/' },
 ]
 
 export function App() {

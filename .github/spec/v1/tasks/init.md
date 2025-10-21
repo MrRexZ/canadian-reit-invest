@@ -21,3 +21,4 @@
 - Create authentication components: `AuthProvider`, `AuthLogin`, `AuthSignup`
 - Add protected routes and user dropdown with sign out functionality
 - Integrate authentication into the app provider stack
+- Enable Google OAuth authentication alongside email/password

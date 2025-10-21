@@ -18,8 +18,8 @@ export function ProtectedRoute({ children }: ProtectedRouteProps) {
   }
 
   if (!user) {
-    // Redirect to auth page with return url
-    return <Navigate to="/auth" state={{ from: location }} replace />
+    // Redirect to root (auth UI is shown inline on the main page)
+    return <Navigate to="/" state={{ from: location }} replace />
   }
 
   return <>{children}</>

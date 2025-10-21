@@ -23,7 +23,7 @@ export default function CanadianreitinvestFeature() {
 
   return (
     <div>
-      <AppHero title="Canadianreitinvest" subtitle={'Initialize a fundraiser for Canadian REIT investment.'}>
+      <AppHero title="Admin Fundraiser Dashboard" subtitle={'Admin Fundraiser Dashboard'}>
         <p className="mb-6">
           <CanadianreitinvestUiProgramExplorerLink />
         </p>

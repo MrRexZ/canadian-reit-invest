@@ -5,15 +5,16 @@
     "anchor-build": "cd anchor && anchor build",
     "anchor-localnet": "cd anchor && anchor localnet",
     "anchor-test": "cd anchor && anchor test",
-    "build": "tsc -b && vite build",
+  "build": "tsc -b && vite build --mode production",
     "codama:js": "codama run js -c codama.js",
     "ci": "npm run build && npm run lint && npm run format:check && npm run codama:js",
-    "dev": "vite",
+  "dev": "vite --mode development",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
-    "preview": "vite preview",
-    "setup": "npm run anchor keys sync && npm run codama:js"
+  "preview": "vite preview",
+  "prod": "npm run build && vite preview --port 4173",
+  "setup": "npm run anchor keys sync && npm run codama:js"
   },
   "description": "React+Vite, Tailwind, gill (based on @solana/kit), canadianreitinvest Anchor example, Wallet UI",
   "keywords": [

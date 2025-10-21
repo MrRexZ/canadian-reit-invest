@@ -91,3 +91,9 @@ Build the app
 ```shell
 npm run build
 ```
+
+Environment files
+
+- This project uses Vite mode env files. Put development variables in `.env.development` and production variables in `.env.production`.
+- When you run `npm run dev` it runs `vite --mode development` which automatically loads `.env.development`.
+- To build for production use `npm run build` (Vite will use `.env.production` during build when run with `--mode production`).

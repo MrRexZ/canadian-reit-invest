@@ -39,7 +39,7 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
    - `name` (String)
    - `symbol` (String)
    - `uri` (String)
-   - Note: Custom fields (`currency` (String), `share_price` (u64), `decimals` (u8)) should be stored in a separate account or as additional metadata to maintain Metaplex compatibility. Initialize the TokenMetadata account via Metaplex's `CreateMetadataAccountV3` instruction.
+   - Note: Custom fields (`currency` (String), `share_price` (u64), `decimals` (u8)) should be stored in Metaplex Token Metadata JSON (via the `uri` field) to maintain Metaplex compatibility. Initialize the TokenMetadata account via Metaplex's `CreateMetadataAccountV3` instruction.
 
 **Files to modify**:
 - `anchor/programs/canadianreitinvest/src/lib.rs` or create `state.rs`

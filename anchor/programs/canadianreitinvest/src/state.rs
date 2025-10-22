@@ -13,9 +13,6 @@ pub struct Fundraiser {
     pub reit_id: String, // Unique identifier for the REIT fundraiser (used in PDA seeds)
     pub investment_counter: u64, // Counter for generating unique investment PDA seeds
     pub bump: u8, // PDA bump seed for the fundraiser account
-    // Flattened ReitMintMetadata fields
-    pub share_price: u64, // Share price in USDC (used for dividend and investment calculations)
-    pub reit_token_decimals: u8, // Number of decimals for REIT tokens
     #[max_len(3)]
     pub reit_accepted_currency: String, // Currency code for the REIT (e.g., "CAD")
 }

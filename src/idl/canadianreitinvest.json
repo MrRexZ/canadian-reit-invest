@@ -199,14 +199,6 @@
             "type": "u8"
           },
           {
-            "name": "share_price",
-            "type": "u64"
-          },
-          {
-            "name": "reit_token_decimals",
-            "type": "u8"
-          },
-          {
             "name": "reit_accepted_currency",
             "type": "string"
           }

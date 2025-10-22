@@ -205,14 +205,6 @@ export type Canadianreitinvest = {
             "type": "u8"
           },
           {
-            "name": "sharePrice",
-            "type": "u64"
-          },
-          {
-            "name": "reitTokenDecimals",
-            "type": "u8"
-          },
-          {
             "name": "reitAcceptedCurrency",
             "type": "string"
           }

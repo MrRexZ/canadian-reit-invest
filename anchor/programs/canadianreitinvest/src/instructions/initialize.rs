@@ -42,9 +42,6 @@ pub fn handler(ctx: Context<InitializeFundraiser>, reit_id: String) -> Result<()
     fundraiser.reit_id = reit_id.clone();
     fundraiser.investment_counter = 0;
     fundraiser.bump = ctx.bumps.fundraiser;
-    // Flattened metadata
-    fundraiser.share_price = 0; // To be set later by admin
-    fundraiser.reit_token_decimals = 6;
     fundraiser.reit_accepted_currency = "CAD".to_string();
 
     msg!("InitializeFundraiser handler complete");

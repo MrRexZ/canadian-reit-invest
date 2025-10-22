@@ -64,8 +64,6 @@ export type Fundraiser = {
   reitId: string;
   investmentCounter: bigint;
   bump: number;
-  sharePrice: bigint;
-  reitTokenDecimals: number;
   reitAcceptedCurrency: string;
 };
 
@@ -79,8 +77,6 @@ export type FundraiserArgs = {
   reitId: string;
   investmentCounter: number | bigint;
   bump: number;
-  sharePrice: number | bigint;
-  reitTokenDecimals: number;
   reitAcceptedCurrency: string;
 };
 
@@ -97,8 +93,6 @@ export function getFundraiserEncoder(): Encoder<FundraiserArgs> {
       ['reitId', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
       ['investmentCounter', getU64Encoder()],
       ['bump', getU8Encoder()],
-      ['sharePrice', getU64Encoder()],
-      ['reitTokenDecimals', getU8Encoder()],
       [
         'reitAcceptedCurrency',
         addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
@@ -120,8 +114,6 @@ export function getFundraiserDecoder(): Decoder<Fundraiser> {
     ['reitId', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
     ['investmentCounter', getU64Decoder()],
     ['bump', getU8Decoder()],
-    ['sharePrice', getU64Decoder()],
-    ['reitTokenDecimals', getU8Decoder()],
     [
       'reitAcceptedCurrency',
       addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder()),

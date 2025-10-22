@@ -7,8 +7,6 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
   assertAccountExists,
   assertAccountsExist,
   combineCodec,
@@ -25,21 +23,17 @@ import {
   getStructEncoder,
   getU32Decoder,
   getU32Encoder,
-  getU64Decoder,
-  getU64Encoder,
   getU8Decoder,
   getU8Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
   transformEncoder,
   type Account,
   type Address,
-  type Codec,
-  type Decoder,
   type EncodedAccount,
-  type Encoder,
   type FetchAccountConfig,
   type FetchAccountsConfig,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type MaybeAccount,
   type MaybeEncodedAccount,
   type ReadonlyUint8Array,
@@ -59,12 +53,11 @@ export type Fundraiser = {
   usdcMint: Address;
   reitMint: Address;
   escrowVault: Address;
-  totalRaised: bigint;
-  releasedAmount: bigint;
-  reitId: string;
-  investmentCounter: bigint;
+  totalRaised: number;
+  releasedAmount: number;
+  investmentCounter: number;
   bump: number;
-  reitAcceptedCurrency: string;
+  reitAcceptedCurrency: ReadonlyUint8Array;
 };
 
 export type FundraiserArgs = {
@@ -72,15 +65,14 @@ export type FundraiserArgs = {
   usdcMint: Address;
   reitMint: Address;
   escrowVault: Address;
-  totalRaised: number | bigint;
-  releasedAmount: number | bigint;
-  reitId: string;
-  investmentCounter: number | bigint;
+  totalRaised: number;
+  releasedAmount: number;
+  investmentCounter: number;
   bump: number;
-  reitAcceptedCurrency: string;
+  reitAcceptedCurrency: ReadonlyUint8Array;
 };
 
-export function getFundraiserEncoder(): Encoder<FundraiserArgs> {
+export function getFundraiserEncoder(): FixedSizeEncoder<FundraiserArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
@@ -88,40 +80,35 @@ export function getFundraiserEncoder(): Encoder<FundraiserArgs> {
       ['usdcMint', getAddressEncoder()],
       ['reitMint', getAddressEncoder()],
       ['escrowVault', getAddressEncoder()],
-      ['totalRaised', getU64Encoder()],
-      ['releasedAmount', getU64Encoder()],
-      ['reitId', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
-      ['investmentCounter', getU64Encoder()],
+      ['totalRaised', getU32Encoder()],
+      ['releasedAmount', getU32Encoder()],
+      ['investmentCounter', getU32Encoder()],
       ['bump', getU8Encoder()],
-      [
-        'reitAcceptedCurrency',
-        addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()),
-      ],
+      ['reitAcceptedCurrency', fixEncoderSize(getBytesEncoder(), 3)],
     ]),
     (value) => ({ ...value, discriminator: FUNDRAISER_DISCRIMINATOR })
   );
 }
 
-export function getFundraiserDecoder(): Decoder<Fundraiser> {
+export function getFundraiserDecoder(): FixedSizeDecoder<Fundraiser> {
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['admin', getAddressDecoder()],
     ['usdcMint', getAddressDecoder()],
     ['reitMint', getAddressDecoder()],
     ['escrowVault', getAddressDecoder()],
-    ['totalRaised', getU64Decoder()],
-    ['releasedAmount', getU64Decoder()],
-    ['reitId', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
-    ['investmentCounter', getU64Decoder()],
+    ['totalRaised', getU32Decoder()],
+    ['releasedAmount', getU32Decoder()],
+    ['investmentCounter', getU32Decoder()],
     ['bump', getU8Decoder()],
-    [
-      'reitAcceptedCurrency',
-      addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder()),
-    ],
+    ['reitAcceptedCurrency', fixDecoderSize(getBytesDecoder(), 3)],
   ]);
 }
 
-export function getFundraiserCodec(): Codec<FundraiserArgs, Fundraiser> {
+export function getFundraiserCodec(): FixedSizeCodec<
+  FundraiserArgs,
+  Fundraiser
+> {
   return combineCodec(getFundraiserEncoder(), getFundraiserDecoder());
 }
 
@@ -176,4 +163,8 @@ export async function fetchAllMaybeFundraiser(
 ): Promise<MaybeAccount<Fundraiser>[]> {
   const maybeAccounts = await fetchEncodedAccounts(rpc, addresses, config);
   return maybeAccounts.map((maybeAccount) => decodeFundraiser(maybeAccount));
+}
+
+export function getFundraiserSize(): number {
+  return 152;
 }

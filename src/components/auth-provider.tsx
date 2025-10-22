@@ -88,7 +88,6 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
           return
         }
 
-        // @ts-ignore data may be typed as any
         const fetchedRole = data?.role ?? null
         console.log('[AuthProvider] Successfully fetched role:', fetchedRole)
         setRole(fetchedRole)

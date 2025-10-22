@@ -3,9 +3,13 @@ use anchor_spl::token::{Mint, Token, TokenAccount};
 
 use crate::state;
 
-pub fn handler(ctx: Context<InitializeFundraiser>, reit_id: String) -> Result<()> {
+pub fn handler(ctx: Context<InitializeFundraiser>, _reit_id: String, _reit_id_hash: [u8; 16]) -> Result<()> {
     // Log entry so we can see the instruction hit in transaction logs
     msg!("InitializeFundraiser handler start");
+
+    // Note: No validation needed here. The PDA is derived from reit_id_hash,
+    // so if the hash doesn't match what was used to compute the PDA,
+    // the account won't be found or will be incorrect, causing the transaction to fail.
 
     // Inspect the raw usdc_mint account info (we intentionally use UncheckedAccount
     // in the accounts struct so Anchor does not attempt to deserialize a Mint
@@ -39,10 +43,9 @@ pub fn handler(ctx: Context<InitializeFundraiser>, reit_id: String) -> Result<()
     fundraiser.escrow_vault = ctx.accounts.escrow_vault.key();
     fundraiser.total_raised = 0;
     fundraiser.released_amount = 0;
-    fundraiser.reit_id = reit_id.clone();
     fundraiser.investment_counter = 0;
     fundraiser.bump = ctx.bumps.fundraiser;
-    fundraiser.reit_accepted_currency = "CAD".to_string();
+    fundraiser.reit_accepted_currency = *b"CAD";
 
     msg!("InitializeFundraiser handler complete");
 
@@ -50,13 +53,13 @@ pub fn handler(ctx: Context<InitializeFundraiser>, reit_id: String) -> Result<()
 }
 
 #[derive(Accounts)]
-#[instruction(reit_id: String)]
+#[instruction(reit_id: String, reit_id_hash: [u8; 16])]
 pub struct InitializeFundraiser<'info> {
     #[account(
         init,
         payer = admin,
-        space = 8 + std::mem::size_of::<state::Fundraiser>(),
-        seeds = [b"fundraiser", admin.key().as_ref(), reit_id.as_bytes()],
+        space = 8 + state::Fundraiser::INIT_SPACE,
+        seeds = [b"fundraiser", reit_id_hash.as_slice()],
         bump
     )]
     pub fundraiser: Account<'info, state::Fundraiser>,

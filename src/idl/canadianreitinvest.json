@@ -22,34 +22,7 @@
       "accounts": [
         {
           "name": "fundraiser",
-          "writable": true,
-          "pda": {
-            "seeds": [
-              {
-                "kind": "const",
-                "value": [
-                  102,
-                  117,
-                  110,
-                  100,
-                  114,
-                  97,
-                  105,
-                  115,
-                  101,
-                  114
-                ]
-              },
-              {
-                "kind": "account",
-                "path": "admin"
-              },
-              {
-                "kind": "arg",
-                "path": "reit_id"
-              }
-            ]
-          }
+          "writable": true
         },
         {
           "name": "admin",
@@ -105,6 +78,15 @@
         {
           "name": "reit_id",
           "type": "string"
+        },
+        {
+          "name": "reit_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
         }
       ]
     }
@@ -154,6 +136,11 @@
       "code": 6005,
       "name": "ArithmeticOverflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidReitIdHash",
+      "msg": "Invalid REIT ID hash"
     }
   ],
   "types": [
@@ -180,19 +167,15 @@
           },
           {
             "name": "total_raised",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "released_amount",
-            "type": "u64"
-          },
-          {
-            "name": "reit_id",
-            "type": "string"
+            "type": "u32"
           },
           {
             "name": "investment_counter",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "bump",
@@ -200,7 +183,12 @@
           },
           {
             "name": "reit_accepted_currency",
-            "type": "string"
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
           }
         ]
       }

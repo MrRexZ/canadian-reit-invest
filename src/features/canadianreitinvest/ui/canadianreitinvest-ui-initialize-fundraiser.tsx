@@ -10,7 +10,7 @@ import { CLUSTER_CONFIG } from '@/lib/cluster-config'
 
 export function CanadianreitinvestUiInitializeFundraiser({ account }: { account: UiWalletAccount }) {
   const { cluster } = useSolana()
-  const [reitId, setReitId] = useState('')
+  const [reitName, setReitName] = useState('')
   const [usdcMint, setUsdcMint] = useState('')
 
   const initializeMutation = useInitializeFundraiserMutation({ account })
@@ -21,10 +21,10 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
 
   const handleInitialize = () => {
     const mintToUse = isDevnet ? defaultUsdcMint : usdcMint
-    if (!reitId || !mintToUse) return
+    if (!reitName || !mintToUse) return
     try {
       const usdcMintPubkey = new PublicKey(mintToUse)
-      initializeMutation.mutateAsync({ reitId, usdcMint: usdcMintPubkey })
+      initializeMutation.mutateAsync({ reitName, usdcMint: usdcMintPubkey })
     } catch (error) {
       console.error('Invalid USDC mint address', error)
     }
@@ -34,12 +34,12 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
     <div className="space-y-4">
       <h3 className="text-lg font-semibold">Initialize Fundraiser</h3>
       <div>
-        <Label htmlFor="reitId">REIT ID</Label>
+        <Label htmlFor="reitName">REIT Name</Label>
         <Input
-          id="reitId"
-          value={reitId}
-          onChange={(e) => setReitId(e.target.value)}
-          placeholder="e.g. REIT-001"
+          id="reitName"
+          value={reitName}
+          onChange={(e) => setReitName(e.target.value)}
+          placeholder="e.g. Maple REIT"
         />
       </div>
       {!isDevnet && (
@@ -63,7 +63,7 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
       )}
       <Button
         onClick={handleInitialize}
-        disabled={initializeMutation.isPending || !reitId || (!isDevnet && !usdcMint)}
+        disabled={initializeMutation.isPending || !reitName || (!isDevnet && !usdcMint)}
       >
         Initialize Fundraiser{initializeMutation.isPending && '...'}
       </Button>

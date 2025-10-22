@@ -14,4 +14,6 @@ pub enum CustomError {
     InvestmentCounterOverflow,
     #[msg("Arithmetic overflow")]
     ArithmeticOverflow,
+    #[msg("Invalid REIT ID hash")]
+    InvalidReitIdHash,
 }

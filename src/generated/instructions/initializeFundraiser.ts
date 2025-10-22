@@ -41,7 +41,6 @@ import {
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '../programs';
 import {
   expectAddress,
-  expectSome,
   getAccountMetaFactory,
   type ResolvedAccount,
 } from '../shared';
@@ -105,15 +104,20 @@ export type InitializeFundraiserInstruction<
 export type InitializeFundraiserInstructionData = {
   discriminator: ReadonlyUint8Array;
   reitId: string;
+  reitIdHash: ReadonlyUint8Array;
 };
 
-export type InitializeFundraiserInstructionDataArgs = { reitId: string };
+export type InitializeFundraiserInstructionDataArgs = {
+  reitId: string;
+  reitIdHash: ReadonlyUint8Array;
+};
 
 export function getInitializeFundraiserInstructionDataEncoder(): Encoder<InitializeFundraiserInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['reitId', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+      ['reitIdHash', fixEncoderSize(getBytesEncoder(), 16)],
     ]),
     (value) => ({
       ...value,
@@ -126,6 +130,7 @@ export function getInitializeFundraiserInstructionDataDecoder(): Decoder<Initial
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['reitId', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ['reitIdHash', fixDecoderSize(getBytesDecoder(), 16)],
   ]);
 }
 
@@ -148,7 +153,7 @@ export type InitializeFundraiserAsyncInput<
   TAccountSystemProgram extends string = string,
   TAccountRent extends string = string,
 > = {
-  fundraiser?: Address<TAccountFundraiser>;
+  fundraiser: Address<TAccountFundraiser>;
   admin: TransactionSigner<TAccountAdmin>;
   escrowVault?: Address<TAccountEscrowVault>;
   usdcMint: Address<TAccountUsdcMint>;
@@ -156,6 +161,7 @@ export type InitializeFundraiserAsyncInput<
   systemProgram?: Address<TAccountSystemProgram>;
   rent?: Address<TAccountRent>;
   reitId: InitializeFundraiserInstructionDataArgs['reitId'];
+  reitIdHash: InitializeFundraiserInstructionDataArgs['reitIdHash'];
 };
 
 export async function getInitializeFundraiserInstructionAsync<
@@ -213,20 +219,6 @@ export async function getInitializeFundraiserInstructionAsync<
   const args = { ...input };
 
   // Resolve default values.
-  if (!accounts.fundraiser.value) {
-    accounts.fundraiser.value = await getProgramDerivedAddress({
-      programAddress,
-      seeds: [
-        getBytesEncoder().encode(
-          new Uint8Array([102, 117, 110, 100, 114, 97, 105, 115, 101, 114])
-        ),
-        getAddressEncoder().encode(expectAddress(accounts.admin.value)),
-        addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder()).encode(
-          expectSome(args.reitId)
-        ),
-      ],
-    });
-  }
   if (!accounts.escrowVault.value) {
     accounts.escrowVault.value = await getProgramDerivedAddress({
       programAddress,
@@ -297,6 +289,7 @@ export type InitializeFundraiserInput<
   systemProgram?: Address<TAccountSystemProgram>;
   rent?: Address<TAccountRent>;
   reitId: InitializeFundraiserInstructionDataArgs['reitId'];
+  reitIdHash: InitializeFundraiserInstructionDataArgs['reitIdHash'];
 };
 
 export function getInitializeFundraiserInstruction<

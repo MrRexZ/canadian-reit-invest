@@ -47,12 +47,8 @@ export type Canadianreitinvest = {
                 ]
               },
               {
-                "kind": "account",
-                "path": "admin"
-              },
-              {
                 "kind": "arg",
-                "path": "reitId"
+                "path": "reitIdHash"
               }
             ]
           }
@@ -111,6 +107,15 @@ export type Canadianreitinvest = {
         {
           "name": "reitId",
           "type": "string"
+        },
+        {
+          "name": "reitIdHash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
         }
       ]
     }
@@ -160,6 +165,11 @@ export type Canadianreitinvest = {
       "code": 6005,
       "name": "arithmeticOverflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6006,
+      "name": "invalidReitIdHash",
+      "msg": "Invalid REIT ID hash"
     }
   ],
   "types": [
@@ -186,19 +196,15 @@ export type Canadianreitinvest = {
           },
           {
             "name": "totalRaised",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "releasedAmount",
-            "type": "u64"
-          },
-          {
-            "name": "reitId",
-            "type": "string"
+            "type": "u32"
           },
           {
             "name": "investmentCounter",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "bump",
@@ -206,7 +212,12 @@ export type Canadianreitinvest = {
           },
           {
             "name": "reitAcceptedCurrency",
-            "type": "string"
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
           }
         ]
       }

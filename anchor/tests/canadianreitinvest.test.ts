@@ -1,4 +1,4 @@
-import { TOKEN_PROGRAM_ID, createMint } from '@solana/spl-token'
+import { createMint } from '@solana/spl-token'
 import { Keypair, PublicKey } from '@solana/web3.js'
 import { Program } from '@coral-xyz/anchor'
 import { Canadianreitinvest } from '../target/types/canadianreitinvest'
@@ -33,7 +33,7 @@ describe('canadianreitinvest', () => {
 
   it('initializes fundraiser successfully', async () => {
     const uuid = uuidv4()
-    const reitIdHash = uuidParse(uuid)
+    const reitIdHash = Array.from(uuidParse(uuid))
     const [fundraiserPda] = anchor.web3.PublicKey.findProgramAddressSync(
       [Buffer.from('fundraiser'), Buffer.from(reitIdHash)],
       program.programId
@@ -46,13 +46,8 @@ describe('canadianreitinvest', () => {
     await program.methods
       .initializeFundraiser(uuid, reitIdHash)
       .accounts({
-        fundraiser: fundraiserPda,
         admin: admin.publicKey,
-        escrow_vault: escrowVault,
         usdcMint,
-        tokenProgram: TOKEN_PROGRAM_ID,
-        systemProgram: anchor.web3.SystemProgram.programId,
-        rent: anchor.web3.SYSVAR_RENT_PUBKEY,
       })
       .signers([admin])
       .rpc()

@@ -79,6 +79,15 @@ export default function CanadianreitinvestUiBrowseReits() {
   if (loading) return <span className="loading loading-spinner loading-md" />
   if (error) return <div className="text-red-600">Error: {error}</div>
 
+  if (!loading && rows.length === 0) {
+    return (
+      <div>
+        <h3 className="text-lg font-semibold mb-4">Browse REITs</h3>
+        <div className="p-6 border rounded-md text-muted-foreground">No REITs found. Initialize a REIT from the Create REIT tab to see it listed here.</div>
+      </div>
+    )
+  }
+
   return (
     <div>
       <h3 className="text-lg font-semibold mb-4">Browse REITs</h3>

@@ -6,6 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { UiWalletAccount, useWalletUi } from '@wallet-ui/react'
+import { useSolana } from '@/components/solana/use-solana'
 
 interface CanadianreitinvestUiCreateUsdcMintProps {
   account: UiWalletAccount
@@ -13,8 +14,14 @@ interface CanadianreitinvestUiCreateUsdcMintProps {
 
 export function CanadianreitinvestUiCreateUsdcMint({ account }: CanadianreitinvestUiCreateUsdcMintProps) {
   const { wallet } = useWalletUi()
+  const { cluster } = useSolana()
   const [mintAddress, setMintAddress] = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
+
+  // Only show on localnet
+  if (cluster.label !== 'Localnet') {
+    return null
+  }
 
   const handleCreateMint = async () => {
     if (!account || !account.publicKey || !wallet) {

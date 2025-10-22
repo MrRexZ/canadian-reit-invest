@@ -9,6 +9,8 @@ import AuthFeature from '@/features/auth/auth-feature'
 import { useAuth } from '@/components/auth-provider'
 import InvestorPage from '@/features/investor/investor-page'
 import { useLocation } from 'react-router'
+import { useState } from 'react'
+import BrowseReits from './ui/canadianreitinvest-ui-browse-reits'
 
 export default function CanadianreitinvestFeature() {
   const { account } = useSolana()
@@ -53,16 +55,13 @@ export default function CanadianreitinvestFeature() {
     }
     return (
       <div>
-        <AppHero title="Admin Fundraiser Dashboard" subtitle={'Admin Fundraiser Dashboard'}>
-          <p className="mb-6">
-            <CanadianreitinvestUiProgramExplorerLink />
-          </p>
-          <CanadianreitinvestUiCreateUsdcMint account={account} />
-          <div className="mt-6">
-            <CanadianreitinvestUiInitializeFundraiser account={account} />
+        {/* Top-level admin tabs: Create REIT and Browse REITs */}
+        <div className="mb-4 p-2 border rounded-md bg-base-100">
+          <div className="flex gap-2">
+            {/* We'll manage the tab state below */}
           </div>
-        </AppHero>
-        <CanadianreitinvestUiProgram />
+        </div>
+        <AdminTabs account={account} />
       </div>
     )
   }
@@ -97,6 +96,36 @@ export default function CanadianreitinvestFeature() {
         </div>
       </AppHero>
       <CanadianreitinvestUiProgram />
+    </div>
+  )
+}
+
+function AdminTabs({ account }: { account: any }) {
+  const [tab, setTab] = useState<'create' | 'browse'>('create')
+
+  return (
+    <div>
+      <div className="flex gap-2 mb-4">
+        <button className={`btn btn-sm ${tab === 'create' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('create')}>Create REIT</button>
+        <button className={`btn btn-sm ${tab === 'browse' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('browse')}>Browse REITs</button>
+      </div>
+
+      {tab === 'create' ? (
+        <div>
+          <AppHero title="Create REIT" subtitle={'Create a new REIT and initialize its fundraiser'}>
+            <p className="mb-6">
+              <CanadianreitinvestUiProgramExplorerLink />
+            </p>
+            <CanadianreitinvestUiCreateUsdcMint account={account} />
+            <div className="mt-6">
+              <CanadianreitinvestUiInitializeFundraiser account={account} />
+            </div>
+          </AppHero>
+          <CanadianreitinvestUiProgram />
+        </div>
+      ) : (
+        <BrowseReits />
+      )}
     </div>
   )
 }

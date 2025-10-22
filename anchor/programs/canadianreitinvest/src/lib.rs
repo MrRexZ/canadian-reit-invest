@@ -12,7 +12,7 @@ use instructions::initialize::*;
 pub mod canadianreitinvest {
     use super::*;
 
-    pub fn initialize_fundraiser(ctx: Context<InitializeFundraiser>, reit_id: String) -> Result<()> {
-        instructions::initialize::handler(ctx, reit_id)
+    pub fn initialize_fundraiser(ctx: Context<InitializeFundraiser>, reit_id: String, reit_id_hash: [u8; 16]) -> Result<()> {
+        instructions::initialize::handler(ctx, reit_id, reit_id_hash)
     }
 }

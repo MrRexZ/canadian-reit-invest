@@ -84,6 +84,7 @@ export function CanadianreitinvestUiCreateUsdcMint({ account }: Canadianreitinve
       
       // Get the connected wallet adapter from window
       // WalletUI uses standard wallet adapters which inject into window
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const walletAdapter = (window as any)[wallet.name.toLowerCase()] || (window as any).solana
       
       if (!walletAdapter || !walletAdapter.signTransaction) {
@@ -124,10 +125,10 @@ export function CanadianreitinvestUiCreateUsdcMint({ account }: Canadianreitinve
       setMintAddress(mintKeypair.publicKey.toString())
       toast.success('USDC Mint created successfully!')
       console.log('Mint created successfully:', mintKeypair.publicKey.toString())
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error('Mint creation error:', error)
-      console.error('Error stack:', error.stack)
-      toast.error(`Failed to create mint: ${error.message || 'Unknown error'}`)
+      console.error('Error stack:', (error as Error)?.stack)
+      toast.error(`Failed to create mint: ${(error as Error)?.message || 'Unknown error'}`)
     } finally {
       setLoading(false)
     }

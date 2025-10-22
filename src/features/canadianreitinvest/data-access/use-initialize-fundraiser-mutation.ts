@@ -6,21 +6,34 @@ import { toastTx } from '@/components/toast-tx'
 import { PublicKey } from '@solana/web3.js'
 import { Address } from 'gill'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
+import { supabase } from '@/lib/supabase'
+import { v4 as uuidv4, parse as uuidParse } from 'uuid'
 
 export function useInitializeFundraiserMutation({ account }: { account: UiWalletAccount }) {
   const txSigner = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
 
   return useMutation({
-    mutationFn: async ({ reitId, usdcMint }: { reitId: string; usdcMint: PublicKey }) => {
-      // Derive PDAs using raw bytes to match Anchor's seeds (no length-prefix)
+    mutationFn: async ({ reitName, usdcMint }: { reitName: string; usdcMint: PublicKey }) => {
+      // Generate UUID string and parse to bytes
+      const uuid = uuidv4()
+      const reitIdHash = uuidParse(uuid)
+
+      // Insert into Supabase
+      const { error: dbError } = await supabase
+        .from('reits')
+        .insert({ id: uuid, reit_name: reitName })
+
+      if (dbError) {
+        throw new Error(`Failed to create REIT in database: ${dbError.message}`)
+      }
+
+      // Derive PDAs using the UUID bytes as seed
       const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
-      const adminPubkey = new PublicKey(txSigner.address)
 
       const [fundraiserPda] = await PublicKey.findProgramAddress([
         Buffer.from('fundraiser'),
-        adminPubkey.toBuffer(),
-        Buffer.from(reitId),
+        Buffer.from(reitIdHash),
       ], programId)
 
       const [escrowVaultPda] = await PublicKey.findProgramAddress([
@@ -33,7 +46,8 @@ export function useInitializeFundraiserMutation({ account }: { account: UiWallet
         admin: txSigner,
         escrowVault: escrowVaultPda.toBase58() as Address,
         usdcMint: usdcMint.toBase58() as Address,
-        reitId,
+        reitId: uuid,
+        reitIdHash: reitIdHash as unknown as Uint8Array,
       })
 
       return await signAndSend(instruction, txSigner)

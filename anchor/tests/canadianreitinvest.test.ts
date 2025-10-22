@@ -3,6 +3,7 @@ import { Keypair, PublicKey } from '@solana/web3.js'
 import { Program } from '@coral-xyz/anchor'
 import { Canadianreitinvest } from '../target/types/canadianreitinvest'
 import * as anchor from '@coral-xyz/anchor'
+import { v4 as uuidv4, parse as uuidParse } from 'uuid'
 
 describe('canadianreitinvest', () => {
   let program: Program<Canadianreitinvest>
@@ -31,9 +32,10 @@ describe('canadianreitinvest', () => {
   })
 
   it('initializes fundraiser successfully', async () => {
-    const reitId = 'REIT-001'
+    const uuid = uuidv4()
+    const reitIdHash = uuidParse(uuid)
     const [fundraiserPda] = anchor.web3.PublicKey.findProgramAddressSync(
-      [Buffer.from('fundraiser'), admin.publicKey.toBuffer(), Buffer.from(reitId)],
+      [Buffer.from('fundraiser'), Buffer.from(reitIdHash)],
       program.programId
     )
     const [escrowVault] = anchor.web3.PublicKey.findProgramAddressSync(
@@ -42,13 +44,11 @@ describe('canadianreitinvest', () => {
     )
 
     await program.methods
-      .initializeFundraiser(reitId)
+      .initializeFundraiser(uuid, reitIdHash)
       .accounts({
-        // @ts-ignore
         fundraiser: fundraiserPda,
         admin: admin.publicKey,
-        // @ts-ignore
-        escrowVault,
+        escrow_vault: escrowVault,
         usdcMint,
         tokenProgram: TOKEN_PROGRAM_ID,
         systemProgram: anchor.web3.SystemProgram.programId,
@@ -60,12 +60,10 @@ describe('canadianreitinvest', () => {
     // Fetch and assert fundraiser PDA
     const fundraiserAccount = await program.account.fundraiser.fetch(fundraiserPda)
     expect(fundraiserAccount.admin.toString()).toBe(admin.publicKey.toString())
-    expect(fundraiserAccount.reitId).toBe(reitId)
     expect(fundraiserAccount.escrowVault.toString()).toBe(escrowVault.toString())
-    expect(fundraiserAccount.totalRaised.toNumber()).toBe(0)
-  // tokenMetadata removed from account
-  expect(fundraiserAccount.releasedAmount.toNumber()).toBe(0)
-    expect(fundraiserAccount.investmentCounter.toNumber()).toBe(0)
+    expect(fundraiserAccount.totalRaised).toBe(0)
+    expect(fundraiserAccount.releasedAmount).toBe(0)
+    expect(fundraiserAccount.investmentCounter).toBe(0)
 
     // Check escrow vault exists
     const escrowAccount = await program.provider.connection.getAccountInfo(escrowVault)

@@ -41,12 +41,8 @@
                 ]
               },
               {
-                "kind": "account",
-                "path": "admin"
-              },
-              {
                 "kind": "arg",
-                "path": "reit_id"
+                "path": "reit_id_hash"
               }
             ]
           }
@@ -105,6 +101,15 @@
         {
           "name": "reit_id",
           "type": "string"
+        },
+        {
+          "name": "reit_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
         }
       ]
     }
@@ -154,6 +159,11 @@
       "code": 6005,
       "name": "ArithmeticOverflow",
       "msg": "Arithmetic overflow"
+    },
+    {
+      "code": 6006,
+      "name": "InvalidReitIdHash",
+      "msg": "Invalid REIT ID hash"
     }
   ],
   "types": [
@@ -180,19 +190,15 @@
           },
           {
             "name": "total_raised",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "released_amount",
-            "type": "u64"
-          },
-          {
-            "name": "reit_id",
-            "type": "string"
+            "type": "u32"
           },
           {
             "name": "investment_counter",
-            "type": "u64"
+            "type": "u32"
           },
           {
             "name": "bump",
@@ -200,7 +206,12 @@
           },
           {
             "name": "reit_accepted_currency",
-            "type": "string"
+            "type": {
+              "array": [
+                "u8",
+                3
+              ]
+            }
           }
         ]
       }

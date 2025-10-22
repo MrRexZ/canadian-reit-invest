@@ -2,7 +2,6 @@ import { useSolana } from '@/components/solana/use-solana'
 import { WalletDropdown } from '@/components/wallet-dropdown'
 import { AppHero } from '@/components/app-hero'
 import { CanadianreitinvestUiProgramExplorerLink } from './ui/canadianreitinvest-ui-program-explorer-link'
-import { CanadianreitinvestUiProgram } from '@/features/canadianreitinvest/ui/canadianreitinvest-ui-program'
 import { CanadianreitinvestUiInitializeFundraiser } from './ui/canadianreitinvest-ui-initialize-fundraiser'
 import { CanadianreitinvestUiCreateUsdcMint } from './ui/canadianreitinvest-ui-create-usdc-mint'
 import AuthFeature from '@/features/auth/auth-feature'
@@ -56,11 +55,6 @@ export default function CanadianreitinvestFeature() {
     return (
       <div>
         {/* Top-level admin tabs: Create REIT and Browse REITs */}
-        <div className="mb-4 p-2 border rounded-md bg-base-100">
-          <div className="flex gap-2">
-            {/* We'll manage the tab state below */}
-          </div>
-        </div>
         <AdminTabs account={account} />
       </div>
     )
@@ -95,7 +89,6 @@ export default function CanadianreitinvestFeature() {
           <CanadianreitinvestUiInitializeFundraiser account={account} />
         </div>
       </AppHero>
-      <CanadianreitinvestUiProgram />
     </div>
   )
 }
@@ -104,28 +97,44 @@ function AdminTabs({ account }: { account: any }) {
   const [tab, setTab] = useState<'create' | 'browse'>('create')
 
   return (
-    <div>
-      <div className="flex gap-2 mb-4">
-        <button className={`btn btn-sm ${tab === 'create' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('create')}>Create REIT</button>
-        <button className={`btn btn-sm ${tab === 'browse' ? 'btn-primary' : 'btn-ghost'}`} onClick={() => setTab('browse')}>Browse REITs</button>
-      </div>
+    <div className="flex gap-0">
+      <aside className="p-4 bg-sidebar border-r fixed left-0 top-[52px] bottom-0 w-[220px] z-10 overflow-y-auto">
+        <nav className="flex flex-col space-y-2">
+          <button
+            className={`text-left px-3 py-2 rounded-md ${tab === 'create' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
+            onClick={() => setTab('create')}
+          >
+            Create REIT
+          </button>
+          <button
+            className={`text-left px-3 py-2 rounded-md ${tab === 'browse' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
+            onClick={() => setTab('browse')}
+          >
+            Browse REITs
+          </button>
+        </nav>
+      </aside>
 
-      {tab === 'create' ? (
-        <div>
-          <AppHero title="Create REIT" subtitle={'Create a new REIT and initialize its fundraiser'}>
-            <p className="mb-6">
-              <CanadianreitinvestUiProgramExplorerLink />
-            </p>
-            <CanadianreitinvestUiCreateUsdcMint account={account} />
-            <div className="mt-6">
+      <section className="ml-[220px] flex-1 p-6">
+        {tab === 'create' ? (
+          <div>
+            <div className="pb-4">
+              <h1 className="text-4xl font-bold">Create REIT</h1>
+              <p className="mt-2 text-muted-foreground">Create a new REIT and initialize its fundraiser</p>
+              <div className="mt-3"><CanadianreitinvestUiProgramExplorerLink /></div>
+            </div>
+
+            <div className="space-y-6 max-w-md">
+              <CanadianreitinvestUiCreateUsdcMint account={account} />
               <CanadianreitinvestUiInitializeFundraiser account={account} />
             </div>
-          </AppHero>
-          <CanadianreitinvestUiProgram />
-        </div>
-      ) : (
-        <BrowseReits />
-      )}
+          </div>
+        ) : (
+          <div>
+            <BrowseReits />
+          </div>
+        )}
+      </section>
     </div>
   )
 }

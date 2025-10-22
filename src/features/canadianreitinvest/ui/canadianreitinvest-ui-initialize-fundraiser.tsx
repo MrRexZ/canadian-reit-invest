@@ -5,17 +5,25 @@ import { Label } from '@/components/ui/label'
 import { useState } from 'react'
 import { useInitializeFundraiserMutation } from '../data-access/use-initialize-fundraiser-mutation'
 import { PublicKey } from '@solana/web3.js'
+import { useSolana } from '@/components/solana/use-solana'
+import { CLUSTER_CONFIG } from '@/lib/cluster-config'
 
 export function CanadianreitinvestUiInitializeFundraiser({ account }: { account: UiWalletAccount }) {
+  const { cluster } = useSolana()
   const [reitId, setReitId] = useState('')
   const [usdcMint, setUsdcMint] = useState('')
 
   const initializeMutation = useInitializeFundraiserMutation({ account })
 
+  // On devnet, use hardcoded USDC mint
+  const isDevnet = cluster.label === 'Devnet'
+  const defaultUsdcMint = isDevnet ? CLUSTER_CONFIG.devnet.usdcMint : ''
+
   const handleInitialize = () => {
-    if (!reitId || !usdcMint) return
+    const mintToUse = isDevnet ? defaultUsdcMint : usdcMint
+    if (!reitId || !mintToUse) return
     try {
-      const usdcMintPubkey = new PublicKey(usdcMint)
+      const usdcMintPubkey = new PublicKey(mintToUse)
       initializeMutation.mutateAsync({ reitId, usdcMint: usdcMintPubkey })
     } catch (error) {
       console.error('Invalid USDC mint address', error)
@@ -34,18 +42,28 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
           placeholder="e.g. REIT-001"
         />
       </div>
-      <div>
-        <Label htmlFor="usdcMint">USDC Mint Address</Label>
-        <Input
-          id="usdcMint"
-          value={usdcMint}
-          onChange={(e) => setUsdcMint(e.target.value)}
-          placeholder="Paste USDC mint address from above"
-        />
-      </div>
+      {!isDevnet && (
+        <div>
+          <Label htmlFor="usdcMint">USDC Mint Address</Label>
+          <Input
+            id="usdcMint"
+            value={usdcMint}
+            onChange={(e) => setUsdcMint(e.target.value)}
+            placeholder="Paste USDC mint address from above"
+          />
+        </div>
+      )}
+      {isDevnet && (
+        <div>
+          <Label>USDC Mint Address (Devnet)</Label>
+          <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
+            Using hardcoded devnet USDC mint: {defaultUsdcMint}
+          </div>
+        </div>
+      )}
       <Button
         onClick={handleInitialize}
-        disabled={initializeMutation.isPending || !reitId || !usdcMint}
+        disabled={initializeMutation.isPending || !reitId || (!isDevnet && !usdcMint)}
       >
         Initialize Fundraiser{initializeMutation.isPending && '...'}
       </Button>

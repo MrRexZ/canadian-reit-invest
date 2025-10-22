@@ -5,7 +5,7 @@ import { Input } from './ui/input'
 import { Label } from './ui/label'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from './ui/card'
 import { Alert, AlertDescription } from './ui/alert'
-import { useNavigate, useLocation } from 'react-router'
+import { useNavigate } from 'react-router'
 
 interface AuthLoginProps {
   onSwitchToSignup?: () => void
@@ -14,7 +14,6 @@ interface AuthLoginProps {
 export const AuthLogin: React.FC<AuthLoginProps> = ({ onSwitchToSignup }) => {
   const { signIn, signInWithGoogle } = useAuth()
   const navigate = useNavigate()
-  const location = useLocation()
   const [email, setEmail] = useState('')
   const [password, setPassword] = useState('')
   const [loading, setLoading] = useState(false)
@@ -31,9 +30,8 @@ export const AuthLogin: React.FC<AuthLoginProps> = ({ onSwitchToSignup }) => {
     if (error) {
       setError(error.message)
     } else {
-      // Navigate to the intended destination or home page
-      const from = location.state?.from?.pathname || '/'
-      navigate(from, { replace: true })
+      // Navigate to home - role-based rendering will happen automatically
+      navigate('/', { replace: true })
     }
 
     setLoading(false)

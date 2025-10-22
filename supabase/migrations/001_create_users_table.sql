@@ -9,16 +9,15 @@ CREATE TABLE users (
 -- Enable Row Level Security
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 
--- Policy: Users can view their own profile
-CREATE POLICY "Users can view own profile" ON users FOR SELECT USING (auth.uid() = user_id);
+-- Allow users to read their own row
+CREATE POLICY "users_read_own_data" ON users
+  FOR SELECT
+  USING (auth.uid() = user_id);
 
--- Policy: Users can update their own profile
-CREATE POLICY "Users can update own profile" ON users FOR UPDATE USING (auth.uid() = user_id);
-
--- Policy: Admins can view all users (adjust if needed for broader access)
-CREATE POLICY "Admins can view all users" ON users FOR SELECT USING (
-  EXISTS (SELECT 1 FROM users WHERE user_id = auth.uid() AND role = 'admin')
-);
+-- Allow users to update their own row  
+CREATE POLICY "users_update_own_data" ON users
+  FOR UPDATE
+  USING (auth.uid() = user_id);
 
 -- Function and trigger to auto-create user as investor on signup
 CREATE OR REPLACE FUNCTION public.handle_new_user()

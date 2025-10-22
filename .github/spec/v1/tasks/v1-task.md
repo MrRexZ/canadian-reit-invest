@@ -139,7 +139,7 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
 ### Task 5: Implement Offchain Tracking Backend
 **Priority**: Medium  
 **Dependencies**: Task 4 (for PDA structures), init.md (setup completed)  
-**Description**: Implement data syncing, API endpoints, and testing for the offchain tracking backend (Node.js/TypeScript with PostgreSQL), assuming initial setup from init.md is complete. This enables efficient querying of Investment PDAs and investment data.
+**Description**: Implement data syncing, API endpoints, and testing for the offchain tracking backend (Node.js/TypeScript with Supabase DB), assuming initial setup from init.md is complete. This enables efficient querying of Investment PDAs and investment data.
 
 **Subtasks**:
 1. Implement data syncing:
@@ -159,7 +159,7 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
 **Files to create**:
 - `backend/package.json`
 - `backend/src/server.ts`
-- `backend/src/db/schema.prisma`
+- `backend/src/db/migrations/`
 - `backend/src/routes/investments.ts`
 - `backend/src/services/helius.ts`
 - `backend/README.md`

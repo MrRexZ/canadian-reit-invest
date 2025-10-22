@@ -25,8 +25,6 @@
                 pub reit_id: String,       // Unique REIT ID (max_len: 32)
                 pub investment_counter: u64, // Increments for unique PDA derivation
                 pub bump: u8,              // PDA bump seed
-                pub share_price: u64,      // Share price in USDC (0 initially, set by admin)
-                pub reit_token_decimals: u8, // Number of decimals for REIT tokens
                 pub reit_accepted_currency: String, // Currency code (max_len: 3)
             }
         ```
@@ -56,7 +54,7 @@
         
 - **REIT Token Mint**:
     - **Role**: Defines REIT tokens, includes share price in metadata.
-    - **Schema**: SPL Mint Account (decimals: 6, authority: Fundraiser PDA, metadata with share price).
+    - **Schema**: SPL Mint Account with Metaplex Token Metadata (authority: Fundraiser PDA, metadata includes share price).
         
 - **User USDC ATA**:
     - **Role**: User’s source of USDC for investment and to receives dividends.

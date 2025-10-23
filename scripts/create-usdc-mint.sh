@@ -1,6 +1,7 @@
 #!/bin/bash
 
 # Script to create a USDC mint token on localnet with a fixed address
+# Hardcoded keypair: FRuc4oH5hoY1ph7Kxnnz9DXs4xA6ZE23zCnYGCKHhoCN
 # Run this before starting the frontend: bash scripts/create-usdc-mint.sh
 
 set -e
@@ -31,44 +32,19 @@ fi
 
 echo "✅ Connected to localnet validator"
 
-# Path to the fixed mint keypair (stored in both locations for compatibility)
+# Read keypair from src/config
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-LEDGER_DIR="$PROJECT_ROOT/anchor/ledger"
-SRC_CONFIG_DIR="$PROJECT_ROOT/src/config"
-MINT_KEYPAIR="$LEDGER_DIR/usdc-mint-keypair.json"
-MINT_KEYPAIR_SRC="$SRC_CONFIG_DIR/usdc-mint-keypair.json"
+MINT_KEYPAIR="$PROJECT_ROOT/src/config/usdc-mint-keypair.json"
 
 if [ ! -f "$MINT_KEYPAIR" ]; then
-    echo "❌ Mint keypair not found at: $MINT_KEYPAIR"
+    echo "❌ Keypair not found at: $MINT_KEYPAIR"
     exit 1
 fi
 
-# Ensure src/config directory exists and sync the keypair
-mkdir -p "$SRC_CONFIG_DIR"
-cp "$MINT_KEYPAIR" "$MINT_KEYPAIR_SRC"
-echo "✅ Synced keypair to: $MINT_KEYPAIR_SRC"
-
-# Get the mint address
+# Derive mint address from keypair
 MINT_ADDRESS=$(solana-keygen pubkey "$MINT_KEYPAIR")
-echo "🪙 Using fixed mint address: $MINT_ADDRESS"
-
-# Get faucet keypair
-FAUCET_KEYPAIR="$LEDGER_DIR/faucet-keypair.json"
-if [ ! -f "$FAUCET_KEYPAIR" ]; then
-    echo "❌ Faucet keypair not found at: $FAUCET_KEYPAIR"
-    exit 1
-fi
-
-FAUCET_ADDRESS=$(solana-keygen pubkey "$FAUCET_KEYPAIR")
-echo "📝 Faucet account: $FAUCET_ADDRESS"
-
-# Check faucet balance
-BALANCE=$(solana balance "$FAUCET_ADDRESS" --url "$ENDPOINT")
-echo "💰 Faucet balance: $BALANCE"
-
-# Set the keypair for solana CLI
-solana config set --keypair "$FAUCET_KEYPAIR" --url "$ENDPOINT" &> /dev/null
+echo "🪙 Derived mint address from keypair: $MINT_ADDRESS"
 
 # Check if mint already exists
 echo "⏳ Checking if mint already exists..."
@@ -77,8 +53,15 @@ if solana account "$MINT_ADDRESS" --url "$ENDPOINT" &> /dev/null; then
 else
     echo "⏳ Creating USDC mint..."
     
+    # Get faucet keypair for creating the mint
+    FAUCET_KEYPAIR="$PROJECT_ROOT/anchor/ledger/faucet-keypair.json"
+    if [ ! -f "$FAUCET_KEYPAIR" ]; then
+        echo "❌ Faucet keypair not found at: $FAUCET_KEYPAIR"
+        exit 1
+    fi
+    
     # Create the mint account with 6 decimals
-    if ! spl-token create-token "$MINT_KEYPAIR" --decimals 6 --url "$ENDPOINT"; then
+    if ! spl-token create-token "$MINT_KEYPAIR" --decimals 6 --url "$ENDPOINT" --fee-payer "$FAUCET_KEYPAIR"; then
         echo "❌ Failed to create mint"
         exit 1
     fi
@@ -89,8 +72,6 @@ fi
 echo ""
 echo "🎉 USDC Mint setup complete!"
 echo "   Mint address: $MINT_ADDRESS"
-echo ""
-echo "The mint address is dynamically loaded from the keypair in src/lib/cluster-config.ts"
 echo ""
 echo "Next steps:"
 echo "  1. Start the frontend with: pnpm dev"

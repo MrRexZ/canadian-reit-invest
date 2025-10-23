@@ -118,6 +118,124 @@ export type Canadianreitinvest = {
           }
         }
       ]
+    },
+    {
+      "name": "invest",
+      "discriminator": [
+        13,
+        245,
+        180,
+        103,
+        254,
+        182,
+        121,
+        4
+      ],
+      "accounts": [
+        {
+          "name": "investor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fundraiser",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  117,
+                  110,
+                  100,
+                  114,
+                  97,
+                  105,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "reitIdHash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "investment",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  115,
+                  116,
+                  109,
+                  101,
+                  110,
+                  116
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "investor"
+              },
+              {
+                "kind": "account",
+                "path": "fundraiser"
+              },
+              {
+                "kind": "account",
+                "path": "fundraiser.investment_counter",
+                "account": "fundraiser"
+              }
+            ]
+          }
+        },
+        {
+          "name": "investorUsdcAta",
+          "writable": true
+        },
+        {
+          "name": "escrowVault",
+          "writable": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        },
+        {
+          "name": "reitIdHash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -132,6 +250,19 @@ export type Canadianreitinvest = {
         131,
         204,
         196
+      ]
+    },
+    {
+      "name": "investment",
+      "discriminator": [
+        175,
+        134,
+        9,
+        175,
+        115,
+        153,
+        39,
+        28
       ]
     }
   ],
@@ -218,6 +349,49 @@ export type Canadianreitinvest = {
                 3
               ]
             }
+          }
+        ]
+      }
+    },
+    {
+      "name": "investment",
+      "docs": [
+        "Represents an individual investment in a fundraiser"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "investor",
+            "type": "pubkey"
+          },
+          {
+            "name": "fundraiser",
+            "type": "pubkey"
+          },
+          {
+            "name": "usdcAmount",
+            "type": "u64"
+          },
+          {
+            "name": "reitAmount",
+            "type": "u32"
+          },
+          {
+            "name": "released",
+            "type": "bool"
+          },
+          {
+            "name": "refunded",
+            "type": "bool"
+          },
+          {
+            "name": "investmentDate",
+            "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
           }
         ]
       }

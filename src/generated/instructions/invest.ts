@@ -7,28 +7,23 @@
  */
 
 import {
-  addDecoderSizePrefix,
-  addEncoderSizePrefix,
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
-  getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
-  getUtf8Decoder,
-  getUtf8Encoder,
+  getU64Decoder,
+  getU64Encoder,
   transformEncoder,
   type AccountMeta,
   type AccountSignerMeta,
   type Address,
-  type Codec,
-  type Decoder,
-  type Encoder,
+  type FixedSizeCodec,
+  type FixedSizeDecoder,
+  type FixedSizeEncoder,
   type Instruction,
   type InstructionWithAccounts,
   type InstructionWithData,
@@ -40,28 +35,26 @@ import {
 } from 'gill';
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '../programs';
 import {
-  expectAddress,
   expectSome,
   getAccountMetaFactory,
   type ResolvedAccount,
 } from '../shared';
 
-export const INITIALIZE_FUNDRAISER_DISCRIMINATOR = new Uint8Array([
-  10, 33, 110, 191, 226, 23, 151, 31,
+export const INVEST_DISCRIMINATOR = new Uint8Array([
+  13, 245, 180, 103, 254, 182, 121, 4,
 ]);
 
-export function getInitializeFundraiserDiscriminatorBytes() {
-  return fixEncoderSize(getBytesEncoder(), 8).encode(
-    INITIALIZE_FUNDRAISER_DISCRIMINATOR
-  );
+export function getInvestDiscriminatorBytes() {
+  return fixEncoderSize(getBytesEncoder(), 8).encode(INVEST_DISCRIMINATOR);
 }
 
-export type InitializeFundraiserInstruction<
+export type InvestInstruction<
   TProgram extends string = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
+  TAccountInvestor extends string | AccountMeta<string> = string,
   TAccountFundraiser extends string | AccountMeta<string> = string,
-  TAccountAdmin extends string | AccountMeta<string> = string,
+  TAccountInvestment extends string | AccountMeta<string> = string,
+  TAccountInvestorUsdcAta extends string | AccountMeta<string> = string,
   TAccountEscrowVault extends string | AccountMeta<string> = string,
-  TAccountUsdcMint extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
     | AccountMeta<string> = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
@@ -76,19 +69,22 @@ export type InitializeFundraiserInstruction<
   InstructionWithData<ReadonlyUint8Array> &
   InstructionWithAccounts<
     [
+      TAccountInvestor extends string
+        ? WritableSignerAccount<TAccountInvestor> &
+            AccountSignerMeta<TAccountInvestor>
+        : TAccountInvestor,
       TAccountFundraiser extends string
         ? WritableAccount<TAccountFundraiser>
         : TAccountFundraiser,
-      TAccountAdmin extends string
-        ? WritableSignerAccount<TAccountAdmin> &
-            AccountSignerMeta<TAccountAdmin>
-        : TAccountAdmin,
+      TAccountInvestment extends string
+        ? WritableAccount<TAccountInvestment>
+        : TAccountInvestment,
+      TAccountInvestorUsdcAta extends string
+        ? WritableAccount<TAccountInvestorUsdcAta>
+        : TAccountInvestorUsdcAta,
       TAccountEscrowVault extends string
         ? WritableAccount<TAccountEscrowVault>
         : TAccountEscrowVault,
-      TAccountUsdcMint extends string
-        ? ReadonlyAccount<TAccountUsdcMint>
-        : TAccountUsdcMint,
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
@@ -102,96 +98,98 @@ export type InitializeFundraiserInstruction<
     ]
   >;
 
-export type InitializeFundraiserInstructionData = {
+export type InvestInstructionData = {
   discriminator: ReadonlyUint8Array;
-  reitId: string;
+  amount: bigint;
   reitIdHash: ReadonlyUint8Array;
 };
 
-export type InitializeFundraiserInstructionDataArgs = {
-  reitId: string;
+export type InvestInstructionDataArgs = {
+  amount: number | bigint;
   reitIdHash: ReadonlyUint8Array;
 };
 
-export function getInitializeFundraiserInstructionDataEncoder(): Encoder<InitializeFundraiserInstructionDataArgs> {
+export function getInvestInstructionDataEncoder(): FixedSizeEncoder<InvestInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
-      ['reitId', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+      ['amount', getU64Encoder()],
       ['reitIdHash', fixEncoderSize(getBytesEncoder(), 16)],
     ]),
-    (value) => ({
-      ...value,
-      discriminator: INITIALIZE_FUNDRAISER_DISCRIMINATOR,
-    })
+    (value) => ({ ...value, discriminator: INVEST_DISCRIMINATOR })
   );
 }
 
-export function getInitializeFundraiserInstructionDataDecoder(): Decoder<InitializeFundraiserInstructionData> {
+export function getInvestInstructionDataDecoder(): FixedSizeDecoder<InvestInstructionData> {
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
-    ['reitId', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ['amount', getU64Decoder()],
     ['reitIdHash', fixDecoderSize(getBytesDecoder(), 16)],
   ]);
 }
 
-export function getInitializeFundraiserInstructionDataCodec(): Codec<
-  InitializeFundraiserInstructionDataArgs,
-  InitializeFundraiserInstructionData
+export function getInvestInstructionDataCodec(): FixedSizeCodec<
+  InvestInstructionDataArgs,
+  InvestInstructionData
 > {
   return combineCodec(
-    getInitializeFundraiserInstructionDataEncoder(),
-    getInitializeFundraiserInstructionDataDecoder()
+    getInvestInstructionDataEncoder(),
+    getInvestInstructionDataDecoder()
   );
 }
 
-export type InitializeFundraiserAsyncInput<
+export type InvestAsyncInput<
+  TAccountInvestor extends string = string,
   TAccountFundraiser extends string = string,
-  TAccountAdmin extends string = string,
+  TAccountInvestment extends string = string,
+  TAccountInvestorUsdcAta extends string = string,
   TAccountEscrowVault extends string = string,
-  TAccountUsdcMint extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
   TAccountRent extends string = string,
 > = {
+  investor: TransactionSigner<TAccountInvestor>;
   fundraiser?: Address<TAccountFundraiser>;
-  admin: TransactionSigner<TAccountAdmin>;
-  escrowVault?: Address<TAccountEscrowVault>;
-  usdcMint: Address<TAccountUsdcMint>;
+  investment: Address<TAccountInvestment>;
+  investorUsdcAta: Address<TAccountInvestorUsdcAta>;
+  escrowVault: Address<TAccountEscrowVault>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   rent?: Address<TAccountRent>;
-  reitId: InitializeFundraiserInstructionDataArgs['reitId'];
-  reitIdHash: InitializeFundraiserInstructionDataArgs['reitIdHash'];
+  amount: InvestInstructionDataArgs['amount'];
+  reitIdHash: InvestInstructionDataArgs['reitIdHash'];
 };
 
-export async function getInitializeFundraiserInstructionAsync<
+export async function getInvestInstructionAsync<
+  TAccountInvestor extends string,
   TAccountFundraiser extends string,
-  TAccountAdmin extends string,
+  TAccountInvestment extends string,
+  TAccountInvestorUsdcAta extends string,
   TAccountEscrowVault extends string,
-  TAccountUsdcMint extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
   TAccountRent extends string,
   TProgramAddress extends Address = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
 >(
-  input: InitializeFundraiserAsyncInput<
+  input: InvestAsyncInput<
+    TAccountInvestor,
     TAccountFundraiser,
-    TAccountAdmin,
+    TAccountInvestment,
+    TAccountInvestorUsdcAta,
     TAccountEscrowVault,
-    TAccountUsdcMint,
     TAccountTokenProgram,
     TAccountSystemProgram,
     TAccountRent
   >,
   config?: { programAddress?: TProgramAddress }
 ): Promise<
-  InitializeFundraiserInstruction<
+  InvestInstruction<
     TProgramAddress,
+    TAccountInvestor,
     TAccountFundraiser,
-    TAccountAdmin,
+    TAccountInvestment,
+    TAccountInvestorUsdcAta,
     TAccountEscrowVault,
-    TAccountUsdcMint,
     TAccountTokenProgram,
     TAccountSystemProgram,
     TAccountRent
@@ -203,10 +201,11 @@ export async function getInitializeFundraiserInstructionAsync<
 
   // Original accounts.
   const originalAccounts = {
+    investor: { value: input.investor ?? null, isWritable: true },
     fundraiser: { value: input.fundraiser ?? null, isWritable: true },
-    admin: { value: input.admin ?? null, isWritable: true },
+    investment: { value: input.investment ?? null, isWritable: true },
+    investorUsdcAta: { value: input.investorUsdcAta ?? null, isWritable: true },
     escrowVault: { value: input.escrowVault ?? null, isWritable: true },
-    usdcMint: { value: input.usdcMint ?? null, isWritable: false },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     rent: { value: input.rent ?? null, isWritable: false },
@@ -233,19 +232,6 @@ export async function getInitializeFundraiserInstructionAsync<
       ],
     });
   }
-  if (!accounts.escrowVault.value) {
-    accounts.escrowVault.value = await getProgramDerivedAddress({
-      programAddress,
-      seeds: [
-        getBytesEncoder().encode(
-          new Uint8Array([
-            101, 115, 99, 114, 111, 119, 95, 118, 97, 117, 108, 116,
-          ])
-        ),
-        getAddressEncoder().encode(expectAddress(accounts.fundraiser.value)),
-      ],
-    });
-  }
   if (!accounts.tokenProgram.value) {
     accounts.tokenProgram.value =
       'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
@@ -262,76 +248,83 @@ export async function getInitializeFundraiserInstructionAsync<
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   return Object.freeze({
     accounts: [
+      getAccountMeta(accounts.investor),
       getAccountMeta(accounts.fundraiser),
-      getAccountMeta(accounts.admin),
+      getAccountMeta(accounts.investment),
+      getAccountMeta(accounts.investorUsdcAta),
       getAccountMeta(accounts.escrowVault),
-      getAccountMeta(accounts.usdcMint),
       getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.rent),
     ],
-    data: getInitializeFundraiserInstructionDataEncoder().encode(
-      args as InitializeFundraiserInstructionDataArgs
+    data: getInvestInstructionDataEncoder().encode(
+      args as InvestInstructionDataArgs
     ),
     programAddress,
-  } as InitializeFundraiserInstruction<
+  } as InvestInstruction<
     TProgramAddress,
+    TAccountInvestor,
     TAccountFundraiser,
-    TAccountAdmin,
+    TAccountInvestment,
+    TAccountInvestorUsdcAta,
     TAccountEscrowVault,
-    TAccountUsdcMint,
     TAccountTokenProgram,
     TAccountSystemProgram,
     TAccountRent
   >);
 }
 
-export type InitializeFundraiserInput<
+export type InvestInput<
+  TAccountInvestor extends string = string,
   TAccountFundraiser extends string = string,
-  TAccountAdmin extends string = string,
+  TAccountInvestment extends string = string,
+  TAccountInvestorUsdcAta extends string = string,
   TAccountEscrowVault extends string = string,
-  TAccountUsdcMint extends string = string,
   TAccountTokenProgram extends string = string,
   TAccountSystemProgram extends string = string,
   TAccountRent extends string = string,
 > = {
+  investor: TransactionSigner<TAccountInvestor>;
   fundraiser: Address<TAccountFundraiser>;
-  admin: TransactionSigner<TAccountAdmin>;
+  investment: Address<TAccountInvestment>;
+  investorUsdcAta: Address<TAccountInvestorUsdcAta>;
   escrowVault: Address<TAccountEscrowVault>;
-  usdcMint: Address<TAccountUsdcMint>;
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   rent?: Address<TAccountRent>;
-  reitId: InitializeFundraiserInstructionDataArgs['reitId'];
-  reitIdHash: InitializeFundraiserInstructionDataArgs['reitIdHash'];
+  amount: InvestInstructionDataArgs['amount'];
+  reitIdHash: InvestInstructionDataArgs['reitIdHash'];
 };
 
-export function getInitializeFundraiserInstruction<
+export function getInvestInstruction<
+  TAccountInvestor extends string,
   TAccountFundraiser extends string,
-  TAccountAdmin extends string,
+  TAccountInvestment extends string,
+  TAccountInvestorUsdcAta extends string,
   TAccountEscrowVault extends string,
-  TAccountUsdcMint extends string,
   TAccountTokenProgram extends string,
   TAccountSystemProgram extends string,
   TAccountRent extends string,
   TProgramAddress extends Address = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
 >(
-  input: InitializeFundraiserInput<
+  input: InvestInput<
+    TAccountInvestor,
     TAccountFundraiser,
-    TAccountAdmin,
+    TAccountInvestment,
+    TAccountInvestorUsdcAta,
     TAccountEscrowVault,
-    TAccountUsdcMint,
     TAccountTokenProgram,
     TAccountSystemProgram,
     TAccountRent
   >,
   config?: { programAddress?: TProgramAddress }
-): InitializeFundraiserInstruction<
+): InvestInstruction<
   TProgramAddress,
+  TAccountInvestor,
   TAccountFundraiser,
-  TAccountAdmin,
+  TAccountInvestment,
+  TAccountInvestorUsdcAta,
   TAccountEscrowVault,
-  TAccountUsdcMint,
   TAccountTokenProgram,
   TAccountSystemProgram,
   TAccountRent
@@ -342,10 +335,11 @@ export function getInitializeFundraiserInstruction<
 
   // Original accounts.
   const originalAccounts = {
+    investor: { value: input.investor ?? null, isWritable: true },
     fundraiser: { value: input.fundraiser ?? null, isWritable: true },
-    admin: { value: input.admin ?? null, isWritable: true },
+    investment: { value: input.investment ?? null, isWritable: true },
+    investorUsdcAta: { value: input.investorUsdcAta ?? null, isWritable: true },
     escrowVault: { value: input.escrowVault ?? null, isWritable: true },
-    usdcMint: { value: input.usdcMint ?? null, isWritable: false },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
     systemProgram: { value: input.systemProgram ?? null, isWritable: false },
     rent: { value: input.rent ?? null, isWritable: false },
@@ -375,56 +369,59 @@ export function getInitializeFundraiserInstruction<
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   return Object.freeze({
     accounts: [
+      getAccountMeta(accounts.investor),
       getAccountMeta(accounts.fundraiser),
-      getAccountMeta(accounts.admin),
+      getAccountMeta(accounts.investment),
+      getAccountMeta(accounts.investorUsdcAta),
       getAccountMeta(accounts.escrowVault),
-      getAccountMeta(accounts.usdcMint),
       getAccountMeta(accounts.tokenProgram),
       getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.rent),
     ],
-    data: getInitializeFundraiserInstructionDataEncoder().encode(
-      args as InitializeFundraiserInstructionDataArgs
+    data: getInvestInstructionDataEncoder().encode(
+      args as InvestInstructionDataArgs
     ),
     programAddress,
-  } as InitializeFundraiserInstruction<
+  } as InvestInstruction<
     TProgramAddress,
+    TAccountInvestor,
     TAccountFundraiser,
-    TAccountAdmin,
+    TAccountInvestment,
+    TAccountInvestorUsdcAta,
     TAccountEscrowVault,
-    TAccountUsdcMint,
     TAccountTokenProgram,
     TAccountSystemProgram,
     TAccountRent
   >);
 }
 
-export type ParsedInitializeFundraiserInstruction<
+export type ParsedInvestInstruction<
   TProgram extends string = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
   programAddress: Address<TProgram>;
   accounts: {
-    fundraiser: TAccountMetas[0];
-    admin: TAccountMetas[1];
-    escrowVault: TAccountMetas[2];
-    usdcMint: TAccountMetas[3];
-    tokenProgram: TAccountMetas[4];
-    systemProgram: TAccountMetas[5];
-    rent: TAccountMetas[6];
+    investor: TAccountMetas[0];
+    fundraiser: TAccountMetas[1];
+    investment: TAccountMetas[2];
+    investorUsdcAta: TAccountMetas[3];
+    escrowVault: TAccountMetas[4];
+    tokenProgram: TAccountMetas[5];
+    systemProgram: TAccountMetas[6];
+    rent: TAccountMetas[7];
   };
-  data: InitializeFundraiserInstructionData;
+  data: InvestInstructionData;
 };
 
-export function parseInitializeFundraiserInstruction<
+export function parseInvestInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
-): ParsedInitializeFundraiserInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 7) {
+): ParsedInvestInstruction<TProgram, TAccountMetas> {
+  if (instruction.accounts.length < 8) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -437,16 +434,15 @@ export function parseInitializeFundraiserInstruction<
   return {
     programAddress: instruction.programAddress,
     accounts: {
+      investor: getNextAccount(),
       fundraiser: getNextAccount(),
-      admin: getNextAccount(),
+      investment: getNextAccount(),
+      investorUsdcAta: getNextAccount(),
       escrowVault: getNextAccount(),
-      usdcMint: getNextAccount(),
       tokenProgram: getNextAccount(),
       systemProgram: getNextAccount(),
       rent: getNextAccount(),
     },
-    data: getInitializeFundraiserInstructionDataDecoder().decode(
-      instruction.data
-    ),
+    data: getInvestInstructionDataDecoder().decode(instruction.data),
   };
 }

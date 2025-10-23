@@ -13,13 +13,17 @@ import {
   type Address,
   type ReadonlyUint8Array,
 } from 'gill';
-import { type ParsedInitializeFundraiserInstruction } from '../instructions';
+import {
+  type ParsedInitializeFundraiserInstruction,
+  type ParsedInvestInstruction,
+} from '../instructions';
 
 export const CANADIANREITINVEST_PROGRAM_ADDRESS =
   'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B' as Address<'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B'>;
 
 export enum CanadianreitinvestAccount {
   Fundraiser,
+  Investment,
 }
 
 export function identifyCanadianreitinvestAccount(
@@ -37,6 +41,17 @@ export function identifyCanadianreitinvestAccount(
   ) {
     return CanadianreitinvestAccount.Fundraiser;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([175, 134, 9, 175, 115, 153, 39, 28])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestAccount.Investment;
+  }
   throw new Error(
     'The provided account could not be identified as a canadianreitinvest account.'
   );
@@ -44,6 +59,7 @@ export function identifyCanadianreitinvestAccount(
 
 export enum CanadianreitinvestInstruction {
   InitializeFundraiser,
+  Invest,
 }
 
 export function identifyCanadianreitinvestInstruction(
@@ -61,6 +77,17 @@ export function identifyCanadianreitinvestInstruction(
   ) {
     return CanadianreitinvestInstruction.InitializeFundraiser;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([13, 245, 180, 103, 254, 182, 121, 4])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.Invest;
+  }
   throw new Error(
     'The provided instruction could not be identified as a canadianreitinvest instruction.'
   );
@@ -68,6 +95,10 @@ export function identifyCanadianreitinvestInstruction(
 
 export type ParsedCanadianreitinvestInstruction<
   TProgram extends string = 'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B',
-> = {
-  instructionType: CanadianreitinvestInstruction.InitializeFundraiser;
-} & ParsedInitializeFundraiserInstruction<TProgram>;
+> =
+  | ({
+      instructionType: CanadianreitinvestInstruction.InitializeFundraiser;
+    } & ParsedInitializeFundraiserInstruction<TProgram>)
+  | ({
+      instructionType: CanadianreitinvestInstruction.Invest;
+    } & ParsedInvestInstruction<TProgram>);

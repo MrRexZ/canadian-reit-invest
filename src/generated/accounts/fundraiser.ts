@@ -21,8 +21,8 @@ import {
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
-  getU32Decoder,
-  getU32Encoder,
+  getU64Decoder,
+  getU64Encoder,
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
@@ -53,9 +53,9 @@ export type Fundraiser = {
   usdcMint: Address;
   reitMint: Address;
   escrowVault: Address;
-  totalRaised: number;
-  releasedAmount: number;
-  investmentCounter: number;
+  totalRaised: bigint;
+  releasedAmount: bigint;
+  investmentCounter: bigint;
   bump: number;
   reitAcceptedCurrency: ReadonlyUint8Array;
 };
@@ -65,9 +65,9 @@ export type FundraiserArgs = {
   usdcMint: Address;
   reitMint: Address;
   escrowVault: Address;
-  totalRaised: number;
-  releasedAmount: number;
-  investmentCounter: number;
+  totalRaised: number | bigint;
+  releasedAmount: number | bigint;
+  investmentCounter: number | bigint;
   bump: number;
   reitAcceptedCurrency: ReadonlyUint8Array;
 };
@@ -80,9 +80,9 @@ export function getFundraiserEncoder(): FixedSizeEncoder<FundraiserArgs> {
       ['usdcMint', getAddressEncoder()],
       ['reitMint', getAddressEncoder()],
       ['escrowVault', getAddressEncoder()],
-      ['totalRaised', getU32Encoder()],
-      ['releasedAmount', getU32Encoder()],
-      ['investmentCounter', getU32Encoder()],
+      ['totalRaised', getU64Encoder()],
+      ['releasedAmount', getU64Encoder()],
+      ['investmentCounter', getU64Encoder()],
       ['bump', getU8Encoder()],
       ['reitAcceptedCurrency', fixEncoderSize(getBytesEncoder(), 3)],
     ]),
@@ -97,9 +97,9 @@ export function getFundraiserDecoder(): FixedSizeDecoder<Fundraiser> {
     ['usdcMint', getAddressDecoder()],
     ['reitMint', getAddressDecoder()],
     ['escrowVault', getAddressDecoder()],
-    ['totalRaised', getU32Decoder()],
-    ['releasedAmount', getU32Decoder()],
-    ['investmentCounter', getU32Decoder()],
+    ['totalRaised', getU64Decoder()],
+    ['releasedAmount', getU64Decoder()],
+    ['investmentCounter', getU64Decoder()],
     ['bump', getU8Decoder()],
     ['reitAcceptedCurrency', fixDecoderSize(getBytesDecoder(), 3)],
   ]);
@@ -166,5 +166,5 @@ export async function fetchAllMaybeFundraiser(
 }
 
 export function getFundraiserSize(): number {
-  return 152;
+  return 164;
 }

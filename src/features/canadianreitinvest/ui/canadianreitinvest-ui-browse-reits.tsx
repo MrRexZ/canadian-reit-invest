@@ -14,6 +14,10 @@ type ReitRow = {
   fundraiser?: any
 }
 
+/**
+ * Admin version of Browse REITs
+ * Shows table with REIT details and admin controls
+ */
 export default function CanadianreitinvestUiBrowseReits() {
   const { client, cluster } = useSolana()
   const [loading, setLoading] = useState(false)
@@ -111,7 +115,7 @@ export default function CanadianreitinvestUiBrowseReits() {
 
   return (
     <div>
-      <h3 className="text-lg font-semibold mb-4">Browse REITs</h3>
+      <h3 className="text-lg font-semibold mb-4">Browse REITs (Admin)</h3>
       <Table>
         <TableHeader>
           <TableRow>

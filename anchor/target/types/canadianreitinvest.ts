@@ -196,15 +196,15 @@ export type Canadianreitinvest = {
           },
           {
             "name": "totalRaised",
-            "type": "u32"
+            "type": "u64"
           },
           {
             "name": "releasedAmount",
-            "type": "u32"
+            "type": "u64"
           },
           {
             "name": "investmentCounter",
-            "type": "u32"
+            "type": "u64"
           },
           {
             "name": "bump",

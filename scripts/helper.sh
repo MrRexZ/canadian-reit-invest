@@ -7,3 +7,6 @@ pnpm run anchor upgrade ./target/deploy/canadianreitinvest.so --program-id HKE3k
 
 # Check solana balance
 solana balance --url https://api.devnet.solana.com
+
+# set to default keypair
+solana config set --keypair ~/.config/solana/id.json

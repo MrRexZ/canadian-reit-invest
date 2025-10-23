@@ -4,6 +4,7 @@ import { UiWalletAccount } from '@wallet-ui/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { parse as uuidParse } from 'uuid'
 
 export function CanadianreitinvestUiInvest({
   account,
@@ -41,7 +42,7 @@ export function CanadianreitinvestUiInvest({
     try {
       await invest.mutateAsync({
         amount: numAmount,
-        reitIdHash: Buffer.from(reitId.split('-').join(''), 'hex') as unknown as Uint8Array,
+        reitIdHash: uuidParse(reitId) as unknown as Uint8Array,
       })
 
       setAmount('')

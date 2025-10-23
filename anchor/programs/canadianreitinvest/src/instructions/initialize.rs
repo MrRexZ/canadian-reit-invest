@@ -6,6 +6,8 @@ use crate::state;
 pub fn handler(ctx: Context<InitializeFundraiser>, _reit_id: String, _reit_id_hash: [u8; 16]) -> Result<()> {
     // Log entry so we can see the instruction hit in transaction logs
     msg!("InitializeFundraiser handler start");
+    msg!("reit_id: {}", _reit_id);
+    msg!("reit_id_hash: {:?}", _reit_id_hash);
 
     // Note: No validation needed here. The PDA is derived from reit_id_hash,
     // so if the hash doesn't match what was used to compute the PDA,

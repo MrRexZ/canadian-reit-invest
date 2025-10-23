@@ -19,6 +19,12 @@ export function useInitializeFundraiserMutation({ account }: { account: UiWallet
       const uuid = uuidv4()
       const reitIdHash = uuidParse(uuid)
 
+      console.log('=== INITIALIZE FUNDRAISER - PDA DERIVATION ===')
+      console.log('Generated UUID:', uuid)
+      console.log('reitIdHash (Uint8Array):', reitIdHash)
+      console.log('reitIdHash (hex):', Buffer.from(reitIdHash).toString('hex'))
+      console.log('reitIdHash (length):', reitIdHash.length)
+
       // Insert into Supabase
       const { error: dbError } = await supabase
         .from('reits')
@@ -27,14 +33,21 @@ export function useInitializeFundraiserMutation({ account }: { account: UiWallet
       if (dbError) {
         throw new Error(`Failed to create REIT in database: ${dbError.message}`)
       }
+      console.log('Inserted into Supabase with id:', uuid)
 
       // Derive PDAs using the UUID bytes as seed
       const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
+      console.log('Program ID:', programId.toBase58())
+
+      const seedBuffer = Buffer.from(reitIdHash)
+      console.log('Seed buffer (hex):', seedBuffer.toString('hex'))
+      console.log('Seed buffer (length):', seedBuffer.length)
 
       const [fundraiserPda] = await PublicKey.findProgramAddress([
         Buffer.from('fundraiser'),
-        Buffer.from(reitIdHash),
+        seedBuffer,
       ], programId)
+      console.log('Derived fundraiserPda:', fundraiserPda.toBase58())
 
       const [escrowVaultPda] = await PublicKey.findProgramAddress([
         Buffer.from('escrow_vault'),

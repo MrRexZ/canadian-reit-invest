@@ -50,10 +50,14 @@ export default function BrowseReitsInvestor({ account }: { account: UiWalletAcco
             const id: string = r.id
             const reitName: string | undefined = r.reit_name
             const idBytes = uuidParse(id) as unknown as Uint8Array
+            console.log(`=== BROWSE REITS - PDA DERIVATION for ${reitName} ===`)
+            console.log('REIT ID (UUID):', id)
+            console.log('idBytes (hex):', Buffer.from(idBytes).toString('hex'))
             const [fundraiserPda] = await PublicKey.findProgramAddress(
               [Buffer.from('fundraiser'), Buffer.from(idBytes)],
               programId
             )
+            console.log('Derived fundraiserPda:', fundraiserPda.toBase58())
             return {
               id,
               reit_name: reitName,

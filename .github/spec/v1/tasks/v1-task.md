@@ -13,15 +13,16 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
 **Description**: Define all required account structures in the Anchor program.
 
 **Subtasks**:
-1. Create `Fundraiser` PDA struct with fields:
+1. Create `Fundraiser` PDA struct with fields (match on-chain `state.rs`):
    - `admin` (Pubkey)
-   - `reit_id` (String) - unique identifier for the REIT (e.g., "REIT-001")
-   - `token_metadata` (Pubkey)
+   - `usdc_mint` (Pubkey) — the USDC mint used for the escrow
+   - `reit_mint` (Pubkey) — REIT token mint (set when tokens are created)
    - `escrow_vault` (Pubkey)
    - `total_raised` (u64)
-   - `total_released` (u64)
+   - `released_amount` (u64)
    - `investment_counter` (u64)
    - `bump` (u8)
+   - `reit_accepted_currency` ([u8;3]) — 3-byte currency code (e.g., `b"CAD"`)
 
 2. Create `Investment` PDA struct with fields:
    - `investor` (Pubkey)
@@ -73,7 +74,8 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
 **Subtasks**:
 1. Define `InitializeFundraiser` context struct with accounts:
    - `admin` (Signer, mut) - pays for accounts
-   - `fundraiser` (PDA, init, seeds: [b"fundraiser", reit_id.as_bytes()], payer: admin)
+      - `fundraiser` (PDA, init, seeds: [b"fundraiser", reit_id_hash.as_slice()], payer: admin)
+         - Note: the program expects a 16-byte `reit_id_hash` (UUID bytes). The frontend generates this with a UUID and passes the parsed bytes (e.g. `uuidParse(uuid)`) as `reit_id_hash`.
    - `token_metadata` (Account, mut)
    - `escrow_vault` (Account, init, token::mint = usdc_mint, token::authority = fundraiser)
    - `usdc_mint` (Account)
@@ -100,12 +102,13 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
 **Description**: Create the core invest instruction that transfers USDC and creates Investor State PDA.
 
 **Subtasks**:
-1. Define `Invest` context struct with accounts:
-   - `investor` (Signer, mut) - the investor
-   - `fundraiser` (PDA, mut, seeds: [b"fundraiser", fundraiser.reit_id.as_bytes()])
-   - `investment` (PDA, init, seeds: [b"investment", investor.key(), fundraiser.key(), &fundraiser.investment_counter.to_le_bytes()], payer: investor)
-   - `investor_usdc_ata` (Account, mut, constraint: investor owns account)
-   - `escrow_vault` (Account, mut, constraint: vault belongs to fundraiser)
+1. Define `Invest` context struct with accounts (seeds and constraints must match on-chain derivation):
+   - `investor` (Signer, mut) — the investor
+   - `fundraiser` (PDA, mut, seeds: [b"fundraiser", reit_id_hash.as_slice()]) — derive the fundraiser PDA using the same 16-byte `reit_id_hash` used at initialization
+   - `investment` (PDA, init, seeds: [b"investment", investor.key().as_ref(), fundraiser.key().as_ref(), &fundraiser.investment_counter.to_le_bytes()], payer: investor)
+     - Note: `investment_counter` is read from the fundraiser account and converted to little-endian bytes for the seed. Ensure you read the counter before incrementing it in the handler.
+   - `investor_usdc_ata` (Account<'info, TokenAccount>, mut) — constraint: owned by `investor` and mint matches `fundraiser.usdc_mint`
+   - `escrow_vault` (Account<'info, TokenAccount>, mut) — constraint: account equals `fundraiser.escrow_vault` and its authority is the fundraiser PDA
    - `token_program` (Program)
    - `system_program` (Program)
    - `rent` (Sysvar)

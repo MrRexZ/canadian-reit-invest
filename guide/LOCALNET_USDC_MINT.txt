@@ -1,0 +1,24 @@
+# Localnet USDC Mint Address
+
+**Address**: `FRuc4oH5hoY1ph7Kxnnz9DXs4xA6ZE23zCnYGCKHhoCN`
+
+**Decimals**: 6
+
+**Type**: SPL Token Mint
+
+**Usage**: Use this address when:
+- Testing USDC transfers
+- Creating investor positions
+- Minting test tokens
+- Setting up fundraisers
+
+## Quick Reference
+
+The mint is created by running:
+```bash
+bash scripts/create-usdc-mint.sh
+```
+
+This address is already configured in `src/lib/cluster-config.ts` and will be used automatically by:
+- Initialize Fundraiser form
+- Mint Tokens admin tab

@@ -3,13 +3,13 @@ import { WalletDropdown } from '@/components/wallet-dropdown'
 import { AppHero } from '@/components/app-hero'
 import { CanadianreitinvestUiProgramExplorerLink } from './ui/canadianreitinvest-ui-program-explorer-link'
 import { CanadianreitinvestUiInitializeFundraiser } from './ui/canadianreitinvest-ui-initialize-fundraiser'
-import { CanadianreitinvestUiCreateUsdcMint } from './ui/canadianreitinvest-ui-create-usdc-mint'
 import AuthFeature from '@/features/auth/auth-feature'
 import { useAuth } from '@/components/auth-provider'
 import InvestorPage from '@/features/investor/investor-page'
 import { useLocation } from 'react-router'
 import { useState } from 'react'
 import BrowseReits from './ui/canadianreitinvest-ui-browse-reits'
+import { LocalnetMintTokens } from '@/features/localnet-management/ui/localnet-mint-tokens'
 
 export default function CanadianreitinvestFeature() {
   const { account } = useSolana()
@@ -79,7 +79,6 @@ export default function CanadianreitinvestFeature() {
         <p className="mb-6">
           <CanadianreitinvestUiProgramExplorerLink />
         </p>
-        <CanadianreitinvestUiCreateUsdcMint account={account} />
         <div className="mt-6">
           <CanadianreitinvestUiInitializeFundraiser account={account} />
         </div>
@@ -89,7 +88,7 @@ export default function CanadianreitinvestFeature() {
 }
 
 function AdminTabs({ account }: { account: any }) {
-  const [tab, setTab] = useState<'create' | 'browse'>('create')
+  const [tab, setTab] = useState<'create' | 'browse' | 'mint'>('create')
 
   return (
     <div className="flex gap-0">
@@ -107,6 +106,12 @@ function AdminTabs({ account }: { account: any }) {
           >
             Browse REITs
           </button>
+          <button
+            className={`text-left px-3 py-2 rounded-md ${tab === 'mint' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
+            onClick={() => setTab('mint')}
+          >
+            Mint Tokens
+          </button>
         </nav>
       </aside>
 
@@ -120,13 +125,23 @@ function AdminTabs({ account }: { account: any }) {
             </div>
 
             <div className="space-y-6 max-w-md">
-              <CanadianreitinvestUiCreateUsdcMint account={account} />
               <CanadianreitinvestUiInitializeFundraiser account={account} />
             </div>
           </div>
-        ) : (
+        ) : tab === 'browse' ? (
           <div>
             <BrowseReits />
+          </div>
+        ) : (
+          <div>
+            <div className="pb-4">
+              <h1 className="text-4xl font-bold">Mint Tokens</h1>
+              <p className="mt-2 text-muted-foreground">Mint USDC tokens for testing on localnet</p>
+            </div>
+
+            <div className="space-y-6 max-w-md">
+              <LocalnetMintTokens account={account} />
+            </div>
           </div>
         )}
       </section>

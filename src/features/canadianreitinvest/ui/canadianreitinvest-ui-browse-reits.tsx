@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSolana } from '@/components/solana/use-solana'
 import { PublicKey } from '@solana/web3.js'
-import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
+import { fetchAllMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
@@ -34,31 +34,52 @@ export default function CanadianreitinvestUiBrowseReits() {
           return
         }
 
-        // For each reit row, derive fundraiser PDA and fetch fundraiser account + optional reit metadata
+        // Step 1: Derive all fundraiser PDAs locally
         const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
+        const pdaPairs = await Promise.all(
+          reits.map(async (r: any) => {
+            const id: string = r.id
+            const reitName: string | undefined = r.reit_name
+            const idBytes = uuidParse(id) as unknown as Uint8Array
+            const [fundraiserPda] = await PublicKey.findProgramAddress(
+              [Buffer.from('fundraiser'), Buffer.from(idBytes)],
+              programId
+            )
+            return {
+              id,
+              reit_name: reitName,
+              fundraiserAddress: fundraiserPda.toBase58() as unknown as Address,
+            }
+          })
+        )
+
+        // Step 2: Batch fetch all fundraiser accounts
+        const chunkSize = 100
         const fetched: ReitRow[] = []
 
-        for (const r of reits) {
-          const id: string = r.id
-          const reitName: string | undefined = r.reit_name
-          // parse uuid to bytes
-          const idBytes = uuidParse(id) as unknown as Uint8Array
-          const [fundraiserPda] = await PublicKey.findProgramAddress([
-            Buffer.from('fundraiser'),
-            Buffer.from(idBytes),
-          ], programId)
+        for (let i = 0; i < pdaPairs.length; i += chunkSize) {
+          const chunk = pdaPairs.slice(i, i + chunkSize)
+          const addresses = chunk.map((p) => p.fundraiserAddress)
 
-          let fundraiserAccount = null
           try {
-            // fetch using client's rpc method
-            // client.rpc is the function used by gill helpers; cast address to Address
-            fundraiserAccount = await fetchMaybeFundraiser(client.rpc, fundraiserPda.toBase58() as unknown as Address)
+            const accounts = await fetchAllMaybeFundraiser(client.rpc, addresses)
+            for (let j = 0; j < chunk.length; j++) {
+              fetched.push({
+                id: chunk[j].id,
+                reit_name: chunk[j].reit_name,
+                fundraiser: accounts[j],
+              })
+            }
           } catch (e) {
-            // ignore missing fundraiser
-            fundraiserAccount = null
+            // If batch fails, add rows without fundraiser data
+            for (const pair of chunk) {
+              fetched.push({
+                id: pair.id,
+                reit_name: pair.reit_name,
+                fundraiser: null,
+              })
+            }
           }
-
-          fetched.push({ id, reit_name: reitName, fundraiser: fundraiserAccount })
         }
 
         if (mounted) setRows(fetched)

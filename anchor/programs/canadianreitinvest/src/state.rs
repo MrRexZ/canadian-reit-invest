@@ -7,9 +7,9 @@ pub struct Fundraiser {
     pub usdc_mint: Pubkey, // The USDC mint public key for validation of the escrow vault
     pub reit_mint: Pubkey, // The REIT token mint public key (set when REIT tokens are created)
     pub escrow_vault: Pubkey, // The escrow token account that holds USDC investments
-    pub total_raised: u32, // Total USDC raised from all investments (aggregate for onchain efficiency) - changed from u64
-    pub released_amount: u32, // Total USDC released to the admin for CAD conversion (aggregate for onchain efficiency) - changed from u64
-    pub investment_counter: u32, // Counter for generating unique investment PDA seeds - changed from u64
+    pub total_raised: u64, // Total USDC raised from all investments (aggregate for onchain efficiency)
+    pub released_amount: u64, // Total USDC released to the admin for CAD conversion (aggregate for onchain efficiency)
+    pub investment_counter: u64, // Counter for generating unique investment PDA seeds
     pub bump: u8, // PDA bump seed for the fundraiser account
     pub reit_accepted_currency: [u8; 3], // Currency code for the REIT (e.g., "CAD") - changed from String
 }

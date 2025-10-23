@@ -190,15 +190,15 @@
           },
           {
             "name": "total_raised",
-            "type": "u32"
+            "type": "u64"
           },
           {
             "name": "released_amount",
-            "type": "u32"
+            "type": "u64"
           },
           {
             "name": "investment_counter",
-            "type": "u32"
+            "type": "u64"
           },
           {
             "name": "bump",

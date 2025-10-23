@@ -73,7 +73,7 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
 **Subtasks**:
 1. Define `InitializeFundraiser` context struct with accounts:
    - `admin` (Signer, mut) - pays for accounts
-   - `fundraiser` (PDA, init, seeds: [b"fundraiser", admin.key(), reit_id.as_bytes()], payer: admin)
+   - `fundraiser` (PDA, init, seeds: [b"fundraiser", reit_id.as_bytes()], payer: admin)
    - `token_metadata` (Account, mut)
    - `escrow_vault` (Account, init, token::mint = usdc_mint, token::authority = fundraiser)
    - `usdc_mint` (Account)
@@ -102,7 +102,7 @@ Implement the Invest flow where investors send USDC to the escrow vault and an I
 **Subtasks**:
 1. Define `Invest` context struct with accounts:
    - `investor` (Signer, mut) - the investor
-   - `fundraiser` (PDA, mut, seeds: [b"fundraiser", fundraiser.admin, fundraiser.reit_id.as_bytes()])
+   - `fundraiser` (PDA, mut, seeds: [b"fundraiser", fundraiser.reit_id.as_bytes()])
    - `investment` (PDA, init, seeds: [b"investment", investor.key(), fundraiser.key(), &fundraiser.investment_counter.to_le_bytes()], payer: investor)
    - `investor_usdc_ata` (Account, mut, constraint: investor owns account)
    - `escrow_vault` (Account, mut, constraint: vault belongs to fundraiser)

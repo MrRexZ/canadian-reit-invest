@@ -3,7 +3,7 @@ export const CLUSTER_CONFIG = {
     usdcMint: '4zMMC9srt5Ri5X14GAgXhaHii3GnPAEERYPJgZJDncDU',
   },
   localnet: {
-    // Localnet uses dynamically created mints
+    usdcMint: 'FRuc4oH5hoY1ph7Kxnnz9DXs4xA6ZE23zCnYGCKHhoCN',
   },
 } as const
 

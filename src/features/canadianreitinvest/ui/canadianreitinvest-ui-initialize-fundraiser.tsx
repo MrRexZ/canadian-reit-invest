@@ -15,12 +15,13 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
 
   const initializeMutation = useInitializeFundraiserMutation({ account })
 
-  // On devnet, use hardcoded USDC mint
+  // Use hardcoded USDC mint for devnet and localnet
   const isDevnet = cluster.label === 'Devnet'
-  const defaultUsdcMint = isDevnet ? CLUSTER_CONFIG.devnet.usdcMint : ''
+  const isLocalnet = cluster.label === 'Localnet'
+  const defaultUsdcMint = isDevnet ? CLUSTER_CONFIG.devnet.usdcMint : isLocalnet ? CLUSTER_CONFIG.localnet.usdcMint : ''
 
   const handleInitialize = () => {
-    const mintToUse = isDevnet ? defaultUsdcMint : usdcMint
+    const mintToUse = (isDevnet || isLocalnet) ? defaultUsdcMint : usdcMint
     if (!reitName || !mintToUse) return
     try {
       const usdcMintPubkey = new PublicKey(mintToUse)
@@ -42,28 +43,28 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
           placeholder="e.g. Maple REIT"
         />
       </div>
-      {!isDevnet && (
+      {!(isDevnet || isLocalnet) && (
         <div>
           <Label htmlFor="usdcMint">USDC Mint Address</Label>
           <Input
             id="usdcMint"
             value={usdcMint}
             onChange={(e) => setUsdcMint(e.target.value)}
-            placeholder="Paste USDC mint address from above"
+            placeholder="Paste USDC mint address"
           />
         </div>
       )}
-      {isDevnet && (
+      {(isDevnet || isLocalnet) && (
         <div>
-          <Label>USDC Mint Address (Devnet)</Label>
+          <Label>USDC Mint Address ({cluster.label})</Label>
           <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-            Using hardcoded devnet USDC mint: {defaultUsdcMint}
+            Using configured {cluster.label} USDC mint: {defaultUsdcMint}
           </div>
         </div>
       )}
       <Button
         onClick={handleInitialize}
-        disabled={initializeMutation.isPending || !reitName || (!isDevnet && !usdcMint)}
+        disabled={initializeMutation.isPending || !reitName || (!(isDevnet || isLocalnet) && !usdcMint)}
       >
         Initialize Fundraiser{initializeMutation.isPending && '...'}
       </Button>

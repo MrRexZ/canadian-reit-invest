@@ -7,6 +7,7 @@ import { useInitializeFundraiserMutation } from '../data-access/use-initialize-f
 import { PublicKey } from '@solana/web3.js'
 import { useSolana } from '@/components/solana/use-solana'
 import { CLUSTER_CONFIG } from '@/lib/cluster-config'
+import { toast } from 'sonner'
 
 export function CanadianreitinvestUiInitializeFundraiser({ account }: { account: UiWalletAccount }) {
   const { cluster } = useSolana()
@@ -20,15 +21,32 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
   const isLocalnet = cluster.label === 'Localnet'
   const defaultUsdcMint = isDevnet ? CLUSTER_CONFIG.devnet.usdcMint : isLocalnet ? CLUSTER_CONFIG.localnet.usdcMint : ''
 
-  const handleInitialize = () => {
+  const handleInitialize = async () => {
     const mintToUse = (isDevnet || isLocalnet) ? defaultUsdcMint : usdcMint
-    if (!reitName || !mintToUse) return
+    if (!reitName || !mintToUse) {
+      toast.error('Please fill in all required fields')
+      return
+    }
     try {
       const usdcMintPubkey = new PublicKey(mintToUse)
-      initializeMutation.mutateAsync({ reitName, usdcMint: usdcMintPubkey })
+      console.debug('[InitializeFundraiser] Starting mutation with REIT name:', reitName, 'USDC Mint:', mintToUse)
+      await initializeMutation.mutateAsync({ reitName, usdcMint: usdcMintPubkey })
     } catch (error) {
-      console.error('Invalid USDC mint address', error)
+      console.error('Invalid USDC mint address or mutation error:', error)
+      toast.error(`Error: ${(error as Error).message}`)
     }
+  }
+
+  if ((isDevnet || isLocalnet) && !defaultUsdcMint) {
+    return (
+      <div className="space-y-4 p-4 border border-red-300 rounded-lg bg-red-50">
+        <h3 className="text-lg font-semibold text-red-900">Initialize Fundraiser</h3>
+        <p className="text-red-700">
+          ⚠️ USDC Mint not configured for {cluster.label}. 
+          Please run: <code className="bg-red-100 px-2 py-1 rounded">bash scripts/create-usdc-mint.sh</code>
+        </p>
+      </div>
+    )
   }
 
   return (
@@ -57,16 +75,16 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
       {(isDevnet || isLocalnet) && (
         <div>
           <Label>USDC Mint Address ({cluster.label})</Label>
-          <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-            Using configured {cluster.label} USDC mint: {defaultUsdcMint}
+          <div className="text-sm text-muted-foreground bg-muted p-2 rounded font-mono break-all">
+            {defaultUsdcMint}
           </div>
         </div>
       )}
       <Button
         onClick={handleInitialize}
-        disabled={initializeMutation.isPending || !reitName || (!(isDevnet || isLocalnet) && !usdcMint)}
+        disabled={initializeMutation.isPending || !reitName || (!(isDevnet || isLocalnet) && !usdcMint) || ((isDevnet || isLocalnet) && !defaultUsdcMint)}
       >
-        Initialize Fundraiser{initializeMutation.isPending && '...'}
+        {initializeMutation.isPending ? 'Initializing...' : 'Initialize Fundraiser'}
       </Button>
     </div>
   )

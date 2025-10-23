@@ -1,19 +1,34 @@
 import { useAuth } from '@/components/auth-provider'
+import { useSolana } from '@/components/solana/use-solana'
+import { WalletDropdown } from '@/components/wallet-dropdown'
+import BrowseReitsInvestor from '@/features/canadianreitinvest/ui/canadianreitinvest-ui-browse-reits-investor'
 
 export default function InvestorPage() {
   const { user } = useAuth()
+  const { account } = useSolana()
+
+  if (!account) {
+    return (
+      <div className="max-w-4xl mx-auto">
+        <div className="hero py-[64px]">
+          <div className="hero-content text-center">
+            <WalletDropdown />
+          </div>
+        </div>
+      </div>
+    )
+  }
 
   return (
-    <div className="w-full space-y-8">
-      {/* Header */}
-      <div className="mb-8">
-        <h1 className="text-4xl font-bold tracking-tight">Investor Dashboard</h1>
-        <p className="text-muted-foreground mt-3 text-base">
+    <div className="w-full">
+      <div className="pb-4 mb-6 border-b">
+        <h1 className="text-4xl font-bold">Investor Dashboard</h1>
+        <p className="text-muted-foreground mt-2">
           {user?.email ? `Welcome, ${user.email}` : 'Welcome to your investment dashboard'}
         </p>
       </div>
 
-      <p>Investor dashboard content goes here.</p>
+      <BrowseReitsInvestor account={account} />
     </div>
   )
 }

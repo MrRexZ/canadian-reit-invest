@@ -7,3 +7,4 @@
  */
 
 export * from './fundraiser';
+export * from './investment';

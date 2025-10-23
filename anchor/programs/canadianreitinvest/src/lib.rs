@@ -7,6 +7,7 @@ mod errors;
 mod instructions;
 
 use instructions::initialize::*;
+use instructions::invest::*;
 
 #[program]
 pub mod canadianreitinvest {
@@ -14,5 +15,9 @@ pub mod canadianreitinvest {
 
     pub fn initialize_fundraiser(ctx: Context<InitializeFundraiser>, reit_id: String, reit_id_hash: [u8; 16]) -> Result<()> {
         instructions::initialize::handler(ctx, reit_id, reit_id_hash)
+    }
+
+    pub fn invest(ctx: Context<Invest>, amount: u64, reit_id_hash: [u8; 16]) -> Result<()> {
+        instructions::invest::handler(ctx, amount, reit_id_hash)
     }
 }

@@ -23,17 +23,33 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       const investorPublicKey = new PublicKey(account.publicKey)
 
       // Step 1: Derive fundraiser PDA from reit_id_hash
+      console.log('=== INVEST FLOW - PDA DERIVATION ===')
+      console.log('Program ID:', programId.toBase58())
+      console.log('reitIdHash (Uint8Array):', reitIdHash)
+      console.log('reitIdHash (hex):', Buffer.from(reitIdHash).toString('hex'))
+      console.log('reitIdHash (length):', reitIdHash.length)
+      
+      const seedBuffer = Buffer.from(reitIdHash)
+      console.log('Seed buffer (hex):', seedBuffer.toString('hex'))
+      console.log('Seed buffer (length):', seedBuffer.length)
+      
       const [fundraiserPda] = await PublicKey.findProgramAddress(
-        [Buffer.from('fundraiser'), Buffer.from(reitIdHash)],
+        [Buffer.from('fundraiser'), seedBuffer],
         programId
       )
+      console.log('Derived fundraiserPda:', fundraiserPda.toBase58())
 
       // Step 2: Fetch fundraiser account
+      console.log('Fetching fundraiser account from:', fundraiserPda.toBase58())
       const fundraiserAccount = await fetchMaybeFundraiser(
         client.rpc,
         fundraiserPda.toBase58() as Address
       )
-      if (!fundraiserAccount?.exists) throw new Error('Fundraiser not found')
+      console.log('Fetch result exists:', fundraiserAccount?.exists)
+      if (!fundraiserAccount?.exists) {
+        console.error('Fundraiser account does not exist at', fundraiserPda.toBase58())
+        throw new Error('Fundraiser not found')
+      }
 
       const fundraiser = fundraiserAccount.data
 

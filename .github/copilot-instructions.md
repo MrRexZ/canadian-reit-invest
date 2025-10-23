@@ -50,6 +50,7 @@ Key features:
 ## Additional Context
 - **Deployment**: Use Anchor CLI for Solana deployment. Frontend deployed via Vercel/Netlify.
 - **Environment**: Local development with `solana-test-validator`, test-ledger for testing.
-- Don't ever install codama deps at anchor subfolder. When need to run Codama, use the codama installed at root folder. don't install "@codama/nodes-from-anchor` at anchor subfolder.
+- Don't ever install codama deps at anchor subfolder. When need to run Codama, use the codama installed at root folder. don't install "@codama/nodes-from-anchor` at anchor subfolder. Use `pnpm codama:js`
+- ** Compilation**: Always ensure the Codama-generatedgets recompiled after any changes to the Anchor program to keep the JS SDK in sync.
 
 When assisting with code, prioritize security, correctness, and alignment with the REIT investment flow. If unsure, ask for clarification on business logic.

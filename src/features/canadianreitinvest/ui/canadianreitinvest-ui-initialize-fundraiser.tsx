@@ -7,6 +7,7 @@ import { useInitializeFundraiserMutation } from '../data-access/use-initialize-f
 import { PublicKey } from '@solana/web3.js'
 import { useSolana } from '@/components/solana/use-solana'
 import { CLUSTER_CONFIG } from '@/lib/cluster-config'
+import { LOCALNET_USDC_MINT_ADDRESS } from '@/lib/usdc-mint-address'
 
 export function CanadianreitinvestUiInitializeFundraiser({ account }: { account: UiWalletAccount }) {
   const { cluster } = useSolana()
@@ -15,18 +16,37 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
 
   const initializeMutation = useInitializeFundraiserMutation({ account })
 
-  // On devnet, use hardcoded USDC mint
+  // Use hardcoded USDC mint for devnet and localnet
   const isDevnet = cluster.label === 'Devnet'
-  const defaultUsdcMint = isDevnet ? CLUSTER_CONFIG.devnet.usdcMint : ''
+  const isLocalhost = cluster.label === 'Localhost'
+  
+  const defaultUsdcMint = isDevnet 
+    ? CLUSTER_CONFIG.devnet.usdcMint 
+    : isLocalhost 
+    ? LOCALNET_USDC_MINT_ADDRESS 
+    : ''
 
   const handleInitialize = () => {
-    const mintToUse = isDevnet ? defaultUsdcMint : usdcMint
-    if (!reitName || !mintToUse) return
+    const mintToUse = (isDevnet || isLocalhost) ? defaultUsdcMint : usdcMint
+    
+    console.group('📋 Initialize Fundraiser - User Input')
+    console.log('Cluster:', cluster.label)
+    console.log('REIT Name:', reitName)
+    console.log('USDC Mint (selected):', mintToUse)
+    console.log('Is Devnet:', isDevnet)
+    console.log('Is Localhost:', isLocalhost)
+    console.groupEnd()
+    
+    if (!reitName || !mintToUse) {
+      console.warn('⚠️ Missing required fields - skipping')
+      return
+    }
     try {
       const usdcMintPubkey = new PublicKey(mintToUse)
+      console.log('✅ Valid USDC Mint PublicKey created:', usdcMintPubkey.toBase58())
       initializeMutation.mutateAsync({ reitName, usdcMint: usdcMintPubkey })
     } catch (error) {
-      console.error('Invalid USDC mint address', error)
+      console.error('❌ Invalid USDC mint address', error)
     }
   }
 
@@ -42,7 +62,7 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
           placeholder="e.g. Maple REIT"
         />
       </div>
-      {!isDevnet && (
+      {!isDevnet && !isLocalhost && (
         <div>
           <Label htmlFor="usdcMint">USDC Mint Address</Label>
           <Input
@@ -53,12 +73,20 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
           />
         </div>
       )}
-      {isDevnet && (
+      {(isDevnet || isLocalhost) && (
         <div>
-          <Label>USDC Mint Address (Devnet)</Label>
-          <div className="text-sm text-muted-foreground bg-muted p-2 rounded">
-            Using hardcoded devnet USDC mint: {defaultUsdcMint}
+          <Label>USDC Mint Address ({isDevnet ? 'Devnet' : 'Localnet'})</Label>
+          <div className="text-sm text-muted-foreground bg-muted p-2 rounded font-mono break-all">
+            {defaultUsdcMint}
           </div>
+          {isLocalhost && (
+            <p className="text-xs text-yellow-600 mt-2">
+              Make sure the USDC mint has been initialized by running:
+              <code className="bg-yellow-50 px-2 py-1 rounded block mt-1">
+                cd anchor/scripts/usdc-setup && ./init-usdc-mint.sh
+              </code>
+            </p>
+          )}
         </div>
       )}
       <Button

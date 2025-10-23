@@ -10,6 +10,20 @@ pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16]) -> Re
         return Err(error!(crate::errors::CustomError::InvalidAmount));
     }
 
+    // Investor account must already exist; fetch its counter
+    let investor_account = &mut ctx.accounts.investor_account;
+    if investor_account.investor != ctx.accounts.investor.key() {
+        return Err(error!(crate::errors::CustomError::InvalidAuthority));
+    }
+
+    // Get current counter before incrementing
+    let current_counter = investor_account.investment_counter;
+
+    // Increment counter with overflow check
+    investor_account.investment_counter = current_counter
+        .checked_add(1)
+        .ok_or(error!(crate::errors::CustomError::InvestmentCounterOverflow))?;
+
     let fundraiser = &mut ctx.accounts.fundraiser;
 
     // Verify escrow vault matches fundraiser. This will be enforced by constraints as well.
@@ -38,18 +52,13 @@ pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16]) -> Re
     investment.investment_date = Clock::get()?.unix_timestamp;
     investment.bump = ctx.bumps.investment;
 
-    // Update fundraiser counters
-    fundraiser.investment_counter = fundraiser
-        .investment_counter
-        .checked_add(1)
-        .ok_or(error!(crate::errors::CustomError::InvestmentCounterOverflow))?;
-
+    // Update fundraiser totals (no counter update needed here)
     fundraiser.total_raised = fundraiser
         .total_raised
         .checked_add(amount)
         .ok_or(error!(crate::errors::CustomError::ArithmeticOverflow))?;
 
-    msg!("Invest handler complete");
+    msg!("Invest handler complete - counter: {}, amount: {}", current_counter, amount);
 
     Ok(())
 }
@@ -68,11 +77,20 @@ pub struct Invest<'info> {
     )]
     pub fundraiser: Account<'info, state::Fundraiser>,
 
+    /// Investor account to track investment counter
+    #[account(
+        mut,
+        seeds = [b"investor", investor.key().as_ref()],
+        bump = investor_account.bump
+    )]
+    pub investor_account: Account<'info, state::Investor>,
+
+    /// Investment PDA derived with investor + counter
     #[account(
         init,
         payer = investor,
         space = 8 + state::Investment::INIT_SPACE,
-        seeds = [b"investment", investor.key().as_ref(), fundraiser.key().as_ref(), &fundraiser.investment_counter.to_le_bytes()],
+        seeds = [b"investment", investor.key().as_ref(), &investor_account.investment_counter.to_le_bytes()],
         bump
     )]
     pub investment: Account<'info, state::Investment>,
@@ -86,7 +104,5 @@ pub struct Invest<'info> {
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-
-    // pass the reit_id_hash so PDA derivation uses the same bytes
-    // reit_id_hash is provided as an instruction argument (see #[instruction(...)])
 }
+

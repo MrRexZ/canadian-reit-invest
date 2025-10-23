@@ -114,6 +114,59 @@
       ]
     },
     {
+      "name": "initialize_investor",
+      "discriminator": [
+        12,
+        105,
+        129,
+        28,
+        138,
+        149,
+        223,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "investor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "investor_account",
+          "docs": [
+            "Investor account to track investment counter"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  115,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "investor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "invest",
       "discriminator": [
         13,
@@ -159,7 +212,38 @@
           }
         },
         {
+          "name": "investor_account",
+          "docs": [
+            "Investor account to track investment counter"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  115,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "investor"
+              }
+            ]
+          }
+        },
+        {
           "name": "investment",
+          "docs": [
+            "Investment PDA derived with investor + counter"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -184,12 +268,8 @@
               },
               {
                 "kind": "account",
-                "path": "fundraiser"
-              },
-              {
-                "kind": "account",
-                "path": "fundraiser.investment_counter",
-                "account": "Fundraiser"
+                "path": "investor_account.investment_counter",
+                "account": "Investor"
               }
             ]
           }
@@ -257,6 +337,19 @@
         153,
         39,
         28
+      ]
+    },
+    {
+      "name": "Investor",
+      "discriminator": [
+        174,
+        129,
+        17,
+        83,
+        36,
+        116,
+        26,
+        196
       ]
     }
   ],
@@ -328,10 +421,6 @@
             "type": "u64"
           },
           {
-            "name": "investment_counter",
-            "type": "u64"
-          },
-          {
             "name": "bump",
             "type": "u8"
           },
@@ -382,6 +471,29 @@
           {
             "name": "investment_date",
             "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Investor",
+      "docs": [
+        "Tracks investment counter per investor"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "investor",
+            "type": "pubkey"
+          },
+          {
+            "name": "investment_counter",
+            "type": "u64"
           },
           {
             "name": "bump",

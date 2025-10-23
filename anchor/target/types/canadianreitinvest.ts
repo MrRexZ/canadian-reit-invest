@@ -120,6 +120,59 @@ export type Canadianreitinvest = {
       ]
     },
     {
+      "name": "initializeInvestor",
+      "discriminator": [
+        12,
+        105,
+        129,
+        28,
+        138,
+        149,
+        223,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "investor",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "investorAccount",
+          "docs": [
+            "Investor account to track investment counter"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  115,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "investor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "invest",
       "discriminator": [
         13,
@@ -165,7 +218,38 @@ export type Canadianreitinvest = {
           }
         },
         {
+          "name": "investorAccount",
+          "docs": [
+            "Investor account to track investment counter"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  115,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "investor"
+              }
+            ]
+          }
+        },
+        {
           "name": "investment",
+          "docs": [
+            "Investment PDA derived with investor + counter"
+          ],
           "writable": true,
           "pda": {
             "seeds": [
@@ -190,12 +274,8 @@ export type Canadianreitinvest = {
               },
               {
                 "kind": "account",
-                "path": "fundraiser"
-              },
-              {
-                "kind": "account",
-                "path": "fundraiser.investment_counter",
-                "account": "fundraiser"
+                "path": "investor_account.investment_counter",
+                "account": "investor"
               }
             ]
           }
@@ -263,6 +343,19 @@ export type Canadianreitinvest = {
         153,
         39,
         28
+      ]
+    },
+    {
+      "name": "investor",
+      "discriminator": [
+        174,
+        129,
+        17,
+        83,
+        36,
+        116,
+        26,
+        196
       ]
     }
   ],
@@ -334,10 +427,6 @@ export type Canadianreitinvest = {
             "type": "u64"
           },
           {
-            "name": "investmentCounter",
-            "type": "u64"
-          },
-          {
             "name": "bump",
             "type": "u8"
           },
@@ -388,6 +477,29 @@ export type Canadianreitinvest = {
           {
             "name": "investmentDate",
             "type": "i64"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "investor",
+      "docs": [
+        "Tracks investment counter per investor"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "investor",
+            "type": "pubkey"
+          },
+          {
+            "name": "investmentCounter",
+            "type": "u64"
           },
           {
             "name": "bump",

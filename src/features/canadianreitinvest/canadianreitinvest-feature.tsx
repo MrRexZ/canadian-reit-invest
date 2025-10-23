@@ -1,9 +1,9 @@
 import { useSolana } from '@/components/solana/use-solana'
 import { WalletDropdown } from '@/components/wallet-dropdown'
-import { AppHero } from '@/components/app-hero'
 import { CanadianreitinvestUiProgramExplorerLink } from './ui/canadianreitinvest-ui-program-explorer-link'
 import { CanadianreitinvestUiInitializeFundraiser } from './ui/canadianreitinvest-ui-initialize-fundraiser'
 import { CanadianreitinvestUiCreateUsdcMint } from './ui/canadianreitinvest-ui-create-usdc-mint'
+import { CanadianreitinvestUiUsdcLocalnetManagement } from './ui/canadianreitinvest-ui-usdc-localnet-management'
 import AuthFeature from '@/features/auth/auth-feature'
 import { useAuth } from '@/components/auth-provider'
 import InvestorPage from '@/features/investor/investor-page'
@@ -61,6 +61,7 @@ export default function CanadianreitinvestFeature() {
     return <InvestorPage />
   }
 
+  // Default fallback for unknown roles or no account
   if (!account) {
     return (
       <div className="max-w-4xl mx-auto">
@@ -73,23 +74,11 @@ export default function CanadianreitinvestFeature() {
     )
   }
 
-  return (
-    <div>
-      <AppHero title="Admin Fundraiser Dashboard" subtitle={'Admin Fundraiser Dashboard'}>
-        <p className="mb-6">
-          <CanadianreitinvestUiProgramExplorerLink />
-        </p>
-        <CanadianreitinvestUiCreateUsdcMint account={account} />
-        <div className="mt-6">
-          <CanadianreitinvestUiInitializeFundraiser account={account} />
-        </div>
-      </AppHero>
-    </div>
-  )
+  return null
 }
 
 function AdminTabs({ account }: { account: any }) {
-  const [tab, setTab] = useState<'create' | 'browse'>('create')
+  const [tab, setTab] = useState<'create' | 'browse' | 'usdc-localnet'>('create')
 
   return (
     <div className="flex gap-0">
@@ -107,6 +96,12 @@ function AdminTabs({ account }: { account: any }) {
           >
             Browse REITs
           </button>
+          <button
+            className={`text-left px-3 py-2 rounded-md ${tab === 'usdc-localnet' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
+            onClick={() => setTab('usdc-localnet')}
+          >
+            USDC Localnet
+          </button>
         </nav>
       </aside>
 
@@ -120,13 +115,24 @@ function AdminTabs({ account }: { account: any }) {
             </div>
 
             <div className="space-y-6 max-w-md">
-              <CanadianreitinvestUiCreateUsdcMint account={account} />
+              <CanadianreitinvestUiCreateUsdcMint />
               <CanadianreitinvestUiInitializeFundraiser account={account} />
             </div>
           </div>
-        ) : (
+        ) : tab === 'browse' ? (
           <div>
             <BrowseReits />
+          </div>
+        ) : (
+          <div>
+            <div className="pb-4">
+              <h1 className="text-4xl font-bold">USDC Localnet</h1>
+              <p className="mt-2 text-muted-foreground">Manage USDC token for localnet testing</p>
+            </div>
+
+            <div className="space-y-6 max-w-2xl">
+              <CanadianreitinvestUiUsdcLocalnetManagement />
+            </div>
           </div>
         )}
       </section>

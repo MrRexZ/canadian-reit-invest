@@ -3,19 +3,20 @@
   "scripts": {
     "anchor": "cd anchor && anchor",
     "anchor-build": "cd anchor && anchor build",
-    "anchor-localnet": "cd anchor && anchor localnet",
+    "anchor-localnet": "cd anchor && solana-test-validator --ledger ./ledger",
+    "anchor-localnet-clone-usdc": "cd anchor && anchor-localnet --clone EPjFWdd5AufqSSqeM2qN1xzybapC8G4wEGGkZwyTDt1v --url mainnet-beta --ledger ./ledger",
     "anchor-test": "cd anchor && anchor test",
-    "build": "tsc -b && vite build --mode production",
+    "build": "npm run generate-usdc-address && tsc -b && vite build --mode production",
     "codama:js": "codama run js -c codama.js",
     "ci": "npm run build && npm run lint && npm run format:check && npm run codama:js",
-    "local": "vite",
-    "dev": "vite --mode development",
+    "dev": "npm run generate-usdc-address && vite --mode development",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
+    "generate-usdc-address": "bash anchor/scripts/generate-usdc-address.sh",
     "lint": "eslint .",
     "preview": "vite preview",
     "prod": "npm run build && vite preview --port 4173",
-    "setup": "npm run anchor keys sync && npm run codama:js"
+    "setup": "npm run anchor keys sync && npm run codama:js && npm run generate-usdc-address"
   },
   "description": "React+Vite, Tailwind, gill (based on @solana/kit), canadianreitinvest Anchor example, Wallet UI",
   "keywords": [

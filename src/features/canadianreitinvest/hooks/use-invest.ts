@@ -9,6 +9,7 @@ import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { useSolana } from '@/components/solana/use-solana'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
+import { fetchMaybeInvestor } from '@/generated/accounts/investor'
 
 export function useInvest({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
@@ -24,11 +25,8 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
 
       // Step 1: Derive fundraiser PDA from reit_id_hash
       const seedBuffer = Buffer.from(reitIdHash)
-      // Debug: print values used to derive the PDA
       console.debug('INVEST DEBUG: programId=', programId.toBase58())
-      console.debug('INVEST DEBUG: reitIdHash (bytes)=', reitIdHash)
       console.debug('INVEST DEBUG: reitIdHash (hex)=', seedBuffer.toString('hex'))
-      console.debug('INVEST DEBUG: seedBuffer.length=', seedBuffer.length)
       const [fundraiserPda] = await PublicKey.findProgramAddress(
         [Buffer.from('fundraiser'), seedBuffer],
         programId
@@ -40,24 +38,37 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
         client.rpc,
         fundraiserPda.toBase58() as Address
       )
-      console.debug('INVEST DEBUG: fundraiserAccount.exists=', fundraiserAccount?.exists)
       if (!fundraiserAccount?.exists) {
         console.error('Fundraiser account does not exist at', fundraiserPda.toBase58())
         throw new Error('Fundraiser not found')
       }
 
       const fundraiser = fundraiserAccount.data
-      // Debug: print a couple of fundraiser fields that are relevant
-      try {
-        console.debug('INVEST DEBUG: fundraiser.usdcMint=', fundraiser.usdcMint)
-        console.debug('INVEST DEBUG: fundraiser.escrowVault=', fundraiser.escrowVault)
-        console.debug('INVEST DEBUG: fundraiser.investmentCounter=', fundraiser.investmentCounter)
-      } catch (e) {
-        /* ignore if shape unexpected */
+      console.debug('INVEST DEBUG: fundraiser.usdcMint=', fundraiser.usdcMint)
+      console.debug('INVEST DEBUG: fundraiser.escrowVault=', fundraiser.escrowVault)
+
+      // Step 3: Derive investor PDA and fetch investor account
+      const [investorPda] = await PublicKey.findProgramAddress(
+        [Buffer.from('investor'), investorPublicKey.toBuffer()],
+        programId
+      )
+      console.debug('INVEST DEBUG: derived investorPda=', investorPda.toBase58())
+
+      const investorAccount = await fetchMaybeInvestor(
+        client.rpc,
+        investorPda.toBase58() as Address
+      )
+
+      // Investor account must already exist; it's initialized via initialize_investor instruction
+      if (!investorAccount?.exists) {
+        console.error('Investor account does not exist at', investorPda.toBase58())
+        throw new Error('Investor account not initialized. Please call initialize_investor first.')
       }
 
-      // Step 3: Derive investment PDA using investment_counter
-      const investmentCounter = fundraiser.investmentCounter
+      const investmentCounter = investorAccount.data.investmentCounter
+      console.debug('INVEST DEBUG: found investor account, counter=', investmentCounter.toString())
+
+      // Step 4: Derive investment PDA using investor's counter
       const investmentCounterBuf = Buffer.alloc(8)
       investmentCounterBuf.writeBigUInt64LE(investmentCounter)
 
@@ -65,23 +76,24 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
         [
           Buffer.from('investment'),
           investorPublicKey.toBuffer(),
-          fundraiserPda.toBuffer(),
           investmentCounterBuf,
         ],
         programId
       )
+      console.debug('INVEST DEBUG: derived investmentPda=', investmentPda.toBase58())
 
-      // Step 4: Get investor's USDC ATA
+      // Step 5: Get investor's USDC ATA
       const usdcMint = new PublicKey(fundraiser.usdcMint)
       const investorUsdcAta = getAssociatedTokenAddressSync(usdcMint, investorPublicKey)
 
-      // Step 5: Get escrow vault from fundraiser
+      // Step 6: Get escrow vault from fundraiser
       const escrowVault = new PublicKey(fundraiser.escrowVault)
 
-      // Step 6: Build and send invest instruction
+      // Step 7: Build and send invest instruction
       const instruction = await getInvestInstructionAsync({
         investor: signer,
         fundraiser: fundraiserPda.toBase58() as Address,
+        investorAccount: investorPda.toBase58() as Address,
         investment: investmentPda.toBase58() as Address,
         investorUsdcAta: investorUsdcAta.toBase58() as Address,
         escrowVault: escrowVault.toBase58() as Address,

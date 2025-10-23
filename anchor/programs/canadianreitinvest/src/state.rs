@@ -1,5 +1,14 @@
 use anchor_lang::prelude::*;
 
+/// Tracks investment counter per investor
+#[account]
+#[derive(InitSpace)]
+pub struct Investor {
+    pub investor: Pubkey, // The investor's public key
+    pub investment_counter: u64, // Counter for all investments by this investor
+    pub bump: u8, // PDA bump seed
+}
+
 #[account]
 #[derive(InitSpace)]
 pub struct Fundraiser {
@@ -9,7 +18,6 @@ pub struct Fundraiser {
     pub escrow_vault: Pubkey, // The escrow token account that holds USDC investments
     pub total_raised: u64, // Total USDC raised from all investments (aggregate for onchain efficiency)
     pub released_amount: u64, // Total USDC released to the admin for CAD conversion (aggregate for onchain efficiency)
-    pub investment_counter: u64, // Counter for generating unique investment PDA seeds
     pub bump: u8, // PDA bump seed for the fundraiser account
     pub reit_accepted_currency: [u8; 3], // Currency code for the REIT (e.g., "CAD") - changed from String
 }

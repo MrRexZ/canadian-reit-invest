@@ -3,7 +3,7 @@
   "scripts": {
     "anchor": "cd anchor && anchor",
     "anchor-build": "cd anchor && anchor build",
-    "anchor-localnet": "cd anchor && anchor localnet",
+    "anchor-localnet": "cd anchor && solana-test-validator --ledger ./ledger",
     "anchor-test": "cd anchor && anchor test",
     "build": "tsc -b && vite build --mode production",
     "codama:js": "codama run js -c codama.js",

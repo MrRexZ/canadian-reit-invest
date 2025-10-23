@@ -18,11 +18,10 @@ export default function CanadianreitinvestFeature() {
   const params = new URLSearchParams(location.search)
   const forceShowAuth = params.get('showAuth') === '1'
 
-  console.log('[CanadianreitinvestFeature] Current state - user:', user?.id, 'role:', role, 'loading:', loading, 'roleLoading:', roleLoading, 'account:', account?.publicKey)
+  // Current auth and account state
 
   // While auth or role is loading
   if (loading || roleLoading) {
-    console.log('[CanadianreitinvestFeature] Loading state, showing loading screen')
     return (
       <div className="max-w-4xl mx-auto">
         <div className="hero py-[64px]">
@@ -34,13 +33,11 @@ export default function CanadianreitinvestFeature() {
 
   // If no Supabase user, show auth UI
   if (forceShowAuth || !user) {
-    console.log('[CanadianreitinvestFeature] No user or forceShowAuth, showing auth UI')
     return <AuthFeature />
   }
 
   // If user is authenticated and role is loaded, render based on role
   if (role === 'admin') {
-    console.log('[CanadianreitinvestFeature] Role is admin, showing Admin Fundraiser Dashboard')
     if (!account) {
       return (
         <div className="max-w-4xl mx-auto">
@@ -61,12 +58,10 @@ export default function CanadianreitinvestFeature() {
   }
 
   if (role === 'investor') {
-    console.log('[CanadianreitinvestFeature] Role is investor, showing InvestorPage')
     return <InvestorPage />
   }
 
   if (!account) {
-    console.log('[CanadianreitinvestFeature] No account, showing wallet dropdown')
     return (
       <div className="max-w-4xl mx-auto">
         <div className="hero py-[64px]">

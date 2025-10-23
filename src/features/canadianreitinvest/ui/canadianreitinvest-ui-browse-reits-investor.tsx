@@ -137,7 +137,8 @@ export default function BrowseReitsInvestor({ account }: { account: UiWalletAcco
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {reits.map((reit) => {
-          const totalRaised = reit.fundraiser?.data?.totalRaised ?? 0
+          const totalRaisedBigInt = reit.fundraiser?.data?.totalRaised ?? 0n
+          const totalRaised = typeof totalRaisedBigInt === 'bigint' ? Number(totalRaisedBigInt) : totalRaisedBigInt
           const targetAmount = 2000000 // TODO: add to fundraiser PDA or supabase
           const progressPercent = targetAmount > 0 ? (totalRaised / targetAmount) * 100 : 0
           const remaining = Math.max(0, targetAmount - totalRaised)
@@ -225,7 +226,9 @@ export default function BrowseReitsInvestor({ account }: { account: UiWalletAcco
                   <div className="flex justify-between">
                     <span>Raised:</span>
                     <span className="font-medium">
-                      ${((selectedReit.fundraiser?.data?.totalRaised ?? 0) / 1000000).toFixed(2)}M USDC
+                      ${((selectedReit.fundraiser?.data?.totalRaised !== undefined 
+                        ? Number(selectedReit.fundraiser.data.totalRaised) 
+                        : 0) / 1000000).toFixed(2)}M USDC
                     </span>
                   </div>
                   <div className="flex justify-between">

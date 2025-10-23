@@ -58,41 +58,28 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   useEffect(() => {
     // Fetch role from users table when user is present
     const fetchRole = async (userId: string) => {
-      console.log('[AuthProvider] Starting role fetch for userId:', userId)
       setRoleLoading(true)
       try {
-        console.log('[AuthProvider] Current session:', await supabase.auth.getSession())
-        console.log('[AuthProvider] Querying users table with user_id:', userId)
-        
-        // Try to fetch the user's role using the correct column name
-        const { data, error, status } = await supabase
+        const { data, error } = await supabase
           .from('users')
           .select('role')
           .eq('user_id', userId)
           .maybeSingle()
 
-        console.log('[AuthProvider] Query response - status:', status, 'data:', data, 'error:', error)
-        console.log('[AuthProvider] Full error details:', JSON.stringify(error, null, 2))
-
         if (error) {
-          console.error('[AuthProvider] Error fetching role - Code:', error.code, 'Message:', error.message)
+          console.error('Error fetching role -', error)
           setRole(null)
-          setRoleLoading(false)
           return
         }
 
         if (!data) {
-          console.warn('[AuthProvider] No user record found in users table for userId:', userId)
           setRole(null)
-          setRoleLoading(false)
           return
         }
 
-        const fetchedRole = data?.role ?? null
-        console.log('[AuthProvider] Successfully fetched role:', fetchedRole)
-        setRole(fetchedRole)
+        setRole(data.role ?? null)
       } catch (e) {
-        console.error('[AuthProvider] Exception while fetching role:', e)
+        console.error('Exception while fetching role:', e)
         setRole(null)
       } finally {
         setRoleLoading(false)
@@ -100,10 +87,8 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
     }
 
     if (user) {
-      console.log('[AuthProvider] User detected, fetching role:', user.id)
       fetchRole(user.id)
     } else {
-      console.log('[AuthProvider] No user, clearing role')
       setRole(null)
       setRoleLoading(false)
     }

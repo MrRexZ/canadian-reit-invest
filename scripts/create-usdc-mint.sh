@@ -31,16 +31,23 @@ fi
 
 echo "✅ Connected to localnet validator"
 
-# Path to the fixed mint keypair
+# Path to the fixed mint keypair (stored in both locations for compatibility)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 LEDGER_DIR="$PROJECT_ROOT/anchor/ledger"
+SRC_CONFIG_DIR="$PROJECT_ROOT/src/config"
 MINT_KEYPAIR="$LEDGER_DIR/usdc-mint-keypair.json"
+MINT_KEYPAIR_SRC="$SRC_CONFIG_DIR/usdc-mint-keypair.json"
 
 if [ ! -f "$MINT_KEYPAIR" ]; then
     echo "❌ Mint keypair not found at: $MINT_KEYPAIR"
     exit 1
 fi
+
+# Ensure src/config directory exists and sync the keypair
+mkdir -p "$SRC_CONFIG_DIR"
+cp "$MINT_KEYPAIR" "$MINT_KEYPAIR_SRC"
+echo "✅ Synced keypair to: $MINT_KEYPAIR_SRC"
 
 # Get the mint address
 MINT_ADDRESS=$(solana-keygen pubkey "$MINT_KEYPAIR")
@@ -83,7 +90,7 @@ echo ""
 echo "🎉 USDC Mint setup complete!"
 echo "   Mint address: $MINT_ADDRESS"
 echo ""
-echo "The mint address is already configured in src/lib/cluster-config.ts"
+echo "The mint address is dynamically loaded from the keypair in src/lib/cluster-config.ts"
 echo ""
 echo "Next steps:"
 echo "  1. Start the frontend with: pnpm dev"

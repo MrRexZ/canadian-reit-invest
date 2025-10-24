@@ -5,7 +5,7 @@
  * IDL can be found at `target/idl/canadianreitinvest.json`.
  */
 export type Canadianreitinvest = {
-  "address": "HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B",
+  "address": "FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH",
   "metadata": {
     "name": "canadianreitinvest",
     "version": "0.1.0",
@@ -13,6 +13,52 @@ export type Canadianreitinvest = {
     "description": "Created with Anchor"
   },
   "instructions": [
+    {
+      "name": "closeInvestor",
+      "discriminator": [
+        243,
+        111,
+        117,
+        71,
+        42,
+        130,
+        10,
+        195
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "investor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  115,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              }
+            ]
+          }
+        }
+      ],
+      "args": []
+    },
     {
       "name": "initializeFundraiser",
       "discriminator": [

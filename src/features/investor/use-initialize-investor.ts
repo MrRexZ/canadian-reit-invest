@@ -4,7 +4,9 @@ import { useSolana } from '@/components/solana/use-solana'
 import { CLUSTER_CONFIG } from '@/lib/cluster-config'
 import { PublicKey } from '@solana/web3.js'
 import { useWalletUi } from '@wallet-ui/react'
+import { useWalletUiSigner, useWalletUiSignAndSend } from '@wallet-ui/react-gill'
 import { type Address } from 'gill'
+import { getInitializeInvestorInstructionAsync } from '@/generated'
 
 export function useInitializeInvestor() {
   const { account } = useWalletUi()
@@ -37,9 +39,12 @@ export function useInitializeInvestor() {
     staleTime: 1000 * 60 * 5, // 5 minutes
   })
 
+  const signer = account ? useWalletUiSigner({ account }) : null
+  const signAndSend = useWalletUiSignAndSend()
+
   const initializeMutation = useMutation({
     mutationFn: async () => {
-      if (!account?.publicKey) {
+      if (!account?.publicKey || !signer) {
         throw new Error('Wallet not connected')
       }
 
@@ -62,13 +67,21 @@ export function useInitializeInvestor() {
         if (e.message === 'Investor PDA already initialized') {
           throw e
         }
+        // If account doesn't exist, that's fine - we'll create it
       }
 
-      // For now, show a message - full implementation requires Codama-generated types
-      throw new Error('Investor initialization requires Codama-generated types. Run: pnpm anchor-build')
+      // Build and send initialize investor instruction
+      const instruction = await getInitializeInvestorInstructionAsync({
+        signer,
+        investor: investorPda.toBase58() as Address,
+      })
+
+      const sig = await signAndSend(instruction, signer)
+      toast.success('Investor account initialized successfully')
+      return sig
     },
     onError: (error: any) => {
-      toast.error(error.message)
+      toast.error(error instanceof Error ? error.message : 'Failed to initialize investor account')
     },
   })
 

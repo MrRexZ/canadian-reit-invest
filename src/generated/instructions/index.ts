@@ -6,6 +6,7 @@
  * @see https://github.com/codama-idl/codama
  */
 
+export * from './closeInvestor';
 export * from './initializeFundraiser';
 export * from './initializeInvestor';
 export * from './invest';

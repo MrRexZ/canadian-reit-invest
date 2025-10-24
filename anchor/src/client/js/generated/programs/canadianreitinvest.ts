@@ -16,7 +16,7 @@ import {
 import { type ParsedInitializeFundraiserInstruction } from '../instructions';
 
 export const CANADIANREITINVEST_PROGRAM_ADDRESS =
-  'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B' as Address<'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B'>;
+  'FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH' as Address<'FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH'>;
 
 export enum CanadianreitinvestAccount {
   Fundraiser,
@@ -79,7 +79,7 @@ export function identifyCanadianreitinvestInstruction(
 }
 
 export type ParsedCanadianreitinvestInstruction<
-  TProgram extends string = 'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B',
+  TProgram extends string = 'FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH',
 > = {
   instructionType: CanadianreitinvestInstruction.InitializeFundraiser;
 } & ParsedInitializeFundraiserInstruction<TProgram>;

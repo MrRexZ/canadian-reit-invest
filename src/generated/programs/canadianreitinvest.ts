@@ -14,13 +14,14 @@ import {
   type ReadonlyUint8Array,
 } from 'gill';
 import {
+  type ParsedCloseInvestorInstruction,
   type ParsedInitializeFundraiserInstruction,
   type ParsedInitializeInvestorInstruction,
   type ParsedInvestInstruction,
 } from '../instructions';
 
 export const CANADIANREITINVEST_PROGRAM_ADDRESS =
-  'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B' as Address<'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B'>;
+  'FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH' as Address<'FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH'>;
 
 export enum CanadianreitinvestAccount {
   Fundraiser,
@@ -71,6 +72,7 @@ export function identifyCanadianreitinvestAccount(
 }
 
 export enum CanadianreitinvestInstruction {
+  CloseInvestor,
   InitializeFundraiser,
   InitializeInvestor,
   Invest,
@@ -80,6 +82,17 @@ export function identifyCanadianreitinvestInstruction(
   instruction: { data: ReadonlyUint8Array } | ReadonlyUint8Array
 ): CanadianreitinvestInstruction {
   const data = 'data' in instruction ? instruction.data : instruction;
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([243, 111, 117, 71, 42, 130, 10, 195])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.CloseInvestor;
+  }
   if (
     containsBytes(
       data,
@@ -119,8 +132,11 @@ export function identifyCanadianreitinvestInstruction(
 }
 
 export type ParsedCanadianreitinvestInstruction<
-  TProgram extends string = 'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B',
+  TProgram extends string = 'FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH',
 > =
+  | ({
+      instructionType: CanadianreitinvestInstruction.CloseInvestor;
+    } & ParsedCloseInvestorInstruction<TProgram>)
   | ({
       instructionType: CanadianreitinvestInstruction.InitializeFundraiser;
     } & ParsedInitializeFundraiserInstruction<TProgram>)

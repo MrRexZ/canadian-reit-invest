@@ -5,7 +5,7 @@ import { UiWalletAccount } from '@wallet-ui/react'
 import { Address } from 'gill'
 import { PublicKey } from '@solana/web3.js'
 import { toast } from 'sonner'
-import { getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { getAssociatedTokenAddressSync, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { useSolana } from '@/components/solana/use-solana'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
@@ -55,6 +55,8 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
 
       // Step 3: Get investor's USDC ATA
       const usdcMint = new PublicKey(fundraiser.usdcMint)
+      console.log('usdcMint:', usdcMint.toBase58())
+      console.log('fundraiser.usdcMint:', fundraiser.usdcMint)
       const investorUsdcAta = getAssociatedTokenAddressSync(usdcMint, investorPublicKey)
 
       // Step 4: We no longer require the frontend to pre-create the USDC ATA.
@@ -94,6 +96,8 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
         fundraiser: fundraiserPda.toBase58() as Address,
         investment: investmentPda.toBase58() as Address,
         investorUsdcAta: investorUsdcAta.toBase58() as Address,
+        usdcMint: usdcMint.toBase58() as Address,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID.toBase58() as Address,
         escrowVault: escrowVault.toBase58() as Address,
         amount: BigInt(amount),
         reitIdHash: reitIdHash as unknown as Uint8Array,

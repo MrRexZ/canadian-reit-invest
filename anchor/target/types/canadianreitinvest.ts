@@ -120,6 +120,56 @@ export type Canadianreitinvest = {
       ]
     },
     {
+      "name": "initializeInvestor",
+      "discriminator": [
+        12,
+        105,
+        129,
+        28,
+        138,
+        149,
+        223,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "investor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  115,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "invest",
       "discriminator": [
         13,
@@ -133,9 +183,34 @@ export type Canadianreitinvest = {
       ],
       "accounts": [
         {
-          "name": "investor",
+          "name": "investorSigner",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "investor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  115,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "investorSigner"
+              }
+            ]
+          }
         },
         {
           "name": "fundraiser",
@@ -186,7 +261,7 @@ export type Canadianreitinvest = {
               },
               {
                 "kind": "account",
-                "path": "investor"
+                "path": "investorSigner"
               },
               {
                 "kind": "account",
@@ -194,8 +269,8 @@ export type Canadianreitinvest = {
               },
               {
                 "kind": "account",
-                "path": "fundraiser.investment_counter",
-                "account": "fundraiser"
+                "path": "investor.investment_counter",
+                "account": "investor"
               }
             ]
           }
@@ -263,6 +338,19 @@ export type Canadianreitinvest = {
         153,
         39,
         28
+      ]
+    },
+    {
+      "name": "investor",
+      "discriminator": [
+        174,
+        129,
+        17,
+        83,
+        36,
+        116,
+        26,
+        196
       ]
     }
   ],
@@ -334,10 +422,6 @@ export type Canadianreitinvest = {
             "type": "u64"
           },
           {
-            "name": "investmentCounter",
-            "type": "u64"
-          },
-          {
             "name": "bump",
             "type": "u8"
           },
@@ -356,7 +440,8 @@ export type Canadianreitinvest = {
     {
       "name": "investment",
       "docs": [
-        "Represents an individual investment in a fundraiser"
+        "Represents an individual investment in a fundraiser",
+        "Seeds: [b\"investment\", investor_pubkey, fundraiser_pubkey, investment_counter]"
       ],
       "type": {
         "kind": "struct",
@@ -386,8 +471,28 @@ export type Canadianreitinvest = {
             "type": "bool"
           },
           {
-            "name": "investmentDate",
-            "type": "i64"
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "investor",
+      "docs": [
+        "Represents an investor's profile on-chain",
+        "Seeds: [b\"investor\", investor_pubkey]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "investorPubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "investmentCounter",
+            "type": "u64"
           },
           {
             "name": "bump",

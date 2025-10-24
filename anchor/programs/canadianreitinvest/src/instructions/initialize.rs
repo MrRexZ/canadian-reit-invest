@@ -45,7 +45,6 @@ pub fn handler(ctx: Context<InitializeFundraiser>, _reit_id: String, _reit_id_ha
     fundraiser.escrow_vault = ctx.accounts.escrow_vault.key();
     fundraiser.total_raised = 0;
     fundraiser.released_amount = 0;
-    fundraiser.investment_counter = 0;
     fundraiser.bump = ctx.bumps.fundraiser;
     fundraiser.reit_accepted_currency = *b"CAD";
 

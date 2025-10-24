@@ -23,6 +23,7 @@ export const CLUSTER_CONFIG = {
   localnet: {
     usdcMint: localnetUsdcMint,
   },
+  programId: 'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B',
 } as const
 
 export type ClusterId = keyof typeof CLUSTER_CONFIG

@@ -58,7 +58,6 @@ describe('canadianreitinvest', () => {
     expect(fundraiserAccount.escrowVault.toString()).toBe(escrowVault.toString())
     expect(fundraiserAccount.totalRaised).toBe(0)
     expect(fundraiserAccount.releasedAmount).toBe(0)
-    expect(fundraiserAccount.investmentCounter).toBe(0)
 
     // Check escrow vault exists
     const escrowAccount = await program.provider.connection.getAccountInfo(escrowVault)

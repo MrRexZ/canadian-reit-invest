@@ -9,6 +9,7 @@ import { getAssociatedTokenAddressSync, ASSOCIATED_TOKEN_PROGRAM_ID } from '@sol
 import { useSolana } from '@/components/solana/use-solana'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
+import { fetchMaybeInvestor } from '@/generated/accounts/investor'
 
 export function useInvest({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
@@ -71,10 +72,22 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       )
       console.debug('INVEST DEBUG: derived investorPda=', investorPda.toBase58())
 
-      // Step 6: Derive investment PDA using investor's investment_counter (from investor PDA)
-      // For now, use counter 0 as a placeholder - on-chain logic will use actual counter
+      // Step 6: Fetch current investor account to get investment counter for PDA derivation
+      const investorAccount = await fetchMaybeInvestor(
+        client.rpc,
+        investorPda.toBase58() as Address
+      )
+      console.debug('INVEST DEBUG: investorAccount.exists=', investorAccount?.exists)
+
+      // Get current counter (0 if investor account doesn't exist yet)
+      const currentCounter = investorAccount?.exists
+        ? Number(investorAccount.data.investmentCounter)
+        : 0
+      console.debug('INVEST DEBUG: currentCounter=', currentCounter)
+
+      // Step 7: Derive investment PDA using the current counter
       const investmentCounterBuf = Buffer.alloc(8)
-      investmentCounterBuf.writeBigUInt64LE(0n)
+      investmentCounterBuf.writeBigUInt64LE(BigInt(currentCounter))
 
       const [investmentPda] = await PublicKey.findProgramAddress(
         [
@@ -85,6 +98,7 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
         ],
         programId
       )
+      console.debug('INVEST DEBUG: derived investmentPda=', investmentPda.toBase58())
 
       // Step 7: Get escrow vault from fundraiser
       const escrowVault = new PublicKey(fundraiser.escrowVault)

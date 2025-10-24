@@ -73,8 +73,14 @@ export function CanadianreitinvestUiInvest({
         </div>
 
         {error && (
-          <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
-            {error}
+          <div className="text-sm text-destructive bg-destructive/10 p-2 rounded space-y-2">
+            <p>{error}</p>
+            {error.includes('insufficient funds') && (
+              <p className="text-xs">
+                💡 <strong>Tip:</strong> You need USDC tokens to invest. On localnet, run:<br />
+                <code className="bg-black/50 px-1 rounded">./scripts/mint-usdc-tokens.sh {account.publicKey} 1000</code>
+              </p>
+            )}
           </div>
         )}
 

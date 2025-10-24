@@ -22,20 +22,7 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
       const investorPublicKey = new PublicKey(account.publicKey)
 
-      // Step 1: Derive investor PDA
-      const [investorPda] = await PublicKey.findProgramAddress(
-        [Buffer.from('investor'), investorPublicKey.toBuffer()],
-        programId
-      )
-      console.debug('INVEST DEBUG: derived investorPda=', investorPda.toBase58())
-
-      // Step 2: Check if investor PDA exists
-      const investorAccount = await client.rpc.getAccountInfo(investorPda.toBase58() as Address)
-      if (!investorAccount) {
-        throw new Error('Investor account not initialized. Please initialize your investor account first.')
-      }
-
-      // Step 3: Derive fundraiser PDA from reit_id_hash
+      // Step 1: Derive fundraiser PDA from reit_id_hash
       const seedBuffer = Buffer.from(reitIdHash)
       console.debug('INVEST DEBUG: programId=', programId.toBase58())
       console.debug('INVEST DEBUG: reitIdHash (bytes)=', reitIdHash)
@@ -47,7 +34,7 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       )
       console.debug('INVEST DEBUG: derived fundraiserPda=', fundraiserPda.toBase58())
 
-      // Step 4: Fetch fundraiser account
+      // Step 2: Fetch fundraiser account
       const fundraiserAccount = await fetchMaybeFundraiser(
         client.rpc,
         fundraiserPda.toBase58() as Address
@@ -66,7 +53,23 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
         /* ignore if shape unexpected */
       }
 
-      // Step 5: Derive investment PDA using investor's investment_counter (from investor PDA)
+      // Step 3: Get investor's USDC ATA
+      const usdcMint = new PublicKey(fundraiser.usdcMint)
+      const investorUsdcAta = getAssociatedTokenAddressSync(usdcMint, investorPublicKey)
+
+      // Step 4: We no longer require the frontend to pre-create the USDC ATA.
+      // The program will create the associated token account if it's missing (init_if_needed).
+      // We'll still pass the derived ATA address to the instruction so the program can initialize it.
+      // (No client-side existence check required.)
+
+      // Step 5: Derive investor PDA (will be created by init_if_needed in the invest instruction)
+      const [investorPda] = await PublicKey.findProgramAddress(
+        [Buffer.from('investor'), investorPublicKey.toBuffer()],
+        programId
+      )
+      console.debug('INVEST DEBUG: derived investorPda=', investorPda.toBase58())
+
+      // Step 6: Derive investment PDA using investor's investment_counter (from investor PDA)
       // For now, use counter 0 as a placeholder - on-chain logic will use actual counter
       const investmentCounterBuf = Buffer.alloc(8)
       investmentCounterBuf.writeBigUInt64LE(0n)
@@ -81,15 +84,10 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
         programId
       )
 
-      // Step 6: Get investor's USDC ATA
-      const usdcMint = new PublicKey(fundraiser.usdcMint)
-      const investorUsdcAta = getAssociatedTokenAddressSync(usdcMint, investorPublicKey)
-
       // Step 7: Get escrow vault from fundraiser
       const escrowVault = new PublicKey(fundraiser.escrowVault)
 
       // Step 8: Build and send invest instruction
-      // Note: investorSigner is the signer/authority, investor is the investor PDA
       const instruction = await getInvestInstructionAsync({
         investorSigner: signer,
         investor: investorPda.toBase58() as Address,

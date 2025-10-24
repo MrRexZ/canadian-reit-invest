@@ -7,13 +7,14 @@ import { useWalletUi } from '@wallet-ui/react'
 import { useWalletUiSigner, useWalletUiSignAndSend } from '@wallet-ui/react-gill'
 import { type Address } from 'gill'
 import { getInitializeInvestorInstructionAsync } from '@/generated'
+import { fetchMaybeInvestor } from '@/generated/accounts/investor'
 
 export function useInitializeInvestor() {
   const { account } = useWalletUi()
   const { client } = useSolana()
 
   // Check if investor PDA already exists
-  const { data: investorPDA, isLoading: isCheckingPDA } = useQuery({
+  const { data: investorPDA, isLoading: isCheckingPDA, refetch } = useQuery({
     queryKey: ['investor-pda', account?.publicKey],
     queryFn: async () => {
       if (!account?.publicKey) return null
@@ -27,16 +28,16 @@ export function useInitializeInvestor() {
         programId
       )
 
-      // Try to fetch the account
+      // Try to fetch the investor account
       try {
-        const accountInfo = await client.rpc.getAccountInfo(investorPda.toBase58() as Address)
-        return accountInfo ? investorPda.toBase58() : null
+        const investorAccount = await fetchMaybeInvestor(client.rpc, investorPda.toBase58() as Address)
+        return investorAccount ? investorPda.toBase58() : null
       } catch {
         return null
       }
     },
     enabled: !!account?.publicKey,
-    staleTime: 1000 * 60 * 5, // 5 minutes
+    staleTime: 0, // Always fresh
   })
 
   const signer = account ? useWalletUiSigner({ account }) : null
@@ -59,8 +60,8 @@ export function useInitializeInvestor() {
 
       // Check if already exists
       try {
-        const accountInfo = await client.rpc.getAccountInfo(investorPda.toBase58() as Address)
-        if (accountInfo) {
+        const investorAccount = await fetchMaybeInvestor(client.rpc, investorPda.toBase58() as Address)
+        if (investorAccount) {
           throw new Error('Investor PDA already initialized')
         }
       } catch (e: any) {
@@ -79,6 +80,10 @@ export function useInitializeInvestor() {
       const sig = await signAndSend(instruction, signer)
       toast.success('Investor account initialized successfully')
       return sig
+    },
+    onSuccess: () => {
+      // Refetch immediately to confirm the account was created
+      refetch()
     },
     onError: (error: any) => {
       toast.error(error instanceof Error ? error.message : 'Failed to initialize investor account')

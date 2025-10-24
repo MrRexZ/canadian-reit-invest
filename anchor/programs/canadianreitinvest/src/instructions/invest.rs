@@ -13,6 +13,15 @@ pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16]) -> Re
 
     let fundraiser = &ctx.accounts.fundraiser;
 
+    // Debug logs for PDA addresses and seeds
+    msg!("Fundraiser PDA: {} (seeds: [b\"fundraiser\", reit_id_hash: {:?}])", fundraiser.key(), _reit_id_hash);
+    msg!("Investor PDA: {} (seeds: [b\"investor\", investor_signer: {}])", ctx.accounts.investor.key(), ctx.accounts.investor_signer.key());
+    msg!("Investment PDA: {} (seeds: [b\"investment\", investor_signer: {}, fundraiser: {}, counter: {}])",
+          ctx.accounts.investment.key(),
+          ctx.accounts.investor_signer.key(),
+          fundraiser.key(),
+          ctx.accounts.investor.investment_counter);
+
     // Verify escrow vault matches fundraiser. This will be enforced by constraints as well.
     if ctx.accounts.escrow_vault.key() != fundraiser.escrow_vault {
         return Err(error!(crate::errors::CustomError::InvalidAuthority));

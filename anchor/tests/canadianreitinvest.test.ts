@@ -130,7 +130,7 @@ describe('canadianreitinvest', () => {
     const investmentAccount = await program.account.investment.fetch(investmentPda)
     expect(investmentAccount.investor.toString()).toBe(investor.publicKey.toString())
     expect(investmentAccount.fundraiser.toString()).toBe(fundraiserPda.toString())
-    expect(investmentAccount.usdcAmount).toBe(1000000)
+    expect(investmentAccount.usdcAmount.eq(new anchor.BN(1000000))).toBe(true)
     expect(investmentAccount.status).toBe(0) // Pending
 
     // Assert fundraiser total raised updated

@@ -1,0 +1,2 @@
+- [ ] Add `FeePayer` management instructions
+  - Create instructions to initialize and top-up the `FeePayer` PDA (admin-only). Include safety checks and tests for insufficient balance errors.

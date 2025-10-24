@@ -7,4 +7,5 @@
  */
 
 export * from './initializeFundraiser';
+export * from './initializeInvestor';
 export * from './invest';

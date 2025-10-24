@@ -6,13 +6,13 @@ resolution = true
 skip-lint = false
 
 [programs.devnet]
-canadianreitinvest = "HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B"
+canadianreitinvest = "DsYpVXovGGTddkZDqYVCLdwaAQFUSWG2T2zzg3SxsuJi"
 
 [registry]
 url = "https://api.apr.dev"
 
 [provider]
-cluster = "Localnet"
+cluster = "localnet"
 wallet = "~/.config/solana/id.json"
 
 [scripts]

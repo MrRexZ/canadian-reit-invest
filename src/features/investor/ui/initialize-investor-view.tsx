@@ -17,7 +17,6 @@ export function InitializeInvestorView() {
   }
 
   if (investorPDA) {
-    const shortAddr = typeof investorPDA === 'string' ? `${investorPDA.slice(0, 8)}...${investorPDA.slice(-8)}` : 'Loading...'
     return (
       <div className="rounded-lg border border-green-200 bg-green-50 p-6">
         <div className="flex items-start gap-3">
@@ -25,7 +24,7 @@ export function InitializeInvestorView() {
           <div>
             <h3 className="font-semibold text-green-900">Investor Initialized</h3>
             <p className="text-sm text-green-700 mt-1">
-              Your investor account is ready. PDA: {shortAddr}
+              Your investor account is ready. PDA: {investorPDA}
             </p>
           </div>
         </div>

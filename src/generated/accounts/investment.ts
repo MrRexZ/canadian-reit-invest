@@ -21,8 +21,6 @@ import {
   getBooleanEncoder,
   getBytesDecoder,
   getBytesEncoder,
-  getI64Decoder,
-  getI64Encoder,
   getStructDecoder,
   getStructEncoder,
   getU32Decoder,
@@ -61,7 +59,6 @@ export type Investment = {
   reitAmount: number;
   released: boolean;
   refunded: boolean;
-  investmentDate: bigint;
   bump: number;
 };
 
@@ -72,7 +69,6 @@ export type InvestmentArgs = {
   reitAmount: number;
   released: boolean;
   refunded: boolean;
-  investmentDate: number | bigint;
   bump: number;
 };
 
@@ -86,7 +82,6 @@ export function getInvestmentEncoder(): FixedSizeEncoder<InvestmentArgs> {
       ['reitAmount', getU32Encoder()],
       ['released', getBooleanEncoder()],
       ['refunded', getBooleanEncoder()],
-      ['investmentDate', getI64Encoder()],
       ['bump', getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: INVESTMENT_DISCRIMINATOR })
@@ -102,7 +97,6 @@ export function getInvestmentDecoder(): FixedSizeDecoder<Investment> {
     ['reitAmount', getU32Decoder()],
     ['released', getBooleanDecoder()],
     ['refunded', getBooleanDecoder()],
-    ['investmentDate', getI64Decoder()],
     ['bump', getU8Decoder()],
   ]);
 }
@@ -168,5 +162,5 @@ export async function fetchAllMaybeInvestment(
 }
 
 export function getInvestmentSize(): number {
-  return 95;
+  return 87;
 }

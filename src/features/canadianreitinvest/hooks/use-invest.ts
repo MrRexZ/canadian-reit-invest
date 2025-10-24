@@ -89,9 +89,10 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       const escrowVault = new PublicKey(fundraiser.escrowVault)
 
       // Step 8: Build and send invest instruction
-      // Note: Generated code still uses 'investor' as the account signer parameter
+      // Note: investorSigner is the signer/authority, investor is the investor PDA
       const instruction = await getInvestInstructionAsync({
-        investor: signer,
+        investorSigner: signer,
+        investor: investorPda.toBase58() as Address,
         fundraiser: fundraiserPda.toBase58() as Address,
         investment: investmentPda.toBase58() as Address,
         investorUsdcAta: investorUsdcAta.toBase58() as Address,

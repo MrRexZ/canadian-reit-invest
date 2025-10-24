@@ -15,7 +15,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "prod": "npm run build && vite preview --port 4173",
-    "setup": "npm run anchor keys sync && npm run codama:js"
+    "setup": "npm run anchor keys sync && npm run codama:js",
+    "deploy:devnet": "cd anchor && anchor build && anchor deploy --provider.cluster devnet"
   },
   "description": "React+Vite, Tailwind, gill (based on @solana/kit), canadianreitinvest Anchor example, Wallet UI",
   "keywords": [

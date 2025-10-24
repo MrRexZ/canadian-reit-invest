@@ -31,8 +31,16 @@ export function useInitializeInvestor() {
       // Try to fetch the investor account
       try {
         const investorAccount = await fetchMaybeInvestor(client.rpc, investorPda.toBase58() as Address)
-        return investorAccount ? investorPda.toBase58() : null
-      } catch {
+        console.log('Investor account fetch result:', investorAccount)
+        // fetchMaybeInvestor returns an object with 'exists' property
+        // Only return PDA if account actually exists
+        if (investorAccount && 'exists' in investorAccount && investorAccount.exists) {
+          return investorPda.toBase58()
+        }
+        return null
+      } catch (error) {
+        console.log('Error fetching investor account:', error)
+        // If there's any error fetching, account doesn't exist
         return null
       }
     },
@@ -57,19 +65,6 @@ export function useInitializeInvestor() {
         [Buffer.from('investor'), investorPublicKey.toBuffer()],
         programId
       )
-
-      // Check if already exists
-      try {
-        const investorAccount = await fetchMaybeInvestor(client.rpc, investorPda.toBase58() as Address)
-        if (investorAccount) {
-          throw new Error('Investor PDA already initialized')
-        }
-      } catch (e: any) {
-        if (e.message === 'Investor PDA already initialized') {
-          throw e
-        }
-        // If account doesn't exist, that's fine - we'll create it
-      }
 
       // Build and send initialize investor instruction
       const instruction = await getInitializeInvestorInstructionAsync({

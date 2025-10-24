@@ -114,6 +114,56 @@
       ]
     },
     {
+      "name": "initialize_investor",
+      "discriminator": [
+        12,
+        105,
+        129,
+        28,
+        138,
+        149,
+        223,
+        135
+      ],
+      "accounts": [
+        {
+          "name": "signer",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "investor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  115,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "signer"
+              }
+            ]
+          }
+        },
+        {
+          "name": "system_program",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": []
+    },
+    {
       "name": "invest",
       "discriminator": [
         13,
@@ -127,9 +177,34 @@
       ],
       "accounts": [
         {
-          "name": "investor",
+          "name": "investor_signer",
           "writable": true,
           "signer": true
+        },
+        {
+          "name": "investor",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  115,
+                  116,
+                  111,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "investor_signer"
+              }
+            ]
+          }
         },
         {
           "name": "fundraiser",
@@ -180,7 +255,7 @@
               },
               {
                 "kind": "account",
-                "path": "investor"
+                "path": "investor_signer"
               },
               {
                 "kind": "account",
@@ -188,8 +263,8 @@
               },
               {
                 "kind": "account",
-                "path": "fundraiser.investment_counter",
-                "account": "Fundraiser"
+                "path": "investor.investment_counter",
+                "account": "Investor"
               }
             ]
           }
@@ -257,6 +332,19 @@
         153,
         39,
         28
+      ]
+    },
+    {
+      "name": "Investor",
+      "discriminator": [
+        174,
+        129,
+        17,
+        83,
+        36,
+        116,
+        26,
+        196
       ]
     }
   ],
@@ -328,10 +416,6 @@
             "type": "u64"
           },
           {
-            "name": "investment_counter",
-            "type": "u64"
-          },
-          {
             "name": "bump",
             "type": "u8"
           },
@@ -350,7 +434,8 @@
     {
       "name": "Investment",
       "docs": [
-        "Represents an individual investment in a fundraiser"
+        "Represents an individual investment in a fundraiser",
+        "Seeds: [b\"investment\", investor_pubkey, fundraiser_pubkey, investment_counter]"
       ],
       "type": {
         "kind": "struct",
@@ -380,8 +465,28 @@
             "type": "bool"
           },
           {
-            "name": "investment_date",
-            "type": "i64"
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "Investor",
+      "docs": [
+        "Represents an investor's profile on-chain",
+        "Seeds: [b\"investor\", investor_pubkey]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "investor_pubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "investment_counter",
+            "type": "u64"
           },
           {
             "name": "bump",

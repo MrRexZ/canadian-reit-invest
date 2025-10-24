@@ -2,6 +2,7 @@ import { useAuth } from '@/components/auth-provider'
 import { useSolana } from '@/components/solana/use-solana'
 import { WalletDropdown } from '@/components/wallet-dropdown'
 import BrowseReitsInvestor from '@/features/canadianreitinvest/ui/canadianreitinvest-ui-browse-reits-investor'
+import { InitializeInvestorView } from './ui/initialize-investor-view'
 
 export default function InvestorPage() {
   const { user } = useAuth()
@@ -26,6 +27,10 @@ export default function InvestorPage() {
         <p className="text-muted-foreground mt-2">
           {user?.email ? `Welcome, ${user.email}` : 'Welcome to your investment dashboard'}
         </p>
+      </div>
+
+      <div className="mb-6">
+        <InitializeInvestorView />
       </div>
 
       <BrowseReitsInvestor account={account} />

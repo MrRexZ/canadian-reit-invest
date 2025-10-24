@@ -10,7 +10,7 @@ pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16]) -> Re
         return Err(error!(crate::errors::CustomError::InvalidAmount));
     }
 
-    let fundraiser = &mut ctx.accounts.fundraiser;
+    let fundraiser = &ctx.accounts.fundraiser;
 
     // Verify escrow vault matches fundraiser. This will be enforced by constraints as well.
     if ctx.accounts.escrow_vault.key() != fundraiser.escrow_vault {
@@ -35,15 +35,17 @@ pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16]) -> Re
     investment.reit_amount = 0;
     investment.released = false;
     investment.refunded = false;
-    investment.investment_date = Clock::get()?.unix_timestamp;
     investment.bump = ctx.bumps.investment;
 
-    // Update fundraiser counters
-    fundraiser.investment_counter = fundraiser
+    // Update investor counter
+    let investor = &mut ctx.accounts.investor;
+    investor.investment_counter = investor
         .investment_counter
         .checked_add(1)
         .ok_or(error!(crate::errors::CustomError::InvestmentCounterOverflow))?;
 
+    // Update fundraiser total raised
+    let fundraiser = &mut ctx.accounts.fundraiser;
     fundraiser.total_raised = fundraiser
         .total_raised
         .checked_add(amount)
@@ -58,7 +60,15 @@ pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16]) -> Re
 #[instruction(amount: u64, reit_id_hash: [u8; 16])]
 pub struct Invest<'info> {
     #[account(mut)]
-    pub investor: Signer<'info>,
+    pub investor_signer: Signer<'info>,
+
+    /// CHECK: derived in constraint
+    #[account(
+        mut,
+        seeds = [b"investor", investor_signer.key().as_ref()],
+        bump = investor.bump,
+    )]
+    pub investor: Account<'info, state::Investor>,
 
     /// CHECK: derived in constraint
     #[account(
@@ -70,14 +80,14 @@ pub struct Invest<'info> {
 
     #[account(
         init,
-        payer = investor,
+        payer = investor_signer,
         space = 8 + state::Investment::INIT_SPACE,
-        seeds = [b"investment", investor.key().as_ref(), fundraiser.key().as_ref(), &fundraiser.investment_counter.to_le_bytes()],
+        seeds = [b"investment", investor_signer.key().as_ref(), fundraiser.key().as_ref(), &investor.investment_counter.to_le_bytes()],
         bump
     )]
     pub investment: Account<'info, state::Investment>,
 
-    #[account(mut, token::mint = fundraiser.usdc_mint, constraint = investor_usdc_ata.owner == investor.key())]
+    #[account(mut, token::mint = fundraiser.usdc_mint, constraint = investor_usdc_ata.owner == investor_signer.key())]
     pub investor_usdc_ata: Account<'info, TokenAccount>,
 
     #[account(mut, constraint = escrow_vault.key() == fundraiser.escrow_vault)]
@@ -86,7 +96,4 @@ pub struct Invest<'info> {
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-
-    // pass the reit_id_hash so PDA derivation uses the same bytes
-    // reit_id_hash is provided as an instruction argument (see #[instruction(...)])
 }

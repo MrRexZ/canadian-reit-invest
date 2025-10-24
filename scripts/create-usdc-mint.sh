@@ -46,6 +46,16 @@ fi
 MINT_ADDRESS=$(solana-keygen pubkey "$MINT_KEYPAIR")
 echo "🪙 Derived mint address from keypair: $MINT_ADDRESS"
 
+# Get faucet pubkey for mint authority
+FAUCET_KEYPAIR="$PROJECT_ROOT/anchor/ledger/faucet-keypair.json"
+if [ ! -f "$FAUCET_KEYPAIR" ]; then
+    echo "❌ Faucet keypair not found at: $FAUCET_KEYPAIR"
+    exit 1
+fi
+
+FAUCET_PUBKEY=$(solana-keygen pubkey "$FAUCET_KEYPAIR")
+echo "Faucet pubkey (mint authority): $FAUCET_PUBKEY"
+
 # Check if mint already exists
 echo "⏳ Checking if mint already exists..."
 if solana account "$MINT_ADDRESS" --url "$ENDPOINT" &> /dev/null; then
@@ -53,18 +63,22 @@ if solana account "$MINT_ADDRESS" --url "$ENDPOINT" &> /dev/null; then
 else
     echo "⏳ Creating USDC mint..."
     
-    # Get faucet keypair for creating the mint
-    FAUCET_KEYPAIR="$PROJECT_ROOT/anchor/ledger/faucet-keypair.json"
-    if [ ! -f "$FAUCET_KEYPAIR" ]; then
-        echo "❌ Faucet keypair not found at: $FAUCET_KEYPAIR"
+    # Create the mint account with 6 decimals
+    # Use MINT_KEYPAIR as the signer by setting it as the Solana config keypair temporarily
+    ORIGINAL_KEYPAIR=$(solana config get | grep "Keypair Path" | awk '{print $3}')
+    
+    # Temporarily set MINT_KEYPAIR as the default signer
+    solana config set --keypair "$MINT_KEYPAIR" --url "$ENDPOINT" &> /dev/null
+    
+    if ! spl-token create-token "$MINT_KEYPAIR" --decimals 6 --url "$ENDPOINT" --fee-payer "$FAUCET_KEYPAIR"; then
+        echo "❌ Failed to create mint"
+        # Restore original keypair on error
+        solana config set --keypair "$ORIGINAL_KEYPAIR" --url "$ENDPOINT" &> /dev/null
         exit 1
     fi
     
-    # Create the mint account with 6 decimals
-    if ! spl-token create-token "$MINT_KEYPAIR" --decimals 6 --url "$ENDPOINT" --fee-payer "$FAUCET_KEYPAIR"; then
-        echo "❌ Failed to create mint"
-        exit 1
-    fi
+    # Restore original keypair
+    solana config set --keypair "$ORIGINAL_KEYPAIR" --url "$ENDPOINT" &> /dev/null
     
     echo "✅ USDC Mint created at: $MINT_ADDRESS"
 fi

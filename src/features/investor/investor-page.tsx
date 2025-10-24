@@ -3,10 +3,11 @@ import { useSolana } from '@/components/solana/use-solana'
 import { WalletDropdown } from '@/components/wallet-dropdown'
 import BrowseReitsInvestor from '@/features/canadianreitinvest/ui/canadianreitinvest-ui-browse-reits-investor'
 import { InitializeInvestorView } from './ui/initialize-investor-view'
+import { LocalnetMintTokens } from '@/features/localnet-management/ui/localnet-mint-tokens'
 
 export default function InvestorPage() {
   const { user } = useAuth()
-  const { account } = useSolana()
+  const { account, cluster } = useSolana()
 
   if (!account) {
     return (
@@ -32,6 +33,12 @@ export default function InvestorPage() {
       <div className="mb-6">
         <InitializeInvestorView />
       </div>
+
+      {cluster.label === 'Localnet' && (
+        <div className="mb-6">
+          <LocalnetMintTokens account={account} />
+        </div>
+      )}
 
       <BrowseReitsInvestor account={account} />
     </div>

@@ -15,6 +15,7 @@ import {
 } from 'gill';
 import {
   type ParsedInitializeFundraiserInstruction,
+  type ParsedInitializeInvestorInstruction,
   type ParsedInvestInstruction,
 } from '../instructions';
 
@@ -24,6 +25,7 @@ export const CANADIANREITINVEST_PROGRAM_ADDRESS =
 export enum CanadianreitinvestAccount {
   Fundraiser,
   Investment,
+  Investor,
 }
 
 export function identifyCanadianreitinvestAccount(
@@ -52,6 +54,17 @@ export function identifyCanadianreitinvestAccount(
   ) {
     return CanadianreitinvestAccount.Investment;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([174, 129, 17, 83, 36, 116, 26, 196])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestAccount.Investor;
+  }
   throw new Error(
     'The provided account could not be identified as a canadianreitinvest account.'
   );
@@ -59,6 +72,7 @@ export function identifyCanadianreitinvestAccount(
 
 export enum CanadianreitinvestInstruction {
   InitializeFundraiser,
+  InitializeInvestor,
   Invest,
 }
 
@@ -76,6 +90,17 @@ export function identifyCanadianreitinvestInstruction(
     )
   ) {
     return CanadianreitinvestInstruction.InitializeFundraiser;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([12, 105, 129, 28, 138, 149, 223, 135])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.InitializeInvestor;
   }
   if (
     containsBytes(
@@ -99,6 +124,9 @@ export type ParsedCanadianreitinvestInstruction<
   | ({
       instructionType: CanadianreitinvestInstruction.InitializeFundraiser;
     } & ParsedInitializeFundraiserInstruction<TProgram>)
+  | ({
+      instructionType: CanadianreitinvestInstruction.InitializeInvestor;
+    } & ParsedInitializeInvestorInstruction<TProgram>)
   | ({
       instructionType: CanadianreitinvestInstruction.Invest;
     } & ParsedInvestInstruction<TProgram>);

@@ -1,6 +1,6 @@
 use anchor_lang::prelude::*;
 
-declare_id!("HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B");
+declare_id!("FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH");
 
 mod state;
 mod errors;
@@ -9,6 +9,7 @@ mod instructions;
 use instructions::initialize::*;
 use instructions::invest::*;
 use instructions::initialize_investor::*;
+use instructions::close_investor::*;
 
 #[program]
 pub mod canadianreitinvest {
@@ -20,6 +21,10 @@ pub mod canadianreitinvest {
 
     pub fn initialize_investor(ctx: Context<InitializeInvestor>) -> Result<()> {
         instructions::initialize_investor::handler(ctx)
+    }
+
+    pub fn close_investor(ctx: Context<CloseInvestor>) -> Result<()> {
+        instructions::close_investor::handler(ctx)
     }
 
     pub fn invest(ctx: Context<Invest>, amount: u64, reit_id_hash: [u8; 16]) -> Result<()> {

@@ -2,7 +2,7 @@
 # build from root (uses package.json script)
 pnpm run anchor-build
 # then run upgrade via npm (args after -- are forwarded)
-pnpm run anchor upgrade ./target/deploy/canadianreitinvest.so --program-id HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B --provider.cluster devnet
+pnpm run anchor upgrade ./target/deploy/canadianreitinvest.so --program-id FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH --provider.cluster devnet
 
 
 # Check solana balance

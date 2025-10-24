@@ -39,7 +39,8 @@ Key features:
 - **PDA Derivation**: Use `find_program_address` with seeds like `b"investor_state"`, user pubkey, and investment ID.
 - **Token Operations**: Use SPL token program for minting, transferring, and ATA (Associated Token Accounts) management.
 - **Error Handling**: Define custom errors in Anchor programs (e.g., InsufficientFunds, InvalidAuthority).
-- **Frontend Integration**: Use gill for transactions, @solana/wallet-adapter for wallet connections.
+- **Frontend Integration**: Use gill for transactions, @solana/wallet-adapter for wallet connections. Use Codama to generate TypeScript types from Solana programs when the Anchor IDL changes.
+
 
 ## File Structure Notes
 - `anchor/programs/canadianreitinvest/src/lib.rs`: Main program logic.

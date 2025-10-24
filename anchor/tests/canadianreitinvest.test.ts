@@ -1,4 +1,4 @@
-import { createMint, getAssociatedTokenAddressSync, mintTo, createAssociatedTokenAccountInstruction } from '@solana/spl-token'
+import { createMint, getAssociatedTokenAddressSync, mintTo, createAssociatedTokenAccountInstruction, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { sendAndConfirmTransaction } from '@solana/web3.js'
 import { Keypair, PublicKey } from '@solana/web3.js'
 import { Program } from '@coral-xyz/anchor'
@@ -113,8 +113,10 @@ describe('canadianreitinvest', () => {
         investor: investorPda,
         fundraiser: fundraiserPda,
         investment: investmentPda,
+        usdcMint,
         investorUsdcAta,
         escrowVault,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID,
       })
       .signers([investor])
       .rpc()

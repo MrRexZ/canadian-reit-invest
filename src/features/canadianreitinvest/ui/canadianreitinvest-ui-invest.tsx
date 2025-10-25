@@ -36,6 +36,12 @@ export function CanadianreitinvestUiInvest({
       return
     }
 
+    // Check for too many decimal places (USDC supports up to 6 decimals)
+    if (amount.includes('.') && amount.split('.')[1].length > 6) {
+      setError('Amount cannot have more than 6 decimal places')
+      return
+    }
+
     if (!reitId) {
       setError('REIT ID is required')
       return
@@ -47,8 +53,11 @@ export function CanadianreitinvestUiInvest({
     }
 
     try {
+      // Convert major unit amount to minor units (USDC has 6 decimals)
+      const minorUnitAmount = Math.round(numAmount * 1_000_000)
+
       await invest.mutateAsync({
-        amount: numAmount,
+        amount: minorUnitAmount,
         reitIdHash: uuidParse(reitId) as unknown as Uint8Array,
         reitId: reitId,
         userId: user.id,
@@ -73,11 +82,11 @@ export function CanadianreitinvestUiInvest({
             min="0"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder="Enter amount to invest"
+            placeholder="e.g. 100.50"
             disabled={invest.isPending}
           />
           <p className="text-xs text-muted-foreground mt-1">
-            You can invest any amount in USDC
+            Enter the amount in USDC (e.g., 100.50 for $100.50)
           </p>
         </div>
 

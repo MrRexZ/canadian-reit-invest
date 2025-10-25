@@ -24,17 +24,6 @@ export function useInitializeFundraiserMutation({ account }: { account: UiWallet
     console.debug('INIT DEBUG: reitIdHash (bytes)=', reitIdHash)
     console.debug('INIT DEBUG: reitIdHash (hex)=', Buffer.from(reitIdHash).toString('hex'))
 
-      // Insert into Supabase
-      const { error: dbError } = await supabase
-        .from('reits')
-        .insert({ id: uuid, reit_name: reitName })
-
-      if (dbError) {
-        throw new Error(`Failed to create REIT in database: ${dbError.message}`)
-      }
-
-      console.debug('INIT DEBUG: Inserted into Supabase with id=', uuid)
-
       // Derive PDAs using the UUID bytes as seed
       const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
       const seedBuffer = Buffer.from(reitIdHash)
@@ -62,7 +51,25 @@ export function useInitializeFundraiserMutation({ account }: { account: UiWallet
         reitIdHash: reitIdHash as unknown as Uint8Array,
       })
 
-      return await signAndSend(instruction, txSigner)
+      // Execute onchain transaction first
+      const signature = await signAndSend(instruction, txSigner)
+      console.debug('INIT DEBUG: Onchain transaction successful, signature=', signature)
+
+      // Only insert into Supabase after onchain success
+      const { error: dbError } = await supabase
+        .from('reits')
+        .insert({ id: uuid, reit_name: reitName })
+
+      if (dbError) {
+        // If Supabase fails, we have an inconsistency, but onchain is done
+        // In a production system, we'd need compensation logic or retry
+        console.error('INIT DEBUG: Failed to create REIT in database after onchain success:', dbError.message)
+        throw new Error(`Onchain creation succeeded but database update failed: ${dbError.message}`)
+      }
+
+      console.debug('INIT DEBUG: Inserted into Supabase with id=', uuid)
+
+      return signature
     },
     onSuccess: (signature) => {
       toastTx(signature)

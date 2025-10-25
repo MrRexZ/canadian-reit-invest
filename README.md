@@ -117,4 +117,5 @@ npm run anchor deploy --provider.cluster devnet
 3. Update documentation for new features
 4. Ensure security best practices for Solana programs
 
-test
+# Important note
+Don't ever delete the local ledger!

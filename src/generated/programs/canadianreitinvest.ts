@@ -18,7 +18,9 @@ import {
   type ParsedInitializeFundraiserInstruction,
   type ParsedInitializeInvestorInstruction,
   type ParsedInvestInstruction,
+  type ParsedRefundInstruction,
   type ParsedReleaseInstruction,
+  type ParsedWireInstruction,
 } from '../instructions';
 
 export const CANADIANREITINVEST_PROGRAM_ADDRESS =
@@ -77,7 +79,9 @@ export enum CanadianreitinvestInstruction {
   InitializeFundraiser,
   InitializeInvestor,
   Invest,
+  Refund,
   Release,
+  Wire,
 }
 
 export function identifyCanadianreitinvestInstruction(
@@ -132,12 +136,34 @@ export function identifyCanadianreitinvestInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([2, 96, 183, 251, 63, 208, 46, 46])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.Refund;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([253, 249, 15, 206, 28, 127, 193, 241])
       ),
       0
     )
   ) {
     return CanadianreitinvestInstruction.Release;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([133, 22, 177, 204, 246, 158, 29, 40])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.Wire;
   }
   throw new Error(
     'The provided instruction could not be identified as a canadianreitinvest instruction.'
@@ -160,5 +186,11 @@ export type ParsedCanadianreitinvestInstruction<
       instructionType: CanadianreitinvestInstruction.Invest;
     } & ParsedInvestInstruction<TProgram>)
   | ({
+      instructionType: CanadianreitinvestInstruction.Refund;
+    } & ParsedRefundInstruction<TProgram>)
+  | ({
       instructionType: CanadianreitinvestInstruction.Release;
-    } & ParsedReleaseInstruction<TProgram>);
+    } & ParsedReleaseInstruction<TProgram>)
+  | ({
+      instructionType: CanadianreitinvestInstruction.Wire;
+    } & ParsedWireInstruction<TProgram>);

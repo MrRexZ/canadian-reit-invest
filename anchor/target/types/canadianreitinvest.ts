@@ -461,6 +461,67 @@ export type Canadianreitinvest = {
       ]
     },
     {
+      "name": "refund",
+      "discriminator": [
+        2,
+        96,
+        183,
+        251,
+        63,
+        208,
+        46,
+        46
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fundraiser",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  117,
+                  110,
+                  100,
+                  114,
+                  97,
+                  105,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "reitIdHash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "investment",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "reitIdHash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "release",
       "discriminator": [
         253,
@@ -627,6 +688,67 @@ export type Canadianreitinvest = {
         {
           "name": "rent",
           "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "reitIdHash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "wire",
+      "discriminator": [
+        133,
+        22,
+        177,
+        204,
+        246,
+        158,
+        29,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fundraiser",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  117,
+                  110,
+                  100,
+                  114,
+                  97,
+                  105,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "reitIdHash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "investment",
+          "writable": true
         }
       ],
       "args": [

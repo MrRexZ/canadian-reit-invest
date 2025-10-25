@@ -11,6 +11,8 @@ use instructions::invest::*;
 use instructions::initialize_investor::*;
 use instructions::close_investor::*;
 use instructions::release::*;
+use instructions::refund::*;
+use instructions::wire::*;
 
 #[program]
 pub mod canadianreitinvest {
@@ -34,5 +36,13 @@ pub mod canadianreitinvest {
 
     pub fn release(ctx: Context<Release>, reit_id_hash: [u8; 16]) -> Result<()> {
         instructions::release::handler(ctx, reit_id_hash)
+    }
+
+    pub fn refund(ctx: Context<Refund>, reit_id_hash: [u8; 16]) -> Result<()> {
+        instructions::refund::handler(ctx, reit_id_hash)
+    }
+
+    pub fn wire(ctx: Context<Wire>, reit_id_hash: [u8; 16]) -> Result<()> {
+        instructions::wire::handler(ctx, reit_id_hash)
     }
 }

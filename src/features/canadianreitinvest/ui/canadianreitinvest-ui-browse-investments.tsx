@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { InvestmentStatus } from '@/generated/shared'
+import { InvestmentStatus } from '@/generated/types/investmentStatus'
 import { supabase } from '@/lib/supabase'
 import { getUserProfiles } from '@/lib/supabase-admin'
 import { useSolana } from '@/components/solana/use-solana'
@@ -10,6 +10,8 @@ import { useAuth } from '@/components/auth-provider'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AppModal } from '@/components/app-modal'
 import { useRelease } from '../hooks/use-release'
+import { useRefund } from '../hooks/use-refund'
+import { useWire } from '../hooks/use-wire'
 
 type InvestmentRow = {
   id: string
@@ -31,6 +33,8 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
   const [error, setError] = useState<string | null>(null)
   const { account } = useSolana()
   const releaseMutation = useRelease({ account: account! })
+  const refundMutation = useRefund({ account: account! })
+  const wireMutation = useWire({ account: account! })
 
   useEffect(() => {
     let mounted = true
@@ -249,6 +253,64 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                               </p>
                             </div>
                           </AppModal>
+                        )}
+                        {status === InvestmentStatus.Released && row.reit_id && (
+                          <div className="flex gap-2">
+                            <AppModal
+                              title="Refund Investment"
+                              submitLabel="Refund"
+                              submit={() => refundMutation.mutate({
+                                investmentPda: row.investment_pda,
+                                reitId: row.reit_id!,
+                              })}
+                              submitDisabled={refundMutation.isPending}
+                            >
+                              <div className="space-y-4">
+                                <p>Are you sure you want to refund this investment?</p>
+                                <div className="bg-muted p-4 rounded-lg">
+                                  <p className="text-sm">
+                                    <strong>Amount:</strong> ${usdcAmount.toFixed(2)} USDC
+                                  </p>
+                                  <p className="text-sm">
+                                    <strong>Investor:</strong> {row.user_name || row.user_email || 'Unknown'}
+                                  </p>
+                                  <p className="text-sm">
+                                    <strong>REIT:</strong> {row.reit_name || 'Unknown'}
+                                  </p>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  This will mark the investment as refunded. The investor will need to be refunded off-chain.
+                                </p>
+                              </div>
+                            </AppModal>
+                            <AppModal
+                              title="Wire Investment"
+                              submitLabel="Wire"
+                              submit={() => wireMutation.mutate({
+                                investmentPda: row.investment_pda,
+                                reitId: row.reit_id!,
+                              })}
+                              submitDisabled={wireMutation.isPending}
+                            >
+                              <div className="space-y-4">
+                                <p>Are you sure you want to wire this investment?</p>
+                                <div className="bg-muted p-4 rounded-lg">
+                                  <p className="text-sm">
+                                    <strong>Amount:</strong> ${usdcAmount.toFixed(2)} USDC
+                                  </p>
+                                  <p className="text-sm">
+                                    <strong>Investor:</strong> {row.user_name || row.user_email || 'Unknown'}
+                                  </p>
+                                  <p className="text-sm">
+                                    <strong>REIT:</strong> {row.reit_name || 'Unknown'}
+                                  </p>
+                                </div>
+                                <p className="text-sm text-muted-foreground">
+                                  This will mark the investment as wired, indicating that the funds have been transferred to the REIT.
+                                </p>
+                              </div>
+                            </AppModal>
+                          </div>
                         )}
                       </TableCell>
                     )}

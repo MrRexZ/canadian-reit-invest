@@ -40,6 +40,12 @@ import {
   type MaybeEncodedAccount,
   type ReadonlyUint8Array,
 } from 'gill';
+import {
+  getInvestmentStatusDecoder,
+  getInvestmentStatusEncoder,
+  type InvestmentStatus,
+  type InvestmentStatusArgs,
+} from '../types';
 
 export const INVESTMENT_DISCRIMINATOR = new Uint8Array([
   175, 134, 9, 175, 115, 153, 39, 28,
@@ -55,7 +61,7 @@ export type Investment = {
   fundraiser: Address;
   usdcAmount: bigint;
   reitAmount: number;
-  status: number;
+  status: InvestmentStatus;
   bump: number;
 };
 
@@ -64,7 +70,7 @@ export type InvestmentArgs = {
   fundraiser: Address;
   usdcAmount: number | bigint;
   reitAmount: number;
-  status: number;
+  status: InvestmentStatusArgs;
   bump: number;
 };
 
@@ -76,7 +82,7 @@ export function getInvestmentEncoder(): FixedSizeEncoder<InvestmentArgs> {
       ['fundraiser', getAddressEncoder()],
       ['usdcAmount', getU64Encoder()],
       ['reitAmount', getU32Encoder()],
-      ['status', getU8Encoder()],
+      ['status', getInvestmentStatusEncoder()],
       ['bump', getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: INVESTMENT_DISCRIMINATOR })
@@ -90,7 +96,7 @@ export function getInvestmentDecoder(): FixedSizeDecoder<Investment> {
     ['fundraiser', getAddressDecoder()],
     ['usdcAmount', getU64Decoder()],
     ['reitAmount', getU32Decoder()],
-    ['status', getU8Decoder()],
+    ['status', getInvestmentStatusDecoder()],
     ['bump', getU8Decoder()],
   ]);
 }

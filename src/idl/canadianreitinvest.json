@@ -455,6 +455,67 @@
       ]
     },
     {
+      "name": "refund",
+      "discriminator": [
+        2,
+        96,
+        183,
+        251,
+        63,
+        208,
+        46,
+        46
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fundraiser",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  117,
+                  110,
+                  100,
+                  114,
+                  97,
+                  105,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "reit_id_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "investment",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "reit_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
       "name": "release",
       "discriminator": [
         253,
@@ -634,6 +695,67 @@
           }
         }
       ]
+    },
+    {
+      "name": "wire",
+      "discriminator": [
+        133,
+        22,
+        177,
+        204,
+        246,
+        158,
+        29,
+        40
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fundraiser",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  117,
+                  110,
+                  100,
+                  114,
+                  97,
+                  105,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "reit_id_hash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "investment",
+          "writable": true
+        }
+      ],
+      "args": [
+        {
+          "name": "reit_id_hash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -792,11 +914,45 @@
           },
           {
             "name": "status",
-            "type": "u8"
+            "type": {
+              "defined": {
+                "name": "InvestmentStatus"
+              }
+            }
           },
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InvestmentStatus",
+      "docs": [
+        "Investment lifecycle status stored on-chain as a small enum.",
+        "We keep explicit discriminants for deterministic storage."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Released"
+          },
+          {
+            "name": "Refunded"
+          },
+          {
+            "name": "Wired"
+          },
+          {
+            "name": "ShareIssued"
+          },
+          {
+            "name": "ShareSold"
           }
         ]
       }

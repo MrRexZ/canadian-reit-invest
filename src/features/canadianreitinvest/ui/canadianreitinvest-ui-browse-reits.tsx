@@ -129,7 +129,11 @@ export default function CanadianreitinvestUiBrowseReits() {
             <TableRow key={row.id}>
               <TableCell className="font-mono">{row.id}</TableCell>
               <TableCell>{row.reit_name ?? '-'}</TableCell>
-              <TableCell className="text-right">{String(row.fundraiser?.data?.totalRaised ?? 0)}</TableCell>
+              <TableCell className="text-right">
+                ${((row.fundraiser?.data?.totalRaised !== undefined
+                  ? Number(row.fundraiser.data.totalRaised)
+                  : 0) / 1_000_000).toFixed(2)}
+              </TableCell>
             </TableRow>
           ))}
         </TableBody>

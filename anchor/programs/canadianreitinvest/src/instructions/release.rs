@@ -6,18 +6,32 @@ use crate::state;
 
 pub fn handler(ctx: Context<Release>, reit_id_hash: [u8; 16]) -> Result<()> {
     msg!("Release handler start");
+    msg!("Admin: {}", ctx.accounts.admin.key());
+    msg!("Fundraiser: {}", ctx.accounts.fundraiser.key());
+    msg!("Investment: {}", ctx.accounts.investment.key());
+    msg!("Admin USDC ATA: {}", ctx.accounts.admin_usdc_ata.key());
+    msg!("Escrow vault: {}", ctx.accounts.escrow_vault.key());
+    msg!("USDC mint: {}", ctx.accounts.usdc_mint.key());
+    msg!("REIT ID hash: {:?}", reit_id_hash);
 
     let investment = &mut ctx.accounts.investment;
+    msg!("Investment data - Investor: {}, Amount: {}, Status: {}", investment.investor, investment.usdc_amount, investment.status);
 
     // Verify investment is in pending status
     if investment.status != state::InvestmentStatus::Pending as u8 {
+        msg!("ERROR: Investment status is not pending. Current status: {}", investment.status);
         return Err(error!(crate::errors::CustomError::InvalidInvestmentStatus));
     }
 
     // Verify admin is the signer
     if ctx.accounts.admin.key() != ctx.accounts.fundraiser.admin {
+        msg!("ERROR: Admin {} is not the fundraiser admin {}", ctx.accounts.admin.key(), ctx.accounts.fundraiser.admin);
         return Err(error!(crate::errors::CustomError::InvalidAuthority));
     }
+
+    msg!("Transferring {} USDC from escrow vault to admin ATA", investment.usdc_amount);
+    msg!("From (escrow): {}", ctx.accounts.escrow_vault.key());
+    msg!("To (admin ATA): {}", ctx.accounts.admin_usdc_ata.key());
 
     // Transfer USDC from escrow vault to admin's ATA
     let cpi_accounts = Transfer {
@@ -37,18 +51,22 @@ pub fn handler(ctx: Context<Release>, reit_id_hash: [u8; 16]) -> Result<()> {
 
     let cpi_ctx = CpiContext::new_with_signer(cpi_program, cpi_accounts, signer_seeds);
     token::transfer(cpi_ctx, investment.usdc_amount)?;
+    msg!("Token transfer completed successfully");
 
     // Update investment status to Released
     investment.status = state::InvestmentStatus::Released as u8;
+    msg!("Investment status updated to Released (status: {})", investment.status);
 
     // Update fundraiser released amount
     let fundraiser = &mut ctx.accounts.fundraiser;
+    let old_released = fundraiser.released_amount;
     fundraiser.released_amount = fundraiser
         .released_amount
         .checked_add(investment.usdc_amount)
         .ok_or(error!(crate::errors::CustomError::ArithmeticOverflow))?;
+    msg!("Fundraiser released amount updated: {} -> {}", old_released, fundraiser.released_amount);
 
-    msg!("Release handler complete");
+    msg!("Release handler complete - transaction successful");
 
     Ok(())
 }

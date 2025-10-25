@@ -45,4 +45,5 @@ pub enum InvestmentStatus {
     Refunded = 2,
     Wired = 3,
     ShareIssued = 4,
+    ShareSold = 5,
 }

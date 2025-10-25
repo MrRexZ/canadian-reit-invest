@@ -834,6 +834,9 @@ export type Canadianreitinvest = {
           },
           {
             "name": "shareIssued"
+          },
+          {
+            "name": "shareSold"
           }
         ]
       }

@@ -186,7 +186,7 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                 const status = row.investment?.data?.status ?? 0
 
                 // Status mapping based on InvestmentStatus enum
-                const statusLabels = ['Pending', 'Released', 'Refunded', 'Wired', 'Share Issued']
+                const statusLabels = ['Pending', 'Released', 'Refunded', 'Wired', 'Share Issued', 'Share Sold']
                 const statusLabel = statusLabels[status] || `Unknown Status ${status}`
 
                 return (
@@ -210,6 +210,7 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                         status === InvestmentStatus.Refunded ? 'bg-red-100 text-red-800' :
                         status === InvestmentStatus.Wired ? 'bg-orange-100 text-orange-800' :
                         status === InvestmentStatus.ShareIssued ? 'bg-green-100 text-green-800' :
+                        status === InvestmentStatus.ShareSold ? 'bg-purple-100 text-purple-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
                         {statusLabel}

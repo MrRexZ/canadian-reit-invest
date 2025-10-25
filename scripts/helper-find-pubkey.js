@@ -87,7 +87,7 @@ async function displayInvestmentData(investmentPdaAddress) {
 }
 
 // Example usage:
-const investorPubkey = '7xvth2P8U5Zf1w7P8Q32wcub5BVqP8eXb7wwpaH4iA7X' // The actual investor signer pubkey
+const investorPubkey = 'BjSGrxP1QdnYEYhifv5NRg2zPVZS9hK1uCMnLn94h7QC' // The actual investor signer pubkey
 const fundraiserPubkey = fundraiser.toBase58() // Use the fundraiser PDA from above
 const recentInvestmentPDA = await findRecentInvestmentPDA(investorPubkey, fundraiserPubkey)
 console.log('Recent investment PDA:', recentInvestmentPDA)

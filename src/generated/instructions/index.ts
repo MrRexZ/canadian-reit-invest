@@ -10,3 +10,4 @@ export * from './closeInvestor';
 export * from './initializeFundraiser';
 export * from './initializeInvestor';
 export * from './invest';
+export * from './release';

@@ -58,7 +58,7 @@ pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16]) -> Re
     investment.usdc_amount = amount;
     investment.reit_amount = 0;
     // set status to Pending
-    investment.status = state::InvestmentStatus::Pending as u8;
+    investment.status = state::InvestmentStatus::Pending;
     investment.bump = ctx.bumps.investment;
 
     // Update fundraiser total raised

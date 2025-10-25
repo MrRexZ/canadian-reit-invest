@@ -1,5 +1,3 @@
-import { createClient } from '@supabase/supabase-js'
-
 /**
  * Fetches user profiles (email, name) from auth.users for given user IDs
  * Uses direct HTTP call to Supabase API with service role key

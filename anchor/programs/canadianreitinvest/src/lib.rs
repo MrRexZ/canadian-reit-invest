@@ -10,6 +10,7 @@ use instructions::initialize::*;
 use instructions::invest::*;
 use instructions::initialize_investor::*;
 use instructions::close_investor::*;
+use instructions::release::*;
 
 #[program]
 pub mod canadianreitinvest {
@@ -29,5 +30,9 @@ pub mod canadianreitinvest {
 
     pub fn invest(ctx: Context<Invest>, amount: u64, reit_id_hash: [u8; 16]) -> Result<()> {
         instructions::invest::handler(ctx, amount, reit_id_hash)
+    }
+
+    pub fn release(ctx: Context<Release>, reit_id_hash: [u8; 16]) -> Result<()> {
+        instructions::release::handler(ctx, reit_id_hash)
     }
 }

@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { InvestmentStatus } from '@/generated/shared'
 import { supabase } from '@/lib/supabase'
 import { getUserProfiles } from '@/lib/supabase-admin'
 import { useSolana } from '@/components/solana/use-solana'
@@ -7,6 +8,8 @@ import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { useAuth } from '@/components/auth-provider'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { AppModal } from '@/components/app-modal'
+import { useRelease } from '../hooks/use-release'
 
 type InvestmentRow = {
   id: string
@@ -26,6 +29,8 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
   const [loading, setLoading] = useState(false)
   const [rows, setRows] = useState<InvestmentRow[]>([])
   const [error, setError] = useState<string | null>(null)
+  const { account } = useSolana()
+  const releaseMutation = useRelease({ account: account! })
 
   useEffect(() => {
     let mounted = true
@@ -169,6 +174,7 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                 <TableHead className="text-right">REIT Tokens</TableHead>
                 <TableHead>Status</TableHead>
                 <TableHead>Date</TableHead>
+                {isAdmin && <TableHead>Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -179,9 +185,9 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                 const reitAmount = row.investment?.data?.reitAmount ?? 0
                 const status = row.investment?.data?.status ?? 0
 
-                // Status mapping (assuming 0=pending, 1=active, 2=completed, etc.)
-                const statusLabels = ['Pending', 'Active', 'Completed', 'Cancelled']
-                const statusLabel = statusLabels[status] || `Status ${status}`
+                // Status mapping based on InvestmentStatus enum
+                const statusLabels = ['Pending', 'Released', 'Refunded', 'Wired', 'Share Issued', 'Share Sold']
+                const statusLabel = statusLabels[status] || `Unknown Status ${status}`
 
                 return (
                   <TableRow key={row.id}>
@@ -199,8 +205,12 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs ${
-                        status === 1 ? 'bg-green-100 text-green-800' :
-                        status === 0 ? 'bg-yellow-100 text-yellow-800' :
+                        status === InvestmentStatus.Pending ? 'bg-yellow-100 text-yellow-800' :
+                        status === InvestmentStatus.Released ? 'bg-blue-100 text-blue-800' :
+                        status === InvestmentStatus.Refunded ? 'bg-red-100 text-red-800' :
+                        status === InvestmentStatus.Wired ? 'bg-orange-100 text-orange-800' :
+                        status === InvestmentStatus.ShareIssued ? 'bg-green-100 text-green-800' :
+                        status === InvestmentStatus.ShareSold ? 'bg-purple-100 text-purple-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
                         {statusLabel}
@@ -209,6 +219,39 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                     <TableCell className="text-sm text-muted-foreground">
                       {new Date(row.created_at).toLocaleDateString()}
                     </TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        {status === InvestmentStatus.Pending && row.reit_id && (
+                          <AppModal
+                            title="Release Investment"
+                            submitLabel="Release"
+                            submit={() => releaseMutation.mutate({
+                              investmentPda: row.investment_pda,
+                              reitId: row.reit_id!,
+                            })}
+                            submitDisabled={releaseMutation.isPending}
+                          >
+                            <div className="space-y-4">
+                              <p>Are you sure you want to release this investment?</p>
+                              <div className="bg-muted p-4 rounded-lg">
+                                <p className="text-sm">
+                                  <strong>Amount:</strong> ${usdcAmount.toFixed(2)} USDC
+                                </p>
+                                <p className="text-sm">
+                                  <strong>Investor:</strong> {row.user_name || row.user_email || 'Unknown'}
+                                </p>
+                                <p className="text-sm">
+                                  <strong>REIT:</strong> {row.reit_name || 'Unknown'}
+                                </p>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                This will transfer the USDC from the escrow vault to your admin wallet and update the investment status to "Released".
+                              </p>
+                            </div>
+                          </AppModal>
+                        )}
+                      </TableCell>
+                    )}
                   </TableRow>
                 )
               })}

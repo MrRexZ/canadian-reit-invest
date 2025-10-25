@@ -162,3 +162,15 @@ export function isTransactionSigner<TAddress extends string = string>(
     kitIsTransactionSigner(value)
   );
 }
+
+/**
+ * Investment lifecycle status enum matching the on-chain InvestmentStatus.
+ */
+export enum InvestmentStatus {
+  Pending = 0,
+  Released = 1,
+  Refunded = 2,
+  Wired = 3,
+  ShareIssued = 4,
+  ShareSold = 5,
+}

@@ -459,6 +459,187 @@ export type Canadianreitinvest = {
           }
         }
       ]
+    },
+    {
+      "name": "release",
+      "discriminator": [
+        253,
+        249,
+        15,
+        206,
+        28,
+        127,
+        193,
+        241
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fundraiser",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  117,
+                  110,
+                  100,
+                  114,
+                  97,
+                  105,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "reitIdHash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "investment",
+          "writable": true
+        },
+        {
+          "name": "adminUsdcAta",
+          "docs": [
+            "Admin's USDC ATA"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "account",
+                "path": "admin"
+              },
+              {
+                "kind": "const",
+                "value": [
+                  6,
+                  221,
+                  246,
+                  225,
+                  215,
+                  101,
+                  161,
+                  147,
+                  217,
+                  203,
+                  225,
+                  70,
+                  206,
+                  235,
+                  121,
+                  172,
+                  28,
+                  180,
+                  133,
+                  237,
+                  95,
+                  91,
+                  55,
+                  145,
+                  58,
+                  140,
+                  245,
+                  133,
+                  126,
+                  255,
+                  0,
+                  169
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "usdcMint"
+              }
+            ],
+            "program": {
+              "kind": "const",
+              "value": [
+                140,
+                151,
+                37,
+                143,
+                78,
+                36,
+                137,
+                241,
+                187,
+                61,
+                16,
+                41,
+                20,
+                142,
+                13,
+                131,
+                11,
+                90,
+                19,
+                153,
+                218,
+                255,
+                16,
+                132,
+                4,
+                142,
+                123,
+                216,
+                219,
+                233,
+                248,
+                89
+              ]
+            }
+          }
+        },
+        {
+          "name": "usdcMint",
+          "docs": [
+            "USDC mint (must match fundraiser.usdc_mint)"
+          ]
+        },
+        {
+          "name": "escrowVault",
+          "writable": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "associatedTokenProgram",
+          "address": "ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "reitIdHash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        }
+      ]
     }
   ],
   "accounts": [
@@ -537,6 +718,11 @@ export type Canadianreitinvest = {
       "code": 6006,
       "name": "invalidReitIdHash",
       "msg": "Invalid REIT ID hash"
+    },
+    {
+      "code": 6007,
+      "name": "invalidInvestmentStatus",
+      "msg": "Invalid investment status"
     }
   ],
   "types": [
@@ -612,11 +798,45 @@ export type Canadianreitinvest = {
           },
           {
             "name": "status",
-            "type": "u8"
+            "type": {
+              "defined": {
+                "name": "investmentStatus"
+              }
+            }
           },
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "investmentStatus",
+      "docs": [
+        "Investment lifecycle status stored on-chain as a small enum.",
+        "We keep explicit discriminants for deterministic storage."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "pending"
+          },
+          {
+            "name": "released"
+          },
+          {
+            "name": "refunded"
+          },
+          {
+            "name": "wired"
+          },
+          {
+            "name": "shareIssued"
+          },
+          {
+            "name": "shareSold"
           }
         ]
       }

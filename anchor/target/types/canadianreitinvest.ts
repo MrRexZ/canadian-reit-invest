@@ -60,6 +60,89 @@ export type Canadianreitinvest = {
       "args": []
     },
     {
+      "name": "createMint",
+      "discriminator": [
+        69,
+        44,
+        215,
+        132,
+        253,
+        214,
+        41,
+        45
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fundraiser",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  117,
+                  110,
+                  100,
+                  114,
+                  97,
+                  105,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "reitIdHash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reitMint",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "rent",
+          "address": "SysvarRent111111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "reitIdHash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        },
+        {
+          "name": "sharePrice",
+          "type": "u64"
+        },
+        {
+          "name": "currency",
+          "type": "string"
+        }
+      ]
+    },
+    {
       "name": "initializeFundraiser",
       "discriminator": [
         10,
@@ -449,6 +532,79 @@ export type Canadianreitinvest = {
           "name": "amount",
           "type": "u64"
         },
+        {
+          "name": "reitIdHash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "issueShare",
+      "discriminator": [
+        195,
+        99,
+        172,
+        255,
+        224,
+        56,
+        233,
+        24
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fundraiser",
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  117,
+                  110,
+                  100,
+                  114,
+                  97,
+                  105,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "reitIdHash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "investment",
+          "writable": true
+        },
+        {
+          "name": "reitMint",
+          "writable": true
+        },
+        {
+          "name": "investorAta",
+          "writable": true
+        },
+        {
+          "name": "tokenProgram",
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
         {
           "name": "reitIdHash",
           "type": {

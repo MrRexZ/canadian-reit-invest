@@ -32,8 +32,6 @@ pub struct Investment {
     pub fundraiser: Pubkey, // The public key of the fundraiser PDA
     pub usdc_amount: u64, // The amount of USDC invested
     pub reit_amount: u32, // The amount of REIT tokens to be minted for this investment - changed from u64
-    // Status replaces the previous `released` and `refunded` booleans.
-    // Stored on-chain as a single byte (u8) which maps to `InvestmentStatus`.
     pub status: u8,
     pub bump: u8, // PDA bump seed for the investment account
 }

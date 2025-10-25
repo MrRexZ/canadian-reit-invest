@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
+import { getUserProfiles } from '@/lib/supabase-admin'
 import { useSolana } from '@/components/solana/use-solana'
 import { fetchAllMaybeInvestment } from '@/generated/accounts/investment'
 import { Address } from 'gill'
@@ -15,6 +16,8 @@ type InvestmentRow = {
   created_at: string
   investment?: any
   reit_name?: string
+  user_name?: string
+  user_email?: string
 }
 
 export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boolean }) {
@@ -56,6 +59,14 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
 
         const reitMap = new Map(reits?.map(r => [r.id, r.reit_name]) || [])
 
+        // Fetch user details for admin view
+        let userMap = new Map<string, { name?: string; email?: string }>()
+        if (isAdmin) {
+          const investorUserIds = [...new Set(investments.map(inv => inv.investor_user_id))]
+          const userProfiles = await getUserProfiles(investorUserIds)
+          userMap = new Map(userProfiles.map(u => [u.id, { name: u.name, email: u.email }]))
+        }
+
         // Step 1: Prepare investment PDA addresses
         const investmentAddresses = investments.map(inv => inv.investment_pda as unknown as Address)
 
@@ -70,20 +81,26 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
             const accounts = await fetchAllMaybeInvestment(client.rpc, chunk)
             for (let j = 0; j < chunk.length; j++) {
               const investment = investments[i + j]
+              const userInfo = userMap.get(investment.investor_user_id)
               fetched.push({
                 ...investment,
                 investment: accounts[j],
                 reit_name: investment.reit_id ? reitMap.get(investment.reit_id) : undefined,
+                user_name: userInfo?.name,
+                user_email: userInfo?.email,
               })
             }
           } catch (e) {
             // If batch fails, add rows without investment data
             for (let j = 0; j < chunk.length; j++) {
               const investment = investments[i + j]
+              const userInfo = userMap.get(investment.investor_user_id)
               fetched.push({
                 ...investment,
                 investment: null,
                 reit_name: investment.reit_id ? reitMap.get(investment.reit_id) : undefined,
+                user_name: userInfo?.name,
+                user_email: userInfo?.email,
               })
             }
           }
@@ -145,6 +162,8 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
             <TableHeader>
               <TableRow>
                 <TableHead>Investment ID</TableHead>
+                {isAdmin && <TableHead>Investor Name</TableHead>}
+                {isAdmin && <TableHead>Investor Email</TableHead>}
                 <TableHead>REIT</TableHead>
                 <TableHead className="text-right">USDC Amount</TableHead>
                 <TableHead className="text-right">REIT Tokens</TableHead>
@@ -169,6 +188,8 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                     <TableCell className="font-mono text-xs">
                       {row.investment_pda.slice(0, 8)}...{row.investment_pda.slice(-8)}
                     </TableCell>
+                    {isAdmin && <TableCell>{row.user_name || 'Unknown'}</TableCell>}
+                    {isAdmin && <TableCell className="font-mono text-xs">{row.user_email || 'Unknown'}</TableCell>}
                     <TableCell>{row.reit_name || 'Unknown REIT'}</TableCell>
                     <TableCell className="text-right font-medium">
                       ${usdcAmount.toFixed(2)}

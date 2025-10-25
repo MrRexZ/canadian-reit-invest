@@ -798,11 +798,42 @@ export type Canadianreitinvest = {
           },
           {
             "name": "status",
-            "type": "u8"
+            "type": {
+              "defined": {
+                "name": "investmentStatus"
+              }
+            }
           },
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "investmentStatus",
+      "docs": [
+        "Investment lifecycle status stored on-chain as a small enum.",
+        "We keep explicit discriminants for deterministic storage."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "pending"
+          },
+          {
+            "name": "released"
+          },
+          {
+            "name": "refunded"
+          },
+          {
+            "name": "wired"
+          },
+          {
+            "name": "shareIssued"
           }
         ]
       }

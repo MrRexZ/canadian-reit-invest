@@ -32,13 +32,13 @@ pub struct Investment {
     pub fundraiser: Pubkey, // The public key of the fundraiser PDA
     pub usdc_amount: u64, // The amount of USDC invested
     pub reit_amount: u32, // The amount of REIT tokens to be minted for this investment - changed from u64
-    pub status: u8,
+    pub status: InvestmentStatus,
     pub bump: u8, // PDA bump seed for the investment account
 }
 
 /// Investment lifecycle status stored on-chain as a small enum.
 /// We keep explicit discriminants for deterministic storage.
-#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug)]
+#[derive(AnchorSerialize, AnchorDeserialize, Clone, Copy, PartialEq, Eq, Debug, InitSpace)]
 pub enum InvestmentStatus {
     Pending = 0,
     Released = 1,

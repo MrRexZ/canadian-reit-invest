@@ -15,11 +15,11 @@ pub fn handler(ctx: Context<Release>, reit_id_hash: [u8; 16]) -> Result<()> {
     msg!("REIT ID hash: {:?}", reit_id_hash);
 
     let investment = &mut ctx.accounts.investment;
-    msg!("Investment data - Investor: {}, Amount: {}, Status: {}", investment.investor, investment.usdc_amount, investment.status);
+    msg!("Investment data - Investor: {}, Amount: {}, Status: {:?}", investment.investor, investment.usdc_amount, investment.status);
 
     // Verify investment is in pending status
-    if investment.status != state::InvestmentStatus::Pending as u8 {
-        msg!("ERROR: Investment status is not pending. Current status: {}", investment.status);
+    if investment.status != state::InvestmentStatus::Pending {
+        msg!("ERROR: Investment status is not pending. Current status: {:?}", investment.status);
         return Err(error!(crate::errors::CustomError::InvalidInvestmentStatus));
     }
 
@@ -54,8 +54,8 @@ pub fn handler(ctx: Context<Release>, reit_id_hash: [u8; 16]) -> Result<()> {
     msg!("Token transfer completed successfully");
 
     // Update investment status to Released
-    investment.status = state::InvestmentStatus::Released as u8;
-    msg!("Investment status updated to Released (status: {})", investment.status);
+    investment.status = state::InvestmentStatus::Released;
+    msg!("Investment status updated to Released (status: {:?})", investment.status);
 
     // Update fundraiser released amount
     let fundraiser = &mut ctx.accounts.fundraiser;

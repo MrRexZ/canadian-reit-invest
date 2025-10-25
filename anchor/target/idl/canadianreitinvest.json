@@ -792,11 +792,42 @@
           },
           {
             "name": "status",
-            "type": "u8"
+            "type": {
+              "defined": {
+                "name": "InvestmentStatus"
+              }
+            }
           },
           {
             "name": "bump",
             "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "InvestmentStatus",
+      "docs": [
+        "Investment lifecycle status stored on-chain as a small enum.",
+        "We keep explicit discriminants for deterministic storage."
+      ],
+      "type": {
+        "kind": "enum",
+        "variants": [
+          {
+            "name": "Pending"
+          },
+          {
+            "name": "Released"
+          },
+          {
+            "name": "Refunded"
+          },
+          {
+            "name": "Wired"
+          },
+          {
+            "name": "ShareIssued"
           }
         ]
       }

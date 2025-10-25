@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { InvestmentStatus } from '@/generated/shared'
 import { supabase } from '@/lib/supabase'
 import { getUserProfiles } from '@/lib/supabase-admin'
 import { useSolana } from '@/components/solana/use-solana'
@@ -184,9 +185,9 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                 const reitAmount = row.investment?.data?.reitAmount ?? 0
                 const status = row.investment?.data?.status ?? 0
 
-                // Status mapping (assuming 0=pending, 1=active, 2=completed, etc.)
-                const statusLabels = ['Pending', 'Active', 'Completed', 'Cancelled']
-                const statusLabel = statusLabels[status] || `Status ${status}`
+                // Status mapping based on InvestmentStatus enum
+                const statusLabels = ['Pending', 'Released', 'Refunded', 'Wired', 'Share Issued']
+                const statusLabel = statusLabels[status] || `Unknown Status ${status}`
 
                 return (
                   <TableRow key={row.id}>
@@ -204,8 +205,11 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                     </TableCell>
                     <TableCell>
                       <span className={`px-2 py-1 rounded-full text-xs ${
-                        status === 1 ? 'bg-green-100 text-green-800' :
-                        status === 0 ? 'bg-yellow-100 text-yellow-800' :
+                        status === InvestmentStatus.Pending ? 'bg-yellow-100 text-yellow-800' :
+                        status === InvestmentStatus.Released ? 'bg-blue-100 text-blue-800' :
+                        status === InvestmentStatus.Refunded ? 'bg-red-100 text-red-800' :
+                        status === InvestmentStatus.Wired ? 'bg-orange-100 text-orange-800' :
+                        status === InvestmentStatus.ShareIssued ? 'bg-green-100 text-green-800' :
                         'bg-gray-100 text-gray-800'
                       }`}>
                         {statusLabel}
@@ -216,7 +220,7 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                     </TableCell>
                     {isAdmin && (
                       <TableCell>
-                        {status === 0 && row.reit_id && (
+                        {status === InvestmentStatus.Pending && row.reit_id && (
                           <AppModal
                             title="Release Investment"
                             submitLabel="Release"

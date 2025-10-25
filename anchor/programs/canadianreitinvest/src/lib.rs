@@ -13,6 +13,8 @@ use instructions::close_investor::*;
 use instructions::release::*;
 use instructions::refund::*;
 use instructions::wire::*;
+use instructions::create_mint::*;
+use instructions::issue_share::*;
 
 #[program]
 pub mod canadianreitinvest {
@@ -44,5 +46,13 @@ pub mod canadianreitinvest {
 
     pub fn wire(ctx: Context<Wire>, reit_id_hash: [u8; 16]) -> Result<()> {
         instructions::wire::handler(ctx, reit_id_hash)
+    }
+
+    pub fn create_mint(ctx: Context<CreateMint>, reit_id_hash: [u8; 16], share_price: u64, currency: String) -> Result<()> {
+        instructions::create_mint::handler(ctx, reit_id_hash, share_price, currency)
+    }
+
+    pub fn issue_share(ctx: Context<IssueShare>, reit_id_hash: [u8; 16]) -> Result<()> {
+        instructions::issue_share::handler(ctx, reit_id_hash)
     }
 }

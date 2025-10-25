@@ -15,9 +15,11 @@ import {
 } from 'gill';
 import {
   type ParsedCloseInvestorInstruction,
+  type ParsedCreateMintInstruction,
   type ParsedInitializeFundraiserInstruction,
   type ParsedInitializeInvestorInstruction,
   type ParsedInvestInstruction,
+  type ParsedIssueShareInstruction,
   type ParsedRefundInstruction,
   type ParsedReleaseInstruction,
   type ParsedWireInstruction,
@@ -76,9 +78,11 @@ export function identifyCanadianreitinvestAccount(
 
 export enum CanadianreitinvestInstruction {
   CloseInvestor,
+  CreateMint,
   InitializeFundraiser,
   InitializeInvestor,
   Invest,
+  IssueShare,
   Refund,
   Release,
   Wire,
@@ -98,6 +102,17 @@ export function identifyCanadianreitinvestInstruction(
     )
   ) {
     return CanadianreitinvestInstruction.CloseInvestor;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([69, 44, 215, 132, 253, 214, 41, 45])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.CreateMint;
   }
   if (
     containsBytes(
@@ -131,6 +146,17 @@ export function identifyCanadianreitinvestInstruction(
     )
   ) {
     return CanadianreitinvestInstruction.Invest;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([195, 99, 172, 255, 224, 56, 233, 24])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.IssueShare;
   }
   if (
     containsBytes(
@@ -177,6 +203,9 @@ export type ParsedCanadianreitinvestInstruction<
       instructionType: CanadianreitinvestInstruction.CloseInvestor;
     } & ParsedCloseInvestorInstruction<TProgram>)
   | ({
+      instructionType: CanadianreitinvestInstruction.CreateMint;
+    } & ParsedCreateMintInstruction<TProgram>)
+  | ({
       instructionType: CanadianreitinvestInstruction.InitializeFundraiser;
     } & ParsedInitializeFundraiserInstruction<TProgram>)
   | ({
@@ -185,6 +214,9 @@ export type ParsedCanadianreitinvestInstruction<
   | ({
       instructionType: CanadianreitinvestInstruction.Invest;
     } & ParsedInvestInstruction<TProgram>)
+  | ({
+      instructionType: CanadianreitinvestInstruction.IssueShare;
+    } & ParsedIssueShareInstruction<TProgram>)
   | ({
       instructionType: CanadianreitinvestInstruction.Refund;
     } & ParsedRefundInstruction<TProgram>)

@@ -7,9 +7,11 @@
  */
 
 export * from './closeInvestor';
+export * from './createMint';
 export * from './initializeFundraiser';
 export * from './initializeInvestor';
 export * from './invest';
+export * from './issueShare';
 export * from './refund';
 export * from './release';
 export * from './wire';

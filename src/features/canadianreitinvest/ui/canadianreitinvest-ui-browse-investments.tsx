@@ -12,6 +12,7 @@ import { AppModal } from '@/components/app-modal'
 import { useRelease } from '../hooks/use-release'
 import { useRefund } from '../hooks/use-refund'
 import { useWire } from '../hooks/use-wire'
+import { useIssueShare } from '../hooks/use-issue-share'
 
 type InvestmentRow = {
   id: string
@@ -35,6 +36,7 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
   const releaseMutation = useRelease({ account: account! })
   const refundMutation = useRefund({ account: account! })
   const wireMutation = useWire({ account: account! })
+  const issueShareMutation = useIssueShare({ account: account! })
 
   useEffect(() => {
     let mounted = true
@@ -311,6 +313,35 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                               </div>
                             </AppModal>
                           </div>
+                        )}
+                        {status === InvestmentStatus.Wired && row.reit_id && (
+                          <AppModal
+                            title="Issue Share"
+                            submitLabel={issueShareMutation.isPending ? "Issuing..." : "Issue Share"}
+                            submitDisabled={issueShareMutation.isPending}
+                            submit={() => issueShareMutation.mutate({
+                              investmentPda: row.investment_pda,
+                              reitId: row.reit_id!,
+                            })}
+                          >
+                            <div className="space-y-4">
+                              <p>Are you sure you want to issue shares for this investment?</p>
+                              <div className="bg-muted p-4 rounded-lg">
+                                <p className="text-sm">
+                                  <strong>Amount:</strong> ${usdcAmount.toFixed(2)} USDC
+                                </p>
+                                <p className="text-sm">
+                                  <strong>Investor:</strong> {row.user_name || row.user_email || 'Unknown'}
+                                </p>
+                                <p className="text-sm">
+                                  <strong>REIT:</strong> {row.reit_name || 'Unknown'}
+                                </p>
+                              </div>
+                              <p className="text-sm text-muted-foreground">
+                                This will mint REIT tokens to the investor's wallet based on the share price.
+                              </p>
+                            </div>
+                          </AppModal>
                         )}
                       </TableCell>
                     )}

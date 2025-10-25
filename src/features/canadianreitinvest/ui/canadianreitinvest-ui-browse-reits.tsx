@@ -1,11 +1,17 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSolana } from '@/components/solana/use-solana'
+import { useWalletUi } from '@wallet-ui/react'
 import { PublicKey } from '@solana/web3.js'
 import { fetchAllMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
+import { useCreateMint } from '../hooks/use-create-mint'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { parse as uuidParse } from 'uuid'
 
 type ReitRow = {
@@ -20,9 +26,28 @@ type ReitRow = {
  */
 export default function CanadianreitinvestUiBrowseReits() {
   const { client, cluster } = useSolana()
+  const { account } = useWalletUi()
+  const createMintMutation = useCreateMint({ account: account! })
   const [loading, setLoading] = useState(false)
   const [rows, setRows] = useState<ReitRow[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [selectedReit, setSelectedReit] = useState<ReitRow | null>(null)
+  const [sharePrice, setSharePrice] = useState('')
+  const [currency, setCurrency] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
+
+  const handleCreateMint = () => {
+    if (!selectedReit) return
+    createMintMutation.mutate({
+      reitId: selectedReit.id,
+      sharePrice: parseFloat(sharePrice),
+      currency,
+    })
+    setDialogOpen(false)
+    setSelectedReit(null)
+    setSharePrice('')
+    setCurrency('')
+  }
 
   useEffect(() => {
     let mounted = true
@@ -122,6 +147,7 @@ export default function CanadianreitinvestUiBrowseReits() {
             <TableHead>REIT ID</TableHead>
             <TableHead>REIT Name</TableHead>
             <TableHead className="text-right">Total Raised (USDC)</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -133,6 +159,64 @@ export default function CanadianreitinvestUiBrowseReits() {
                 ${((row.fundraiser?.data?.totalRaised !== undefined
                   ? Number(row.fundraiser.data.totalRaised)
                   : 0) / 1_000_000).toFixed(2)}
+              </TableCell>
+              <TableCell>
+                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        setSelectedReit(row)
+                        setSharePrice('')
+                        setCurrency('')
+                      }}
+                    >
+                      Create/Update Mint
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Create/Update REIT Mint</DialogTitle>
+                    </DialogHeader>
+                    <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="share-price" className="text-right">
+                          Share Price
+                        </Label>
+                        <Input
+                          id="share-price"
+                          type="number"
+                          value={sharePrice}
+                          onChange={(e) => setSharePrice(e.target.value)}
+                          className="col-span-3"
+                          placeholder="e.g., 100.00"
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="currency" className="text-right">
+                          Currency
+                        </Label>
+                        <Input
+                          id="currency"
+                          value={currency}
+                          onChange={(e) => setCurrency(e.target.value)}
+                          className="col-span-3"
+                          placeholder="e.g., CAD"
+                        />
+                      </div>
+                    </div>
+                    <DialogFooter>
+                      <Button
+                        type="submit"
+                        onClick={handleCreateMint}
+                        disabled={!sharePrice || !currency || createMintMutation.isPending}
+                      >
+                        {createMintMutation.isPending ? 'Creating...' : 'Create Mint'}
+                      </Button>
+                    </DialogFooter>
+                  </DialogContent>
+                </Dialog>
               </TableCell>
             </TableRow>
           ))}

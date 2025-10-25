@@ -10,6 +10,7 @@ import { useSolana } from '@/components/solana/use-solana'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { fetchMaybeInvestor } from '@/generated/accounts/investor'
+import { supabase } from '@/lib/supabase'
 
 export function useInvest({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
@@ -17,7 +18,7 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
   const { client } = useSolana()
 
   return useMutation({
-    mutationFn: async ({ amount, reitIdHash }: { amount: number; reitIdHash: Uint8Array }) => {
+    mutationFn: async ({ amount, reitIdHash, reitId, userId }: { amount: number; reitIdHash: Uint8Array; reitId: string; userId: string }) => {
       if (!account?.publicKey) throw new Error('Wallet not connected')
 
       const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
@@ -47,12 +48,8 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       }
 
       const fundraiser = fundraiserAccount.data
-      try {
-        console.debug('INVEST DEBUG: fundraiser.usdcMint=', fundraiser.usdcMint)
-        console.debug('INVEST DEBUG: fundraiser.escrowVault=', fundraiser.escrowVault)
-      } catch (e) {
-        /* ignore if shape unexpected */
-      }
+      console.debug('INVEST DEBUG: fundraiser.usdcMint=', fundraiser.usdcMint)
+      console.debug('INVEST DEBUG: fundraiser.escrowVault=', fundraiser.escrowVault)
 
       // Step 3: Get investor's USDC ATA
       const usdcMint = new PublicKey(fundraiser.usdcMint)
@@ -119,6 +116,30 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
 
       const sig = await signAndSend(instruction, signer)
       toast.success('Investment submitted')
+
+      // Insert investment record into Supabase for atomicity
+      try {
+        const { error: dbError } = await supabase
+          .from('investments')
+          .insert({
+            investment_pda: investmentPda.toBase58(),
+            investor_user_id: userId,
+            reit_id: reitId,
+          })
+
+        if (dbError) {
+          console.error('Failed to insert investment into database:', dbError)
+          // Note: Onchain transaction succeeded, but DB insert failed
+          // This is a rare case that may require manual reconciliation
+          toast.error('Investment created onchain but database update failed. Please contact support.')
+        } else {
+          console.log('Investment record inserted into database successfully')
+        }
+      } catch (dbErr) {
+        console.error('Exception during database insertion:', dbErr)
+        toast.error('Investment created onchain but database update failed. Please contact support.')
+      }
+
       return sig
     },
     onError: (err) => {

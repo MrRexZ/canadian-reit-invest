@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { parse as uuidParse } from 'uuid'
+import { useAuth } from '@/components/auth-provider'
 
 export function CanadianreitinvestUiInvest({
   account,
@@ -16,6 +17,7 @@ export function CanadianreitinvestUiInvest({
   onSuccess?: () => void
 }) {
   const invest = useInvest({ account })
+  const { user } = useAuth()
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
 
@@ -39,10 +41,17 @@ export function CanadianreitinvestUiInvest({
       return
     }
 
+    if (!user) {
+      setError('User not authenticated')
+      return
+    }
+
     try {
       await invest.mutateAsync({
         amount: numAmount,
         reitIdHash: uuidParse(reitId) as unknown as Uint8Array,
+        reitId: reitId,
+        userId: user.id,
       })
 
       setAmount('')

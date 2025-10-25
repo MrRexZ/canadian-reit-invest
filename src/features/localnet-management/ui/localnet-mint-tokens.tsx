@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Connection, PublicKey, Transaction } from '@solana/web3.js'
-import { createMintToInstruction, getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { createMintToInstruction, getAssociatedTokenAddressSync, createAssociatedTokenAccountInstruction } from '@solana/spl-token'
 import { toast } from 'sonner'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -57,6 +57,21 @@ export function LocalnetMintTokens({ account }: LocalnetMintTokensProps) {
       console.log('  Recipient ATA:', ata.toBase58())
       console.log('  Amount:', amount, '(USDC)')
 
+      // Check if ATA exists
+      const ataInfo = await connection.getAccountInfo(ata)
+      const instructions = []
+
+      if (!ataInfo) {
+        console.log('  ATA does not exist, creating it...')
+        const createAtaIx = createAssociatedTokenAccountInstruction(
+          faucetPubkey, // payer
+          ata,
+          recipientPubkey, // owner
+          mintPubkey
+        )
+        instructions.push(createAtaIx)
+      }
+
       // Create mint instruction
       const mintInstruction = createMintToInstruction(
         mintPubkey,
@@ -64,8 +79,9 @@ export function LocalnetMintTokens({ account }: LocalnetMintTokensProps) {
         faucetPubkey, // mint authority
         BigInt(amount) * BigInt(1_000_000) // USDC has 6 decimals
       )
+      instructions.push(mintInstruction)
 
-      const transaction = new Transaction().add(mintInstruction)
+      const transaction = new Transaction().add(...instructions)
 
       // Get the connected wallet adapter
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

@@ -5,10 +5,12 @@ import { UiWalletAccount } from '@wallet-ui/react'
 import { Address } from 'gill'
 import { PublicKey } from '@solana/web3.js'
 import { toast } from 'sonner'
-import { getAssociatedTokenAddressSync } from '@solana/spl-token'
+import { getAssociatedTokenAddressSync, ASSOCIATED_TOKEN_PROGRAM_ID } from '@solana/spl-token'
 import { useSolana } from '@/components/solana/use-solana'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
+import { fetchMaybeInvestor } from '@/generated/accounts/investor'
+import { supabase } from '@/lib/supabase'
 
 export function useInvest({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
@@ -16,7 +18,7 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
   const { client } = useSolana()
 
   return useMutation({
-    mutationFn: async ({ amount, reitIdHash }: { amount: number; reitIdHash: Uint8Array }) => {
+    mutationFn: async ({ amount, reitIdHash, reitId, userId }: { amount: number; reitIdHash: Uint8Array; reitId: string; userId: string }) => {
       if (!account?.publicKey) throw new Error('Wallet not connected')
 
       const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
@@ -24,7 +26,6 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
 
       // Step 1: Derive fundraiser PDA from reit_id_hash
       const seedBuffer = Buffer.from(reitIdHash)
-      // Debug: print values used to derive the PDA
       console.debug('INVEST DEBUG: programId=', programId.toBase58())
       console.debug('INVEST DEBUG: reitIdHash (bytes)=', reitIdHash)
       console.debug('INVEST DEBUG: reitIdHash (hex)=', seedBuffer.toString('hex'))
@@ -47,19 +48,43 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       }
 
       const fundraiser = fundraiserAccount.data
-      // Debug: print a couple of fundraiser fields that are relevant
-      try {
-        console.debug('INVEST DEBUG: fundraiser.usdcMint=', fundraiser.usdcMint)
-        console.debug('INVEST DEBUG: fundraiser.escrowVault=', fundraiser.escrowVault)
-        console.debug('INVEST DEBUG: fundraiser.investmentCounter=', fundraiser.investmentCounter)
-      } catch (e) {
-        /* ignore if shape unexpected */
-      }
+      console.debug('INVEST DEBUG: fundraiser.usdcMint=', fundraiser.usdcMint)
+      console.debug('INVEST DEBUG: fundraiser.escrowVault=', fundraiser.escrowVault)
 
-      // Step 3: Derive investment PDA using investment_counter
-      const investmentCounter = fundraiser.investmentCounter
+      // Step 3: Get investor's USDC ATA
+      const usdcMint = new PublicKey(fundraiser.usdcMint)
+      console.log('usdcMint:', usdcMint.toBase58())
+      console.log('fundraiser.usdcMint:', fundraiser.usdcMint)
+      const investorUsdcAta = getAssociatedTokenAddressSync(usdcMint, investorPublicKey)
+
+      // Step 4: We no longer require the frontend to pre-create the USDC ATA.
+      // The program will create the associated token account if it's missing (init_if_needed).
+      // We'll still pass the derived ATA address to the instruction so the program can initialize it.
+      // (No client-side existence check required.)
+
+      // Step 5: Derive investor PDA (will be created by init_if_needed in the invest instruction)
+      const [investorPda] = await PublicKey.findProgramAddress(
+        [Buffer.from('investor'), investorPublicKey.toBuffer()],
+        programId
+      )
+      console.debug('INVEST DEBUG: derived investorPda=', investorPda.toBase58())
+
+      // Step 6: Fetch current investor account to get investment counter for PDA derivation
+      const investorAccount = await fetchMaybeInvestor(
+        client.rpc,
+        investorPda.toBase58() as Address
+      )
+      console.debug('INVEST DEBUG: investorAccount.exists=', investorAccount?.exists)
+
+      // Get current counter (0 if investor account doesn't exist yet)
+      const currentCounter = investorAccount?.exists
+        ? Number(investorAccount.data.investmentCounter)
+        : 0
+      console.debug('INVEST DEBUG: currentCounter=', currentCounter)
+
+      // Step 7: Derive investment PDA using the current counter
       const investmentCounterBuf = Buffer.alloc(8)
-      investmentCounterBuf.writeBigUInt64LE(investmentCounter)
+      investmentCounterBuf.writeBigUInt64LE(BigInt(currentCounter))
 
       const [investmentPda] = await PublicKey.findProgramAddress(
         [
@@ -70,20 +95,20 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
         ],
         programId
       )
+      console.debug('INVEST DEBUG: derived investmentPda=', investmentPda.toBase58())
 
-      // Step 4: Get investor's USDC ATA
-      const usdcMint = new PublicKey(fundraiser.usdcMint)
-      const investorUsdcAta = getAssociatedTokenAddressSync(usdcMint, investorPublicKey)
-
-      // Step 5: Get escrow vault from fundraiser
+      // Step 7: Get escrow vault from fundraiser
       const escrowVault = new PublicKey(fundraiser.escrowVault)
 
-      // Step 6: Build and send invest instruction
+      // Step 8: Build and send invest instruction
       const instruction = await getInvestInstructionAsync({
-        investor: signer,
+        investorSigner: signer,
+        investor: investorPda.toBase58() as Address,
         fundraiser: fundraiserPda.toBase58() as Address,
         investment: investmentPda.toBase58() as Address,
         investorUsdcAta: investorUsdcAta.toBase58() as Address,
+        usdcMint: usdcMint.toBase58() as Address,
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID.toBase58() as Address,
         escrowVault: escrowVault.toBase58() as Address,
         amount: BigInt(amount),
         reitIdHash: reitIdHash as unknown as Uint8Array,
@@ -91,6 +116,30 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
 
       const sig = await signAndSend(instruction, signer)
       toast.success('Investment submitted')
+
+      // Insert investment record into Supabase for atomicity
+      try {
+        const { error: dbError } = await supabase
+          .from('investments')
+          .insert({
+            investment_pda: investmentPda.toBase58(),
+            investor_user_id: userId,
+            reit_id: reitId,
+          })
+
+        if (dbError) {
+          console.error('Failed to insert investment into database:', dbError)
+          // Note: Onchain transaction succeeded, but DB insert failed
+          // This is a rare case that may require manual reconciliation
+          toast.error('Investment created onchain but database update failed. Please contact support.')
+        } else {
+          console.log('Investment record inserted into database successfully')
+        }
+      } catch (dbErr) {
+        console.error('Exception during database insertion:', dbErr)
+        toast.error('Investment created onchain but database update failed. Please contact support.')
+      }
+
       return sig
     },
     onError: (err) => {

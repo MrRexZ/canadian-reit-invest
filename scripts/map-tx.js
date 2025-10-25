@@ -8,7 +8,7 @@ if (!tx) {
 }
 // tx.transaction.message.accountKeys.forEach((k,i)=>console.log(i, k.toBase58()))
 // derive PDAs with seeds from IDL
-const programId = new PublicKey('HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B')
+const programId = new PublicKey('FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH')
 const admin = new PublicKey('7xvth2P8U5Zf1w7P8Q32wcub5BVqP8eXb7wwpaH4iA7X')
 const reitId = 'REIT-001'
 const [fundraiser] = await PublicKey.findProgramAddress([Buffer.from('fundraiser'), admin.toBuffer(), Buffer.from(reitId)], programId)

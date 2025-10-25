@@ -9,6 +9,7 @@ import InvestorPage from '@/features/investor/investor-page'
 import { useLocation } from 'react-router'
 import { useState } from 'react'
 import BrowseReits from './ui/canadianreitinvest-ui-browse-reits'
+import BrowseInvestments from './ui/canadianreitinvest-ui-browse-investments'
 import { LocalnetMintTokens } from '@/features/localnet-management/ui/localnet-mint-tokens'
 
 export default function CanadianreitinvestFeature() {
@@ -88,7 +89,7 @@ export default function CanadianreitinvestFeature() {
 }
 
 function AdminTabs({ account }: { account: any }) {
-  const [tab, setTab] = useState<'create' | 'browse' | 'mint'>('create')
+  const [tab, setTab] = useState<'create' | 'browse' | 'investments' | 'mint'>('create')
 
   return (
     <div className="flex gap-0">
@@ -105,6 +106,12 @@ function AdminTabs({ account }: { account: any }) {
             onClick={() => setTab('browse')}
           >
             Browse REITs
+          </button>
+          <button
+            className={`text-left px-3 py-2 rounded-md ${tab === 'investments' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
+            onClick={() => setTab('investments')}
+          >
+            Browse Investments
           </button>
           <button
             className={`text-left px-3 py-2 rounded-md ${tab === 'mint' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
@@ -131,6 +138,10 @@ function AdminTabs({ account }: { account: any }) {
         ) : tab === 'browse' ? (
           <div>
             <BrowseReits />
+          </div>
+        ) : tab === 'investments' ? (
+          <div>
+            <BrowseInvestments isAdmin={true} />
           </div>
         ) : (
           <div>

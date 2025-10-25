@@ -14,16 +14,19 @@ import {
   type ReadonlyUint8Array,
 } from 'gill';
 import {
+  type ParsedCloseInvestorInstruction,
   type ParsedInitializeFundraiserInstruction,
+  type ParsedInitializeInvestorInstruction,
   type ParsedInvestInstruction,
 } from '../instructions';
 
 export const CANADIANREITINVEST_PROGRAM_ADDRESS =
-  'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B' as Address<'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B'>;
+  'FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH' as Address<'FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH'>;
 
 export enum CanadianreitinvestAccount {
   Fundraiser,
   Investment,
+  Investor,
 }
 
 export function identifyCanadianreitinvestAccount(
@@ -52,13 +55,26 @@ export function identifyCanadianreitinvestAccount(
   ) {
     return CanadianreitinvestAccount.Investment;
   }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([174, 129, 17, 83, 36, 116, 26, 196])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestAccount.Investor;
+  }
   throw new Error(
     'The provided account could not be identified as a canadianreitinvest account.'
   );
 }
 
 export enum CanadianreitinvestInstruction {
+  CloseInvestor,
   InitializeFundraiser,
+  InitializeInvestor,
   Invest,
 }
 
@@ -70,12 +86,34 @@ export function identifyCanadianreitinvestInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([243, 111, 117, 71, 42, 130, 10, 195])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.CloseInvestor;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([10, 33, 110, 191, 226, 23, 151, 31])
       ),
       0
     )
   ) {
     return CanadianreitinvestInstruction.InitializeFundraiser;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([12, 105, 129, 28, 138, 149, 223, 135])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.InitializeInvestor;
   }
   if (
     containsBytes(
@@ -94,11 +132,17 @@ export function identifyCanadianreitinvestInstruction(
 }
 
 export type ParsedCanadianreitinvestInstruction<
-  TProgram extends string = 'HKE3kVkw621wdSJmsaZxHxLK1TaHQevvGAUh9Z3YxH7B',
+  TProgram extends string = 'FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH',
 > =
+  | ({
+      instructionType: CanadianreitinvestInstruction.CloseInvestor;
+    } & ParsedCloseInvestorInstruction<TProgram>)
   | ({
       instructionType: CanadianreitinvestInstruction.InitializeFundraiser;
     } & ParsedInitializeFundraiserInstruction<TProgram>)
+  | ({
+      instructionType: CanadianreitinvestInstruction.InitializeInvestor;
+    } & ParsedInitializeInvestorInstruction<TProgram>)
   | ({
       instructionType: CanadianreitinvestInstruction.Invest;
     } & ParsedInvestInstruction<TProgram>);

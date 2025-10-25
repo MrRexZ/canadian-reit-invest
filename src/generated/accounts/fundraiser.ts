@@ -55,7 +55,6 @@ export type Fundraiser = {
   escrowVault: Address;
   totalRaised: bigint;
   releasedAmount: bigint;
-  investmentCounter: bigint;
   bump: number;
   reitAcceptedCurrency: ReadonlyUint8Array;
 };
@@ -67,7 +66,6 @@ export type FundraiserArgs = {
   escrowVault: Address;
   totalRaised: number | bigint;
   releasedAmount: number | bigint;
-  investmentCounter: number | bigint;
   bump: number;
   reitAcceptedCurrency: ReadonlyUint8Array;
 };
@@ -82,7 +80,6 @@ export function getFundraiserEncoder(): FixedSizeEncoder<FundraiserArgs> {
       ['escrowVault', getAddressEncoder()],
       ['totalRaised', getU64Encoder()],
       ['releasedAmount', getU64Encoder()],
-      ['investmentCounter', getU64Encoder()],
       ['bump', getU8Encoder()],
       ['reitAcceptedCurrency', fixEncoderSize(getBytesEncoder(), 3)],
     ]),
@@ -99,7 +96,6 @@ export function getFundraiserDecoder(): FixedSizeDecoder<Fundraiser> {
     ['escrowVault', getAddressDecoder()],
     ['totalRaised', getU64Decoder()],
     ['releasedAmount', getU64Decoder()],
-    ['investmentCounter', getU64Decoder()],
     ['bump', getU8Decoder()],
     ['reitAcceptedCurrency', fixDecoderSize(getBytesDecoder(), 3)],
   ]);
@@ -166,5 +162,5 @@ export async function fetchAllMaybeFundraiser(
 }
 
 export function getFundraiserSize(): number {
-  return 164;
+  return 156;
 }

@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { parse as uuidParse } from 'uuid'
+import { useAuth } from '@/components/auth-provider'
 
 export function CanadianreitinvestUiInvest({
   account,
@@ -16,6 +17,7 @@ export function CanadianreitinvestUiInvest({
   onSuccess?: () => void
 }) {
   const invest = useInvest({ account })
+  const { user } = useAuth()
   const [amount, setAmount] = useState('')
   const [error, setError] = useState('')
 
@@ -34,15 +36,31 @@ export function CanadianreitinvestUiInvest({
       return
     }
 
+    // Check for too many decimal places (USDC supports up to 6 decimals)
+    if (amount.includes('.') && amount.split('.')[1].length > 6) {
+      setError('Amount cannot have more than 6 decimal places')
+      return
+    }
+
     if (!reitId) {
       setError('REIT ID is required')
       return
     }
 
+    if (!user) {
+      setError('User not authenticated')
+      return
+    }
+
     try {
+      // Convert major unit amount to minor units (USDC has 6 decimals)
+      const minorUnitAmount = Math.round(numAmount * 1_000_000)
+
       await invest.mutateAsync({
-        amount: numAmount,
+        amount: minorUnitAmount,
         reitIdHash: uuidParse(reitId) as unknown as Uint8Array,
+        reitId: reitId,
+        userId: user.id,
       })
 
       setAmount('')
@@ -64,17 +82,23 @@ export function CanadianreitinvestUiInvest({
             min="0"
             value={amount}
             onChange={(e) => setAmount(e.target.value)}
-            placeholder="Enter amount to invest"
+            placeholder="e.g. 100.50"
             disabled={invest.isPending}
           />
           <p className="text-xs text-muted-foreground mt-1">
-            You can invest any amount in USDC
+            Enter the amount in USDC (e.g., 100.50 for $100.50)
           </p>
         </div>
 
         {error && (
-          <div className="text-sm text-destructive bg-destructive/10 p-2 rounded">
-            {error}
+          <div className="text-sm text-destructive bg-destructive/10 p-2 rounded space-y-2">
+            <p>{error}</p>
+            {error.includes('insufficient funds') && (
+              <p className="text-xs">
+                💡 <strong>Tip:</strong> You need USDC tokens to invest. On localnet, run:<br />
+                <code className="bg-black/50 px-1 rounded">./scripts/mint-usdc-tokens.sh {account.publicKey} 1000</code>
+              </p>
+            )}
           </div>
         )}
 

@@ -139,9 +139,22 @@ export default function BrowseReitsInvestor({ account }: { account: UiWalletAcco
         {reits.map((reit) => {
           const totalRaisedBigInt = reit.fundraiser?.data?.totalRaised ?? 0n
           const totalRaised = typeof totalRaisedBigInt === 'bigint' ? Number(totalRaisedBigInt) : totalRaisedBigInt
-          const targetAmount = 2000000 // TODO: add to fundraiser PDA or supabase
-          const progressPercent = targetAmount > 0 ? (totalRaised / targetAmount) * 100 : 0
-          const remaining = Math.max(0, targetAmount - totalRaised)
+          // Convert from minor units (6 decimals) to major units (dollars)
+          const totalRaisedDollars = totalRaised / 1_000_000
+          const targetAmount = 2000000 // TODO: add to fundraiser PDA or supabase - this is in dollars
+          const progressPercent = targetAmount > 0 ? (totalRaisedDollars / targetAmount) * 100 : 0
+          const remaining = Math.max(0, targetAmount - totalRaisedDollars)
+
+          // Format amount display
+          const formatAmount = (amount: number) => {
+            if (amount >= 1_000_000) {
+              return `$${(amount / 1_000_000).toFixed(2)}M`
+            } else if (amount >= 1_000) {
+              return `$${(amount / 1_000).toFixed(1)}K`
+            } else {
+              return `$${amount.toFixed(2)}`
+            }
+          }
 
           return (
             <div
@@ -176,18 +189,18 @@ export default function BrowseReitsInvestor({ account }: { account: UiWalletAcco
                   <div className="flex justify-between mb-1">
                     <span>Raised:</span>
                     <span className="font-medium">
-                      ${(totalRaised / 1000000).toFixed(2)}M
+                      {formatAmount(totalRaisedDollars)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Target:</span>
                     <span className="font-medium">
-                      ${(targetAmount / 1000000).toFixed(2)}M
+                      {formatAmount(targetAmount)}
                     </span>
                   </div>
                   <div className="flex justify-between text-muted-foreground mt-1">
                     <span>Remaining:</span>
-                    <span>${(remaining / 1000000).toFixed(2)}M</span>
+                    <span>{formatAmount(remaining)}</span>
                   </div>
                 </div>
 
@@ -228,7 +241,7 @@ export default function BrowseReitsInvestor({ account }: { account: UiWalletAcco
                     <span className="font-medium">
                       ${((selectedReit.fundraiser?.data?.totalRaised !== undefined 
                         ? Number(selectedReit.fundraiser.data.totalRaised) 
-                        : 0) / 1000000).toFixed(2)}M USDC
+                        : 0) / 1000000).toFixed(2)} USDC
                     </span>
                   </div>
                   <div className="flex justify-between">

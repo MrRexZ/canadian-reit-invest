@@ -1,0 +1,3 @@
+1. I want to remove the released, refunded field in `Investment` PDA and replace it with enum. It can be released, refunded, wired, share_issued (or think of a better name)  
+2. Make the Investor PDA to be initialized only when user click invest (init_if_needed). Remove the Initialize Investor button and the close investor button.
+3. Check if user has USDC ATA account created as part of the Invest button (if it doesn't exist), and create it if it doesn't exist yet.

@@ -39,7 +39,8 @@ Key features:
 - **PDA Derivation**: Use `find_program_address` with seeds like `b"investor_state"`, user pubkey, and investment ID.
 - **Token Operations**: Use SPL token program for minting, transferring, and ATA (Associated Token Accounts) management.
 - **Error Handling**: Define custom errors in Anchor programs (e.g., InsufficientFunds, InvalidAuthority).
-- **Frontend Integration**: Use gill for transactions, @solana/wallet-adapter for wallet connections.
+- **Frontend Integration**: Use gill for transactions, @solana/wallet-adapter for wallet connections. Use Codama to generate TypeScript types from Solana programs when the Anchor IDL changes.
+
 
 ## File Structure Notes
 - `anchor/programs/canadianreitinvest/src/lib.rs`: Main program logic.
@@ -50,6 +51,6 @@ Key features:
 ## Additional Context
 - **Deployment**: Use Anchor CLI for Solana deployment. Frontend deployed via Vercel/Netlify.
 - **Environment**: Local development with `solana-test-validator`, test-ledger for testing.
-- Don't ever install codama deps at anchor subfolder. When need to run Codama, use the codama installed at root folder. don't install "@codama/nodes-from-anchor` at anchor subfolder.
+- Don't ever install codama deps at anchor subfolder. When need to run Codama, use the codama installed at root folder. don't install "@codama/nodes-from-anchor` at anchor subfolder. Use the `codama.js` file to generate.
 
 When assisting with code, prioritize security, correctness, and alignment with the REIT investment flow. If unsure, ask for clarification on business logic.

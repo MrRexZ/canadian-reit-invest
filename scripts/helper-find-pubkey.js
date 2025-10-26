@@ -89,6 +89,46 @@ async function displayFundraiserData(fundraiserPdaAddress) {
   console.log('===========================\n')
 }
 
+// Function to parse and display investment PDA data
+async function displayInvestmentData(investmentPda) {
+  const investmentAccount = await conn.getAccountInfo(investmentPda)
+  if (!investmentAccount) {
+    throw new Error('Investment account not found')
+  }
+
+  const data = investmentAccount.data
+
+  // Parse investment account data
+  // Structure: discriminator (8) + investor (32) + fundraiser (32) + usdc_amount (8) + reit_amount (4) + status (1) + bump (1)
+  const investor = new PublicKey(data.slice(8, 40)).toBase58()
+  const fundraiser = new PublicKey(data.slice(40, 72)).toBase58()
+  const usdcAmount = data.readBigUInt64LE(72)
+  const reitAmount = data.readUInt32LE(80)
+  const status = data.readUInt8(84)
+  const bump = data.readUInt8(85)
+
+  // Map status to string
+  const statusMap = {
+    0: 'Pending',
+    1: 'Released',
+    2: 'Refunded',
+    3: 'Wired',
+    4: 'ShareIssued',
+    5: 'ShareSold'
+  }
+  const statusString = statusMap[status] || 'Unknown'
+
+  console.log('\n=== Investment PDA Data ===')
+  console.log(`Address: ${investmentPda.toBase58()}`)
+  console.log(`Investor: ${investor}`)
+  console.log(`Fundraiser: ${fundraiser}`)
+  console.log(`USDC Amount: ${usdcAmount} (micro USDC)`)
+  console.log(`REIT Amount: ${reitAmount}`)
+  console.log(`Status: ${statusString}`)
+  console.log(`Bump: ${bump}`)
+  console.log('===========================\n')
+}
+
 // Example usage:
 const investorPubkey = 'BjSGrxP1QdnYEYhifv5NRg2zPVZS9hK1uCMnLn94h7QC' // The actual investor signer pubkey
 const fundraiserPubkey = fundraiser.toBase58() // Use the fundraiser PDA from above

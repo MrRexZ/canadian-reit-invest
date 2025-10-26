@@ -133,11 +133,11 @@ export type Canadianreitinvest = {
           }
         },
         {
-          "name": "sharePrice",
-          "type": "u64"
+          "name": "name",
+          "type": "string"
         },
         {
-          "name": "currency",
+          "name": "symbol",
           "type": "string"
         }
       ]

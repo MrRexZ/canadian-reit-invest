@@ -48,8 +48,8 @@ pub mod canadianreitinvest {
         instructions::wire::handler(ctx, reit_id_hash)
     }
 
-    pub fn create_mint(ctx: Context<CreateMint>, reit_id_hash: [u8; 16], share_price: u64, currency: String) -> Result<()> {
-        instructions::create_mint::handler(ctx, reit_id_hash, share_price, currency)
+    pub fn create_mint(ctx: Context<CreateMint>, reit_id_hash: [u8; 16], name: String, symbol: String) -> Result<()> {
+        instructions::create_mint::handler(ctx, reit_id_hash, name, symbol)
     }
 
     pub fn issue_share(ctx: Context<IssueShare>, reit_id_hash: [u8; 16]) -> Result<()> {

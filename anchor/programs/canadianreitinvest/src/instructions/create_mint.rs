@@ -3,11 +3,11 @@ use anchor_spl::token::{self, Mint, Token};
 
 use crate::state;
 
-pub fn handler(ctx: Context<CreateMint>, reit_id_hash: [u8; 16], share_price: u64, currency: String) -> Result<()> {
+pub fn handler(ctx: Context<CreateMint>, reit_id_hash: [u8; 16], name: String, symbol: String) -> Result<()> {
     msg!("Create mint handler start");
     msg!("Admin: {}", ctx.accounts.admin.key());
     msg!("Fundraiser: {}", ctx.accounts.fundraiser.key());
-    msg!("Share price: {}, Currency: {}", share_price, currency);
+    msg!("Name: {}, Symbol: {}", name, symbol);
 
     // Verify admin is the signer and matches fundraiser admin
     if ctx.accounts.admin.key() != ctx.accounts.fundraiser.admin {
@@ -40,7 +40,7 @@ pub fn handler(ctx: Context<CreateMint>, reit_id_hash: [u8; 16], share_price: u6
 }
 
 #[derive(Accounts)]
-#[instruction(reit_id_hash: [u8; 16], share_price: u64, currency: String)]
+#[instruction(reit_id_hash: [u8; 16], name: String, symbol: String)]
 pub struct CreateMint<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,

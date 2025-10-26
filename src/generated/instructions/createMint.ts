@@ -19,8 +19,6 @@ import {
   getStructEncoder,
   getU32Decoder,
   getU32Encoder,
-  getU64Decoder,
-  getU64Encoder,
   getUtf8Decoder,
   getUtf8Encoder,
   transformEncoder,
@@ -100,14 +98,14 @@ export type CreateMintInstruction<
 export type CreateMintInstructionData = {
   discriminator: ReadonlyUint8Array;
   reitIdHash: ReadonlyUint8Array;
-  sharePrice: bigint;
-  currency: string;
+  name: string;
+  symbol: string;
 };
 
 export type CreateMintInstructionDataArgs = {
   reitIdHash: ReadonlyUint8Array;
-  sharePrice: number | bigint;
-  currency: string;
+  name: string;
+  symbol: string;
 };
 
 export function getCreateMintInstructionDataEncoder(): Encoder<CreateMintInstructionDataArgs> {
@@ -115,8 +113,8 @@ export function getCreateMintInstructionDataEncoder(): Encoder<CreateMintInstruc
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['reitIdHash', fixEncoderSize(getBytesEncoder(), 16)],
-      ['sharePrice', getU64Encoder()],
-      ['currency', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+      ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
+      ['symbol', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
     ]),
     (value) => ({ ...value, discriminator: CREATE_MINT_DISCRIMINATOR })
   );
@@ -126,8 +124,8 @@ export function getCreateMintInstructionDataDecoder(): Decoder<CreateMintInstruc
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['reitIdHash', fixDecoderSize(getBytesDecoder(), 16)],
-    ['sharePrice', getU64Decoder()],
-    ['currency', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ['name', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
+    ['symbol', addDecoderSizePrefix(getUtf8Decoder(), getU32Decoder())],
   ]);
 }
 
@@ -156,8 +154,8 @@ export type CreateMintAsyncInput<
   systemProgram?: Address<TAccountSystemProgram>;
   rent?: Address<TAccountRent>;
   reitIdHash: CreateMintInstructionDataArgs['reitIdHash'];
-  sharePrice: CreateMintInstructionDataArgs['sharePrice'];
-  currency: CreateMintInstructionDataArgs['currency'];
+  name: CreateMintInstructionDataArgs['name'];
+  symbol: CreateMintInstructionDataArgs['symbol'];
 };
 
 export async function getCreateMintInstructionAsync<
@@ -277,8 +275,8 @@ export type CreateMintInput<
   systemProgram?: Address<TAccountSystemProgram>;
   rent?: Address<TAccountRent>;
   reitIdHash: CreateMintInstructionDataArgs['reitIdHash'];
-  sharePrice: CreateMintInstructionDataArgs['sharePrice'];
-  currency: CreateMintInstructionDataArgs['currency'];
+  name: CreateMintInstructionDataArgs['name'];
+  symbol: CreateMintInstructionDataArgs['symbol'];
 };
 
 export function getCreateMintInstruction<

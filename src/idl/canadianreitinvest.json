@@ -127,11 +127,11 @@
           }
         },
         {
-          "name": "share_price",
-          "type": "u64"
+          "name": "name",
+          "type": "string"
         },
         {
-          "name": "currency",
+          "name": "symbol",
           "type": "string"
         }
       ]

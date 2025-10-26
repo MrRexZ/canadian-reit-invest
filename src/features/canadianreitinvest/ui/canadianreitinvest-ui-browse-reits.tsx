@@ -10,7 +10,7 @@ import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadia
 import { useCreateMint } from '../hooks/use-create-mint'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
-import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { parse as uuidParse } from 'uuid'
 
@@ -32,6 +32,9 @@ export default function CanadianreitinvestUiBrowseReits() {
   const [rows, setRows] = useState<ReitRow[]>([])
   const [error, setError] = useState<string | null>(null)
   const [selectedReit, setSelectedReit] = useState<ReitRow | null>(null)
+  const [name, setName] = useState('')
+  const [symbol, setSymbol] = useState('')
+  const [description, setDescription] = useState('')
   const [sharePrice, setSharePrice] = useState('')
   const [currency, setCurrency] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
@@ -40,11 +43,14 @@ export default function CanadianreitinvestUiBrowseReits() {
     if (!selectedReit) return
     createMintMutation.mutate({
       reitId: selectedReit.id,
-      sharePrice: parseFloat(sharePrice),
-      currency,
+      name,
+      symbol,
     })
     setDialogOpen(false)
     setSelectedReit(null)
+    setName('')
+    setSymbol('')
+    setDescription('')
     setSharePrice('')
     setCurrency('')
   }
@@ -168,6 +174,9 @@ export default function CanadianreitinvestUiBrowseReits() {
                       size="sm"
                       onClick={() => {
                         setSelectedReit(row)
+                        setName('')
+                        setSymbol('')
+                        setDescription('')
                         setSharePrice('')
                         setCurrency('')
                       }}
@@ -178,8 +187,47 @@ export default function CanadianreitinvestUiBrowseReits() {
                   <DialogContent>
                     <DialogHeader>
                       <DialogTitle>Create/Update REIT Mint</DialogTitle>
+                      <DialogDescription>
+                        Enter the REIT mint token details. Only name and symbol are required to create the mint.
+                      </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="name" className="text-right">
+                          Name
+                        </Label>
+                        <Input
+                          id="name"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          className="col-span-3"
+                          placeholder="e.g., My REIT Token"
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="symbol" className="text-right">
+                          Symbol
+                        </Label>
+                        <Input
+                          id="symbol"
+                          value={symbol}
+                          onChange={(e) => setSymbol(e.target.value)}
+                          className="col-span-3"
+                          placeholder="e.g., MRT"
+                        />
+                      </div>
+                      <div className="grid grid-cols-4 items-center gap-4">
+                        <Label htmlFor="description" className="text-right">
+                          Description
+                        </Label>
+                        <Input
+                          id="description"
+                          value={description}
+                          onChange={(e) => setDescription(e.target.value)}
+                          className="col-span-3"
+                          placeholder="e.g., My REIT Description"
+                        />
+                      </div>
                       <div className="grid grid-cols-4 items-center gap-4">
                         <Label htmlFor="share-price" className="text-right">
                           Share Price
@@ -210,7 +258,7 @@ export default function CanadianreitinvestUiBrowseReits() {
                       <Button
                         type="submit"
                         onClick={handleCreateMint}
-                        disabled={!sharePrice || !currency || createMintMutation.isPending}
+                        disabled={!name || !symbol || createMintMutation.isPending}
                       >
                         {createMintMutation.isPending ? 'Creating...' : 'Create Mint'}
                       </Button>

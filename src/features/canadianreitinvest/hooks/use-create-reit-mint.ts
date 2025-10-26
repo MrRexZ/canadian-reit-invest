@@ -131,10 +131,30 @@ export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
         metadataUri: metadataUri,
       })
 
-      console.log('[CREATE MINT DEBUG] Built create mint instruction')
+      // Add sysvar_instructions account at the correct position (after rent, before metadata)
+      const sysvarInstructionsPubkey = 'Sysvar1nstructions1111111111111111111111111'
+      const instructionWithSysvar = {
+        ...instruction,
+        accounts: [
+          instruction.accounts[0], // admin
+          instruction.accounts[1], // fundraiser
+          instruction.accounts[2], // reit_mint
+          instruction.accounts[3], // token_program
+          instruction.accounts[4], // system_program
+          instruction.accounts[5], // rent
+          { // sysvar_instructions
+            address: sysvarInstructionsPubkey as Address,
+            role: 'readonly' as const,
+          },
+          instruction.accounts[6], // metadata
+          instruction.accounts[7], // token_metadata_program
+        ],
+      }
+
+      console.log('[CREATE MINT DEBUG] Built create mint instruction with sysvar_instructions')
 
       // Send the transaction - reitMintKeypair will sign as part of the instruction
-      const signature = await signAndSend(instruction, signer)
+      const signature = await signAndSend(instructionWithSysvar as any, signer)
       console.log('[CREATE MINT DEBUG] Transaction sent:', signature)
 
       // Update Supabase with the mint address

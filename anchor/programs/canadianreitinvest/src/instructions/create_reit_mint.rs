@@ -38,12 +38,15 @@ pub fn handler(ctx: Context<CreateReitMint>, reit_id_hash: [u8; 16], name: Strin
         .authority(&ctx.accounts.admin.to_account_info())
         .update_authority(&ctx.accounts.admin.to_account_info(), true)
         .payer(&ctx.accounts.admin.to_account_info())
+        .system_program(&ctx.accounts.system_program.to_account_info())
+        .sysvar_instructions(&ctx.accounts.sysvar_instructions.to_account_info())
         .name(name)
         .symbol(symbol)
         .uri(metadata_uri)
         .token_standard(TokenStandard::FungibleAsset)
         .decimals(0)
         .print_supply(mpl_token_metadata::types::PrintSupply::Zero)
+        .seller_fee_basis_points(0)
         .invoke()?;
 
     msg!("Token metadata created successfully");
@@ -77,7 +80,8 @@ pub struct CreateReitMint<'info> {
     pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
     pub rent: Sysvar<'info, Rent>,
-
+    /// CHECK: This is the sysvar instructions account required by Metaplex
+    pub sysvar_instructions: UncheckedAccount<'info>, 
     /// CHECK: Metaplex Token Metadata program will validate this
     #[account(mut)]
     pub metadata: UncheckedAccount<'info>,

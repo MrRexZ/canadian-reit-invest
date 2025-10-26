@@ -116,6 +116,10 @@
           "address": "SysvarRent111111111111111111111111111111111"
         },
         {
+          "name": "sysvar_instructions",
+          "address": "Sysvar1nstructions1111111111111111111111111"
+        },
+        {
           "name": "metadata",
           "writable": true
         },

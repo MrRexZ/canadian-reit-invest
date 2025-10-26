@@ -3,7 +3,8 @@
   "scripts": {
     "anchor": "cd anchor && anchor",
     "anchor-build": "cd anchor && anchor build",
-    "anchor-localnet": "cd anchor && solana-test-validator --ledger ./ledger",
+    "anchor-localnet": "cd anchor && solana-test-validator --clone-upgradeable-program metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s --url https://api.mainnet-beta.solana.com --ledger ./ledger",
+    "backup-anchor-localnet": "cd anchor && solana-test-validator --clone-upgradeable-program metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s --url https://api.mainnet-beta.solana.com --ledger ./ledger",
     "anchor-test": "cd anchor && anchor test",
     "build": "tsc -b && vite build --mode production",
     "codama:js": "codama run js -c codama.js",

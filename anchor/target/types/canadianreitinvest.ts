@@ -120,6 +120,14 @@ export type Canadianreitinvest = {
         {
           "name": "rent",
           "address": "SysvarRent111111111111111111111111111111111"
+        },
+        {
+          "name": "metadata",
+          "writable": true
+        },
+        {
+          "name": "tokenMetadataProgram",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
         }
       ],
       "args": [
@@ -138,6 +146,10 @@ export type Canadianreitinvest = {
         },
         {
           "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "metadataUri",
           "type": "string"
         }
       ]
@@ -1045,10 +1057,6 @@ export type Canadianreitinvest = {
                 3
               ]
             }
-          },
-          {
-            "name": "reitPda",
-            "type": "pubkey"
           }
         ]
       }

@@ -9,6 +9,7 @@ import { useWalletUiSigner, useWalletUiSignAndSend } from '@wallet-ui/react-gill
 import { parse as uuidParse } from 'uuid'
 import { Address, createKeyPairSignerFromBytes } from 'gill'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
+import { uploadReitMetadataToIrys, ReitMetadata } from '@/lib/irys-upload'
 
 export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
   const { wallet } = useWalletUi()
@@ -16,7 +17,14 @@ export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
   const signAndSend = useWalletUiSignAndSend()
 
   return useMutation({
-    mutationFn: async ({ reitId, name, symbol }: { reitId: string; name: string; symbol: string }) => {
+    mutationFn: async ({ reitId, name, symbol, description, sharePrice, currency }: {
+      reitId: string;
+      name: string;
+      symbol: string;
+      description: string;
+      sharePrice: string;
+      currency: string;
+    }) => {
       if (!account || !account.publicKey || !wallet) {
         toast.error('Wallet not connected')
         return
@@ -28,7 +36,34 @@ export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
       console.log('[CREATE MINT DEBUG] REIT ID:', reitId)
       console.log('[CREATE MINT DEBUG] Name:', name)
       console.log('[CREATE MINT DEBUG] Symbol:', symbol)
+      console.log('[CREATE MINT DEBUG] Description:', description)
+      console.log('[CREATE MINT DEBUG] Share Price:', sharePrice)
+      console.log('[CREATE MINT DEBUG] Currency:', currency)
       console.log('[CREATE MINT DEBUG] Admin public key:', adminPublicKey.toBase58())
+
+      // Create metadata JSON
+      const metadata: ReitMetadata = {
+        name,
+        symbol,
+        description,
+        attributes: [
+          {
+            trait_type: 'share_price',
+            value: sharePrice,
+          },
+          {
+            trait_type: 'currency',
+            value: currency,
+          },
+        ],
+      }
+
+      console.log('[CREATE MINT DEBUG] Created metadata:', metadata)
+
+      // Upload metadata to Irys
+      console.log('[CREATE MINT DEBUG] Uploading metadata to Irys...')
+      const metadataUri = await uploadReitMetadataToIrys(metadata)
+      console.log('[CREATE MINT DEBUG] Metadata uploaded to:', metadataUri)
 
       // Check if mint already exists in database
       const { data: reit } = await supabase
@@ -72,14 +107,28 @@ export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
       )
       console.log('[CREATE MINT DEBUG] Derived fundraiser PDA:', fundraiserPda.toBase58())
 
+      // Derive metadata account address
+      const [metadataPda] = await PublicKey.findProgramAddress(
+        [
+          Buffer.from('metadata'),
+          new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s').toBuffer(), // Metaplex Token Metadata program ID
+          reitMintKeypair.publicKey.toBuffer(),
+        ],
+        new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s')
+      )
+      console.log('[CREATE MINT DEBUG] Derived metadata PDA:', metadataPda.toBase58())
+
       // Build create mint instruction
       const instruction = await getCreateReitMintInstructionAsync({
         admin: signer,
         fundraiser: fundraiserPda.toBase58() as Address,
         reitMint: reitMintSigner, // Pass signer instead of public key
+        metadata: metadataPda.toBase58() as Address,
+        tokenMetadataProgram: 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s' as Address,
         reitIdHash: reitIdHash,
         name: name,
         symbol: symbol,
+        metadataUri: metadataUri,
       })
 
       console.log('[CREATE MINT DEBUG] Built create mint instruction')

@@ -45,6 +45,9 @@ export default function CanadianreitinvestUiBrowseReits() {
       reitId: selectedReit.id,
       name,
       symbol,
+      description,
+      sharePrice,
+      currency,
     })
     setDialogOpen(false)
     setSelectedReit(null)

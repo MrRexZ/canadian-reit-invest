@@ -58,7 +58,7 @@ export function useInitializeFundraiserMutation({ account }: { account: UiWallet
       // Only insert into Supabase after onchain success
       const { error: dbError } = await supabase
         .from('reits')
-        .insert({ id: uuid, reit_name: reitName })
+        .insert({ id: uuid, reit_name: reitName, reit_pda: fundraiserPda.toBase58() })
 
       if (dbError) {
         // If Supabase fails, we have an inconsistency, but onchain is done

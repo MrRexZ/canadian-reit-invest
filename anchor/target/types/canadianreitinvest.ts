@@ -1045,6 +1045,10 @@ export type Canadianreitinvest = {
                 3
               ]
             }
+          },
+          {
+            "name": "reitPda",
+            "type": "pubkey"
           }
         ]
       }

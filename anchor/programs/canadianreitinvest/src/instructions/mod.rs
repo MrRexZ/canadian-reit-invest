@@ -5,5 +5,5 @@ pub mod invest;
 pub mod release;
 pub mod refund;
 pub mod wire;
-pub mod create_mint;
+pub mod create_reit_mint;
 pub mod issue_share;

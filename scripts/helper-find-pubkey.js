@@ -4,7 +4,7 @@ import { parse as uuidParse } from 'uuid'
 
 const conn = new Connection('http://localhost:8899', 'confirmed')
 const programId = new PublicKey('FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH')
-const uuid = '3ad6b1b1-6fbc-4f6b-9df0-d6fafabedd37'
+const uuid = '07628736-f31b-4ff2-8503-2a0531fc42ce'
 const reitIdHash = uuidParse(uuid)
 const [fundraiser] = await PublicKey.findProgramAddress([Buffer.from('fundraiser'), Buffer.from(reitIdHash)], programId)
 console.log('fundraiser', fundraiser.toBase58())

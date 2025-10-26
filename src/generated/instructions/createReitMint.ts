@@ -44,15 +44,17 @@ import {
   type ResolvedAccount,
 } from '../shared';
 
-export const CREATE_MINT_DISCRIMINATOR = new Uint8Array([
-  69, 44, 215, 132, 253, 214, 41, 45,
+export const CREATE_REIT_MINT_DISCRIMINATOR = new Uint8Array([
+  232, 51, 175, 47, 142, 150, 194, 219,
 ]);
 
-export function getCreateMintDiscriminatorBytes() {
-  return fixEncoderSize(getBytesEncoder(), 8).encode(CREATE_MINT_DISCRIMINATOR);
+export function getCreateReitMintDiscriminatorBytes() {
+  return fixEncoderSize(getBytesEncoder(), 8).encode(
+    CREATE_REIT_MINT_DISCRIMINATOR
+  );
 }
 
-export type CreateMintInstruction<
+export type CreateReitMintInstruction<
   TProgram extends string = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
   TAccountAdmin extends string | AccountMeta<string> = string,
   TAccountFundraiser extends string | AccountMeta<string> = string,
@@ -95,20 +97,20 @@ export type CreateMintInstruction<
     ]
   >;
 
-export type CreateMintInstructionData = {
+export type CreateReitMintInstructionData = {
   discriminator: ReadonlyUint8Array;
   reitIdHash: ReadonlyUint8Array;
   name: string;
   symbol: string;
 };
 
-export type CreateMintInstructionDataArgs = {
+export type CreateReitMintInstructionDataArgs = {
   reitIdHash: ReadonlyUint8Array;
   name: string;
   symbol: string;
 };
 
-export function getCreateMintInstructionDataEncoder(): Encoder<CreateMintInstructionDataArgs> {
+export function getCreateReitMintInstructionDataEncoder(): Encoder<CreateReitMintInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
@@ -116,11 +118,11 @@ export function getCreateMintInstructionDataEncoder(): Encoder<CreateMintInstruc
       ['name', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
       ['symbol', addEncoderSizePrefix(getUtf8Encoder(), getU32Encoder())],
     ]),
-    (value) => ({ ...value, discriminator: CREATE_MINT_DISCRIMINATOR })
+    (value) => ({ ...value, discriminator: CREATE_REIT_MINT_DISCRIMINATOR })
   );
 }
 
-export function getCreateMintInstructionDataDecoder(): Decoder<CreateMintInstructionData> {
+export function getCreateReitMintInstructionDataDecoder(): Decoder<CreateReitMintInstructionData> {
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['reitIdHash', fixDecoderSize(getBytesDecoder(), 16)],
@@ -129,17 +131,17 @@ export function getCreateMintInstructionDataDecoder(): Decoder<CreateMintInstruc
   ]);
 }
 
-export function getCreateMintInstructionDataCodec(): Codec<
-  CreateMintInstructionDataArgs,
-  CreateMintInstructionData
+export function getCreateReitMintInstructionDataCodec(): Codec<
+  CreateReitMintInstructionDataArgs,
+  CreateReitMintInstructionData
 > {
   return combineCodec(
-    getCreateMintInstructionDataEncoder(),
-    getCreateMintInstructionDataDecoder()
+    getCreateReitMintInstructionDataEncoder(),
+    getCreateReitMintInstructionDataDecoder()
   );
 }
 
-export type CreateMintAsyncInput<
+export type CreateReitMintAsyncInput<
   TAccountAdmin extends string = string,
   TAccountFundraiser extends string = string,
   TAccountReitMint extends string = string,
@@ -153,12 +155,12 @@ export type CreateMintAsyncInput<
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   rent?: Address<TAccountRent>;
-  reitIdHash: CreateMintInstructionDataArgs['reitIdHash'];
-  name: CreateMintInstructionDataArgs['name'];
-  symbol: CreateMintInstructionDataArgs['symbol'];
+  reitIdHash: CreateReitMintInstructionDataArgs['reitIdHash'];
+  name: CreateReitMintInstructionDataArgs['name'];
+  symbol: CreateReitMintInstructionDataArgs['symbol'];
 };
 
-export async function getCreateMintInstructionAsync<
+export async function getCreateReitMintInstructionAsync<
   TAccountAdmin extends string,
   TAccountFundraiser extends string,
   TAccountReitMint extends string,
@@ -167,7 +169,7 @@ export async function getCreateMintInstructionAsync<
   TAccountRent extends string,
   TProgramAddress extends Address = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
 >(
-  input: CreateMintAsyncInput<
+  input: CreateReitMintAsyncInput<
     TAccountAdmin,
     TAccountFundraiser,
     TAccountReitMint,
@@ -177,7 +179,7 @@ export async function getCreateMintInstructionAsync<
   >,
   config?: { programAddress?: TProgramAddress }
 ): Promise<
-  CreateMintInstruction<
+  CreateReitMintInstruction<
     TProgramAddress,
     TAccountAdmin,
     TAccountFundraiser,
@@ -245,11 +247,11 @@ export async function getCreateMintInstructionAsync<
       getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.rent),
     ],
-    data: getCreateMintInstructionDataEncoder().encode(
-      args as CreateMintInstructionDataArgs
+    data: getCreateReitMintInstructionDataEncoder().encode(
+      args as CreateReitMintInstructionDataArgs
     ),
     programAddress,
-  } as CreateMintInstruction<
+  } as CreateReitMintInstruction<
     TProgramAddress,
     TAccountAdmin,
     TAccountFundraiser,
@@ -260,7 +262,7 @@ export async function getCreateMintInstructionAsync<
   >);
 }
 
-export type CreateMintInput<
+export type CreateReitMintInput<
   TAccountAdmin extends string = string,
   TAccountFundraiser extends string = string,
   TAccountReitMint extends string = string,
@@ -274,12 +276,12 @@ export type CreateMintInput<
   tokenProgram?: Address<TAccountTokenProgram>;
   systemProgram?: Address<TAccountSystemProgram>;
   rent?: Address<TAccountRent>;
-  reitIdHash: CreateMintInstructionDataArgs['reitIdHash'];
-  name: CreateMintInstructionDataArgs['name'];
-  symbol: CreateMintInstructionDataArgs['symbol'];
+  reitIdHash: CreateReitMintInstructionDataArgs['reitIdHash'];
+  name: CreateReitMintInstructionDataArgs['name'];
+  symbol: CreateReitMintInstructionDataArgs['symbol'];
 };
 
-export function getCreateMintInstruction<
+export function getCreateReitMintInstruction<
   TAccountAdmin extends string,
   TAccountFundraiser extends string,
   TAccountReitMint extends string,
@@ -288,7 +290,7 @@ export function getCreateMintInstruction<
   TAccountRent extends string,
   TProgramAddress extends Address = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
 >(
-  input: CreateMintInput<
+  input: CreateReitMintInput<
     TAccountAdmin,
     TAccountFundraiser,
     TAccountReitMint,
@@ -297,7 +299,7 @@ export function getCreateMintInstruction<
     TAccountRent
   >,
   config?: { programAddress?: TProgramAddress }
-): CreateMintInstruction<
+): CreateReitMintInstruction<
   TProgramAddress,
   TAccountAdmin,
   TAccountFundraiser,
@@ -351,11 +353,11 @@ export function getCreateMintInstruction<
       getAccountMeta(accounts.systemProgram),
       getAccountMeta(accounts.rent),
     ],
-    data: getCreateMintInstructionDataEncoder().encode(
-      args as CreateMintInstructionDataArgs
+    data: getCreateReitMintInstructionDataEncoder().encode(
+      args as CreateReitMintInstructionDataArgs
     ),
     programAddress,
-  } as CreateMintInstruction<
+  } as CreateReitMintInstruction<
     TProgramAddress,
     TAccountAdmin,
     TAccountFundraiser,
@@ -366,7 +368,7 @@ export function getCreateMintInstruction<
   >);
 }
 
-export type ParsedCreateMintInstruction<
+export type ParsedCreateReitMintInstruction<
   TProgram extends string = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
   TAccountMetas extends readonly AccountMeta[] = readonly AccountMeta[],
 > = {
@@ -379,17 +381,17 @@ export type ParsedCreateMintInstruction<
     systemProgram: TAccountMetas[4];
     rent: TAccountMetas[5];
   };
-  data: CreateMintInstructionData;
+  data: CreateReitMintInstructionData;
 };
 
-export function parseCreateMintInstruction<
+export function parseCreateReitMintInstruction<
   TProgram extends string,
   TAccountMetas extends readonly AccountMeta[],
 >(
   instruction: Instruction<TProgram> &
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
-): ParsedCreateMintInstruction<TProgram, TAccountMetas> {
+): ParsedCreateReitMintInstruction<TProgram, TAccountMetas> {
   if (instruction.accounts.length < 6) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
@@ -410,6 +412,6 @@ export function parseCreateMintInstruction<
       systemProgram: getNextAccount(),
       rent: getNextAccount(),
     },
-    data: getCreateMintInstructionDataDecoder().decode(instruction.data),
+    data: getCreateReitMintInstructionDataDecoder().decode(instruction.data),
   };
 }

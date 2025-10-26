@@ -60,16 +60,16 @@ export type Canadianreitinvest = {
       "args": []
     },
     {
-      "name": "createMint",
+      "name": "createReitMint",
       "discriminator": [
-        69,
-        44,
-        215,
-        132,
-        253,
-        214,
-        41,
-        45
+        232,
+        51,
+        175,
+        47,
+        142,
+        150,
+        194,
+        219
       ],
       "accounts": [
         {

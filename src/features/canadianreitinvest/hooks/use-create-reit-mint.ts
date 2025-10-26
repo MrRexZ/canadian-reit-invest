@@ -4,13 +4,13 @@ import { useWalletUi } from '@wallet-ui/react'
 import { PublicKey, Keypair } from '@solana/web3.js'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
-import { getCreateMintInstructionAsync } from '@/generated'
+import { getCreateReitMintInstructionAsync } from '@/generated'
 import { useWalletUiSigner, useWalletUiSignAndSend } from '@wallet-ui/react-gill'
 import { parse as uuidParse } from 'uuid'
 import { Address, createKeyPairSignerFromBytes } from 'gill'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 
-export function useCreateMint({ account }: { account: UiWalletAccount }) {
+export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
   const { wallet } = useWalletUi()
   const signer = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
@@ -73,7 +73,7 @@ export function useCreateMint({ account }: { account: UiWalletAccount }) {
       console.log('[CREATE MINT DEBUG] Derived fundraiser PDA:', fundraiserPda.toBase58())
 
       // Build create mint instruction
-      const instruction = await getCreateMintInstructionAsync({
+      const instruction = await getCreateReitMintInstructionAsync({
         admin: signer,
         fundraiser: fundraiserPda.toBase58() as Address,
         reitMint: reitMintSigner, // Pass signer instead of public key

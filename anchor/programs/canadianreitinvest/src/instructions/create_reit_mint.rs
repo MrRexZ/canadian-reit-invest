@@ -3,7 +3,7 @@ use anchor_spl::token::{self, Mint, Token};
 
 use crate::state;
 
-pub fn handler(ctx: Context<CreateMint>, reit_id_hash: [u8; 16], name: String, symbol: String) -> Result<()> {
+pub fn handler(ctx: Context<CreateReitMint>, reit_id_hash: [u8; 16], name: String, symbol: String) -> Result<()> {
     msg!("Create mint handler start");
     msg!("Admin: {}", ctx.accounts.admin.key());
     msg!("Fundraiser: {}", ctx.accounts.fundraiser.key());
@@ -27,7 +27,7 @@ pub fn handler(ctx: Context<CreateMint>, reit_id_hash: [u8; 16], name: String, s
 
 #[derive(Accounts)]
 #[instruction(reit_id_hash: [u8; 16], name: String, symbol: String)]
-pub struct CreateMint<'info> {
+pub struct CreateReitMint<'info> {
     #[account(mut)]
     pub admin: Signer<'info>,
 

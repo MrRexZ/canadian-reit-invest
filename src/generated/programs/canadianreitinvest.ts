@@ -15,7 +15,7 @@ import {
 } from 'gill';
 import {
   type ParsedCloseInvestorInstruction,
-  type ParsedCreateMintInstruction,
+  type ParsedCreateReitMintInstruction,
   type ParsedInitializeFundraiserInstruction,
   type ParsedInitializeInvestorInstruction,
   type ParsedInvestInstruction,
@@ -78,7 +78,7 @@ export function identifyCanadianreitinvestAccount(
 
 export enum CanadianreitinvestInstruction {
   CloseInvestor,
-  CreateMint,
+  CreateReitMint,
   InitializeFundraiser,
   InitializeInvestor,
   Invest,
@@ -107,12 +107,12 @@ export function identifyCanadianreitinvestInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
-        new Uint8Array([69, 44, 215, 132, 253, 214, 41, 45])
+        new Uint8Array([232, 51, 175, 47, 142, 150, 194, 219])
       ),
       0
     )
   ) {
-    return CanadianreitinvestInstruction.CreateMint;
+    return CanadianreitinvestInstruction.CreateReitMint;
   }
   if (
     containsBytes(
@@ -203,8 +203,8 @@ export type ParsedCanadianreitinvestInstruction<
       instructionType: CanadianreitinvestInstruction.CloseInvestor;
     } & ParsedCloseInvestorInstruction<TProgram>)
   | ({
-      instructionType: CanadianreitinvestInstruction.CreateMint;
-    } & ParsedCreateMintInstruction<TProgram>)
+      instructionType: CanadianreitinvestInstruction.CreateReitMint;
+    } & ParsedCreateReitMintInstruction<TProgram>)
   | ({
       instructionType: CanadianreitinvestInstruction.InitializeFundraiser;
     } & ParsedInitializeFundraiserInstruction<TProgram>)

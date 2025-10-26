@@ -54,16 +54,16 @@
       "args": []
     },
     {
-      "name": "create_mint",
+      "name": "create_reit_mint",
       "discriminator": [
-        69,
-        44,
-        215,
-        132,
-        253,
-        214,
-        41,
-        45
+        232,
+        51,
+        175,
+        47,
+        142,
+        150,
+        194,
+        219
       ],
       "accounts": [
         {

@@ -7,7 +7,7 @@ import { fetchAllMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
-import { useCreateMint } from '../hooks/use-create-mint'
+import { useCreateReitMint } from '../hooks/use-create-reit-mint'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -27,7 +27,7 @@ type ReitRow = {
 export default function CanadianreitinvestUiBrowseReits() {
   const { client, cluster } = useSolana()
   const { account } = useWalletUi()
-  const createMintMutation = useCreateMint({ account: account! })
+  const createReitMintMutation = useCreateReitMint({ account: account! })
   const [loading, setLoading] = useState(false)
   const [rows, setRows] = useState<ReitRow[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -39,9 +39,9 @@ export default function CanadianreitinvestUiBrowseReits() {
   const [currency, setCurrency] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const handleCreateMint = () => {
+  const handleCreateReitMint = () => {
     if (!selectedReit) return
-    createMintMutation.mutate({
+    createReitMintMutation.mutate({
       reitId: selectedReit.id,
       name,
       symbol,
@@ -257,10 +257,10 @@ export default function CanadianreitinvestUiBrowseReits() {
                     <DialogFooter>
                       <Button
                         type="submit"
-                        onClick={handleCreateMint}
-                        disabled={!name || !symbol || createMintMutation.isPending}
+                        onClick={handleCreateReitMint}
+                        disabled={!name || !symbol || createReitMintMutation.isPending}
                       >
-                        {createMintMutation.isPending ? 'Creating...' : 'Create Mint'}
+                        {createReitMintMutation.isPending ? 'Creating...' : 'Create REIT Mint'}
                       </Button>
                     </DialogFooter>
                   </DialogContent>

@@ -7,7 +7,7 @@
  */
 
 export * from './closeInvestor';
-export * from './createMint';
+export * from './createReitMint';
 export * from './initializeFundraiser';
 export * from './initializeInvestor';
 export * from './invest';

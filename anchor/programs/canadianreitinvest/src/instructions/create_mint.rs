@@ -15,20 +15,6 @@ pub fn handler(ctx: Context<CreateMint>, reit_id_hash: [u8; 16], name: String, s
         return Err(error!(crate::errors::CustomError::InvalidAuthority));
     }
 
-    // Create the mint
-    token::initialize_mint(
-        CpiContext::new(
-            ctx.accounts.token_program.to_account_info(),
-            token::InitializeMint {
-                mint: ctx.accounts.reit_mint.to_account_info(),
-                rent: ctx.accounts.rent.to_account_info(),
-            },
-        ),
-        0, // 0 decimals for REIT shares
-        &ctx.accounts.admin.key(),
-        Some(&ctx.accounts.admin.key()),
-    )?;
-
     // Update fundraiser with mint address
     let fundraiser = &mut ctx.accounts.fundraiser;
     fundraiser.reit_mint = ctx.accounts.reit_mint.key();
@@ -57,7 +43,6 @@ pub struct CreateMint<'info> {
         payer = admin,
         mint::decimals = 0,
         mint::authority = admin,
-        mint::freeze_authority = admin,
     )]
     pub reit_mint: Account<'info, Mint>,
 

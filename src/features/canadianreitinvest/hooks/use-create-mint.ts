@@ -1,15 +1,19 @@
 import { useMutation } from '@tanstack/react-query'
 import { UiWalletAccount } from '@wallet-ui/react'
 import { useWalletUi } from '@wallet-ui/react'
-import { PublicKey, Keypair, Connection, SystemProgram, Transaction } from '@solana/web3.js'
-import { TOKEN_PROGRAM_ID, createInitializeMintInstruction, MINT_SIZE } from '@solana/spl-token'
+import { PublicKey, Keypair } from '@solana/web3.js'
 import { toast } from 'sonner'
-import { useSolana } from '@/components/solana/use-solana'
 import { supabase } from '@/lib/supabase'
+import { getCreateMintInstructionAsync } from '@/generated'
+import { useWalletUiSigner, useWalletUiSignAndSend } from '@wallet-ui/react-gill'
+import { parse as uuidParse } from 'uuid'
+import { Address, createKeyPairSignerFromBytes } from 'gill'
+import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 
 export function useCreateMint({ account }: { account: UiWalletAccount }) {
   const { wallet } = useWalletUi()
-  const { client } = useSolana()
+  const signer = useWalletUiSigner({ account })
+  const signAndSend = useWalletUiSignAndSend()
 
   return useMutation({
     mutationFn: async ({ reitId, name, symbol }: { reitId: string; name: string; symbol: string }) => {
@@ -49,111 +53,41 @@ export function useCreateMint({ account }: { account: UiWalletAccount }) {
         throw new Error('Only the authorized admin wallet can create mint')
       }
 
-      // Create a new keypair for the REIT mint
+      // Compute reitIdHash from reitId (assuming reitId is UUID string)
+      const reitIdHash = uuidParse(reitId) as Uint8Array
+      console.log('[CREATE MINT DEBUG] REIT ID hash:', Buffer.from(reitIdHash).toString('hex'))
+
+      // Generate a new keypair for the REIT mint
       const reitMintKeypair = Keypair.generate()
       console.log('[CREATE MINT DEBUG] Generated REIT mint keypair:', reitMintKeypair.publicKey.toBase58())
-      console.log('[CREATE MINT DEBUG] REIT mint keypair secret key (first 20 bytes):', Array.from(reitMintKeypair.secretKey.slice(0, 20)).map(b => b.toString(16).padStart(2, '0')).join(' '))
-      console.log('[CREATE MINT DEBUG] REIT mint keypair full secret:', Buffer.from(reitMintKeypair.secretKey).toString('base64'))
-      
-      // Check if this specific mint account already exists on-chain (should be extremely rare with random generation)
-      try {
-        const existingMintAccount = await (client.rpc as any).getAccountInfo(reitMintKeypair.publicKey.toBase58()).send()
-        if (existingMintAccount?.value?.data) {
-          console.error('[CREATE MINT DEBUG] COLLISION: This randomly generated mint address already exists on-chain!:', reitMintKeypair.publicKey.toBase58())
-          console.error('[CREATE MINT DEBUG] This is extremely unlikely. Account data:', existingMintAccount.value)
-          throw new Error('Generated mint address collision - please try again')
-        } else {
-          console.log('[CREATE MINT DEBUG] Mint account does not exist yet, proceeding with creation')
-        }
-      } catch (err) {
-        // Account doesn't exist, which is what we want
-        console.log('[CREATE MINT DEBUG] Confirmed mint account does not exist (expected), will create')
-      }
 
-      console.log('[CREATE MINT DEBUG] Building create mint transaction...')
-      
-      const connection = new Connection('http://localhost:8899', 'confirmed')
-      const lamports = await connection.getMinimumBalanceForRentExemption(MINT_SIZE)
-      console.log('[CREATE MINT DEBUG] Lamports needed:', lamports)
-      
-      const transaction = new Transaction().add(
-        SystemProgram.createAccount({
-          fromPubkey: adminPublicKey,
-          newAccountPubkey: reitMintKeypair.publicKey,
-          space: MINT_SIZE,
-          lamports,
-          programId: TOKEN_PROGRAM_ID,
-        }),
-        createInitializeMintInstruction(
-          reitMintKeypair.publicKey,
-          0, // decimals
-          adminPublicKey, // mint authority
-          null, // freeze authority
-          TOKEN_PROGRAM_ID
-        )
+      // Convert Solana Keypair to gill signer
+      const reitMintSigner = await createKeyPairSignerFromBytes(reitMintKeypair.secretKey)
+
+      // Derive fundraiser PDA
+      const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
+      const [fundraiserPda] = await PublicKey.findProgramAddress(
+        [Buffer.from('fundraiser'), Buffer.from(reitIdHash)],
+        programId
       )
-      
-      console.log('[CREATE MINT DEBUG] Transaction instructions:', transaction.instructions.length)
-      
-      // Set recent blockhash and fee payer
-      const { blockhash } = await connection.getLatestBlockhash()
-      transaction.recentBlockhash = blockhash
-      transaction.feePayer = adminPublicKey
-      
-      console.log('[CREATE MINT DEBUG] Blockhash:', blockhash)
-      
-      // Check wallet balance first
-      const balance = await connection.getBalance(adminPublicKey)
-      console.log('[CREATE MINT DEBUG] Wallet balance:', balance, 'lamports')
-      
-      if (balance < lamports + 5000) { // Need rent + tx fee
-        throw new Error(`Insufficient balance. Need at least ${(lamports + 5000) / 1e9} SOL, have ${balance / 1e9} SOL. Please airdrop some SOL to your wallet.`)
-      }
-      
-      // IMPORTANT: Sign with mint keypair FIRST (it needs to sign offline)
-      transaction.partialSign(reitMintKeypair)
-      console.log('[CREATE MINT DEBUG] Mint keypair signed')
-      
-      // Get the connected wallet adapter from window
-      // WalletUI uses standard wallet adapters which inject into window
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const walletAdapter = (window as any)[wallet.name.toLowerCase()] || (window as any).solana
-      
-      if (!walletAdapter || !walletAdapter.signTransaction) {
-        throw new Error(`${wallet.name} wallet not found or does not support signing`)
-      }
-      
-      console.log('[CREATE MINT DEBUG] Requesting wallet signature...')
-      // Now have the user sign with their wallet (this is the fee payer)
-      const signed = await walletAdapter.signTransaction(transaction)
-      console.log('[CREATE MINT DEBUG] Wallet signed successfully')
-      
-      // Send the already-signed transaction
-      console.log('[CREATE MINT DEBUG] Sending transaction...')
-      const signature = await connection.sendRawTransaction(signed.serialize(), {
-        skipPreflight: false,
-        preflightCommitment: 'confirmed',
+      console.log('[CREATE MINT DEBUG] Derived fundraiser PDA:', fundraiserPda.toBase58())
+
+      // Build create mint instruction
+      const instruction = await getCreateMintInstructionAsync({
+        admin: signer,
+        fundraiser: fundraiserPda.toBase58() as Address,
+        reitMint: reitMintSigner, // Pass signer instead of public key
+        reitIdHash: reitIdHash,
+        name: name,
+        symbol: symbol,
       })
-      
+
+      console.log('[CREATE MINT DEBUG] Built create mint instruction')
+
+      // Send the transaction - reitMintKeypair will sign as part of the instruction
+      const signature = await signAndSend(instruction, signer)
       console.log('[CREATE MINT DEBUG] Transaction sent:', signature)
-      
-      // Get latest blockhash for confirmation
-      const latestBlockhash = await connection.getLatestBlockhash('confirmed')
-      
-      // Confirm the transaction using blockhash strategy
-      console.log('[CREATE MINT DEBUG] Confirming transaction...')
-      const confirmation = await connection.confirmTransaction({
-        signature,
-        blockhash: latestBlockhash.blockhash,
-        lastValidBlockHeight: latestBlockhash.lastValidBlockHeight,
-      }, 'confirmed')
-      
-      if (confirmation.value.err) {
-        throw new Error(`Transaction failed: ${JSON.stringify(confirmation.value.err)}`)
-      }
-      
-      console.log('[CREATE MINT DEBUG] ✅ Transaction confirmed:', signature)
-      
+
       // Update Supabase with the mint address
       const { error: updateError } = await supabase
         .from('reits')

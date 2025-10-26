@@ -1,7 +1,7 @@
 import { useMutation } from '@tanstack/react-query'
 import { UiWalletAccount } from '@wallet-ui/react'
 import { useWalletUi } from '@wallet-ui/react'
-import { PublicKey, Keypair } from '@solana/web3.js'
+import { PublicKey, Keypair, SYSVAR_INSTRUCTIONS_PUBKEY } from '@solana/web3.js'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
 import { getCreateReitMintInstructionAsync } from '@/generated'
@@ -122,39 +122,20 @@ export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
       const instruction = await getCreateReitMintInstructionAsync({
         admin: signer,
         fundraiser: fundraiserPda.toBase58() as Address,
-        reitMint: reitMintSigner, // Pass signer instead of public key
+        reitMint: reitMintSigner,
         metadata: metadataPda.toBase58() as Address,
         tokenMetadataProgram: 'metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s' as Address,
+  instructionsSysvar: SYSVAR_INSTRUCTIONS_PUBKEY.toBase58() as Address,
         reitIdHash: reitIdHash,
         name: name,
         symbol: symbol,
         metadataUri: metadataUri,
       })
 
-      // Add sysvar_instructions account at the correct position (after rent, before metadata)
-      const sysvarInstructionsPubkey = 'Sysvar1nstructions1111111111111111111111111'
-      const instructionWithSysvar = {
-        ...instruction,
-        accounts: [
-          instruction.accounts[0], // admin
-          instruction.accounts[1], // fundraiser
-          instruction.accounts[2], // reit_mint
-          instruction.accounts[3], // token_program
-          instruction.accounts[4], // system_program
-          instruction.accounts[5], // rent
-          { // sysvar_instructions
-            address: sysvarInstructionsPubkey as Address,
-            role: 'readonly' as const,
-          },
-          instruction.accounts[6], // metadata
-          instruction.accounts[7], // token_metadata_program
-        ],
-      }
+      console.log('[CREATE MINT DEBUG] Built create mint instruction')
 
-      console.log('[CREATE MINT DEBUG] Built create mint instruction with sysvar_instructions')
-
-      // Send the transaction - reitMintKeypair will sign as part of the instruction
-      const signature = await signAndSend(instructionWithSysvar as any, signer)
+      // Send the transaction
+      const signature = await signAndSend(instruction, signer)
       console.log('[CREATE MINT DEBUG] Transaction sent:', signature)
 
       // Update Supabase with the mint address

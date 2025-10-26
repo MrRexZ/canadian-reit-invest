@@ -54,3 +54,18 @@ Key features:
 - Don't ever install codama deps at anchor subfolder. When need to run Codama, use the codama installed at root folder. don't install "@codama/nodes-from-anchor` at anchor subfolder. Use the `codama.js` file to generate.
 
 When assisting with code, prioritize security, correctness, and alignment with the REIT investment flow. If unsure, ask for clarification on business logic.
+
+
+## MCP Server Configuration
+### For Solana MCP Use
+<MCP_USE_GUIDELINE>
+  <INSTRUCTION>
+    If you are working on a Solana-related project. Make frequent use of the following MCP tools to accomplish your goals.
+  </INSTRUCTION>
+  <TOOLS>
+    The following Solana tools are at your disposal:
+    - "Solana Expert: Ask For Help": Use this tool to ask detailed questions about Solana (how-to, concepts, APIs, SDKs, errors). Provide as much context as possible when using it.
+    - "Solana Documentation Search": Use this tool to search the Solana documentation corpus for relevant information based on a query.
+    - "Ask Solana Anchor Framework Expert": Use this tool for any questions specific to the Anchor Framework, including its APIs, SDKs, and error handling.
+  </TOOLS>
+</MCP_USE_GUIDELINE>

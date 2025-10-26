@@ -122,7 +122,7 @@ export type Canadianreitinvest = {
           "address": "SysvarRent111111111111111111111111111111111"
         },
         {
-          "name": "sysvarInstructions"
+          "name": "instructionsSysvar"
         },
         {
           "name": "metadata",

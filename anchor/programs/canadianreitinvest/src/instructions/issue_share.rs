@@ -46,8 +46,10 @@ pub fn handler(ctx: Context<IssueShare>, investor_pubkey: Pubkey, _reit_id_hash:
         return Err(error!(crate::errors::CustomError::InvalidInvestmentStatus));
     }
 
-    // Calculate REIT amount: usdc_amount / share_price
-    let reit_amount = (investment.usdc_amount / share_price) as u32;
+    // Calculate REIT amount: usdc_amount (in lamports) / (share_price * 1_000_000)
+    // Since usdc_amount is in lamports (6 decimals) and share_price is in whole USDC
+    let share_price_lamports = share_price.checked_mul(1_000_000).ok_or(error!(crate::errors::CustomError::ArithmeticOverflow))?;
+    let reit_amount = (investment.usdc_amount / share_price_lamports) as u32;
 
     msg!("Calculated REIT amount: {} (usdc: {}, price: {})", reit_amount, investment.usdc_amount, share_price);
 

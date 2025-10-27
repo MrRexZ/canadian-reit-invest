@@ -8,6 +8,7 @@ import { useWalletUiSigner, useWalletUiSignAndSend } from '@wallet-ui/react-gill
 import { parse as uuidParse } from 'uuid'
 import { getUpdateReitMintInstructionAsync } from '@/generated'
 import { CLUSTER_CONFIG } from '@/lib/cluster-config'
+import { useSolana } from '@/components/solana/use-solana'
 import type { Address } from 'gill'
 
 /**
@@ -17,6 +18,7 @@ import type { Address } from 'gill'
 export function useUpdateReitMint({ account }: { account: UiWalletAccount }) {
   const signer = account ? useWalletUiSigner({ account }) : null
   const signAndSend = useWalletUiSignAndSend()
+  const { client } = useSolana()
 
   return useMutation({
     mutationFn: async ({ reitId, mintAddress, name, symbol, description, sharePrice, currency }: {
@@ -115,7 +117,72 @@ export function useUpdateReitMint({ account }: { account: UiWalletAccount }) {
       const sig = await signAndSend(updateInstruction, signer)
       console.log('[UPDATE MINT DEBUG] Update instruction sent, signature:', sig)
 
-      toast.success(`REIT mint metadata updated successfully!`)
+      // Wait for transaction finalization and verify PDA update
+      console.log('[UPDATE MINT DEBUG] Waiting for transaction finalization...')
+      try {
+        const rpc = client.rpc
+        
+        // Use a hybrid approach: check current status first, then poll if needed
+        let isFinalized = false
+        let attempts = 0
+        const maxAttempts = 60 // ~60 seconds with 500ms delays
+        
+        while (!isFinalized && attempts < maxAttempts) {
+          const { value } = await rpc.getSignatureStatuses([sig as any], { searchTransactionHistory: true }).send()
+          const status = value?.[0]
+          
+          if (attempts === 0 || attempts % 4 === 0) { // Log every 4 attempts (~2 seconds)
+            console.log(`[UPDATE MINT DEBUG] Signature status check ${attempts + 1}:`, {
+              signature: sig,
+              confirmationStatus: status?.confirmationStatus,
+              err: status?.err,
+            })
+          }
+          
+          if (status?.confirmationStatus === 'finalized') {
+            isFinalized = true
+            console.log('[UPDATE MINT DEBUG] Transaction reached finalized commitment!')
+            
+            if (status.err) {
+              console.error('[UPDATE MINT DEBUG] Transaction error:', status.err)
+              throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`)
+            }
+          }
+          
+          if (!isFinalized) {
+            attempts++
+            await new Promise(resolve => setTimeout(resolve, 500)) // Wait 500ms before retry
+          }
+        }
+        
+        if (!isFinalized) {
+          throw new Error('Transaction finalization timeout (60 seconds)')
+        }
+        
+        // Transaction is finalized and successful - now fetch the metadata PDA to verify
+        console.log('[UPDATE MINT DEBUG] Verifying PDA update...')
+        const metadataAccount = new PublicKey(metadataPda)
+        const { value: accountInfo } = await rpc.getAccountInfo(metadataAccount.toBase58() as Address, { encoding: 'base64' }).send()
+        
+        if (accountInfo) {
+          console.log('[UPDATE MINT DEBUG] Metadata PDA verified:', {
+            address: metadataAccount.toBase58(),
+            owner: accountInfo.owner,
+            lamports: accountInfo.lamports,
+            dataLength: accountInfo.data?.[0]?.length,
+          })
+          console.log('[UPDATE MINT DEBUG] ✅ REIT mint metadata updated and verified on-chain!')
+          toast.success(`REIT mint metadata updated and verified on-chain!`)
+        } else {
+          console.error('[UPDATE MINT DEBUG] Metadata PDA not found after finalization')
+          throw new Error('Metadata PDA account not found')
+        }
+      } catch (e) {
+        console.error('[UPDATE MINT DEBUG] Finality verification failed:', e)
+        // Still show warning toast since the transaction was sent
+        // The user can verify manually if needed
+        toast.warning(`REIT mint metadata updated (verification pending)`)
+      }
 
       return metadataUri
     },

@@ -18,4 +18,6 @@ pub enum CustomError {
     InvalidReitIdHash,
     #[msg("Invalid investment status")]
     InvalidInvestmentStatus,
+    #[msg("Invalid mint")]
+    InvalidMint,
 }

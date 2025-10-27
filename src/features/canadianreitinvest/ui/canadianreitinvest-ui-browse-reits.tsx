@@ -1,12 +1,25 @@
 import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSolana } from '@/components/solana/use-solana'
-import { PublicKey } from '@solana/web3.js'
+import { useWalletUi } from '@wallet-ui/react'
+import { PublicKey, SystemProgram } from '@solana/web3.js'
+import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
+import { fetchMetadata } from '@metaplex-foundation/mpl-token-metadata'
+import { publicKey } from '@metaplex-foundation/umi'
 import { fetchAllMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
+import { useCreateReitMint } from '../hooks/use-create-reit-mint'
+import { useUpdateReitMint, useUpdateReitMintRecovery } from '../hooks/use-update-reit-mint'
+import { Input } from '@/components/ui/input'
+import { Label } from '@/components/ui/label'
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
+import { Button } from '@/components/ui/button'
 import { parse as uuidParse } from 'uuid'
+import { getMetadataPdaForMint } from '@/lib/metaplex-update'
+
+const SYSTEM_PROGRAM_ID = SystemProgram.programId.toBase58()
 
 type ReitRow = {
   id: string
@@ -20,9 +33,129 @@ type ReitRow = {
  */
 export default function CanadianreitinvestUiBrowseReits() {
   const { client, cluster } = useSolana()
+  const { account } = useWalletUi()
+  const createReitMintMutation = useCreateReitMint({ account: account! })
+  const updateReitMintMutation = useUpdateReitMint({ account: account! })
   const [loading, setLoading] = useState(false)
   const [rows, setRows] = useState<ReitRow[]>([])
   const [error, setError] = useState<string | null>(null)
+  const [selectedReit, setSelectedReit] = useState<ReitRow | null>(null)
+  const [name, setName] = useState('')
+  const [symbol, setSymbol] = useState('')
+  const [description, setDescription] = useState('')
+  const [sharePrice, setSharePrice] = useState('')
+  const [currency, setCurrency] = useState('')
+  const [dialogOpen, setDialogOpen] = useState(false)
+  const [loadingMetadata, setLoadingMetadata] = useState(false)
+  const [selectedMetadataPda, setSelectedMetadataPda] = useState<string | null>(null)
+  // const [recoveryTrigger, setRecoveryTrigger] = useState(0)
+  const { pendingTx, isCheckingRecovery, clearPendingTx, checkNow } = useUpdateReitMintRecovery(
+    dialogOpen && selectedMetadataPda ? selectedMetadataPda : null
+  )
+  const fetchTokenMetadata = async (mintAddress: string) => {
+    try {
+      setLoadingMetadata(true)
+      
+      // Create UMI instance with the current RPC endpoint
+      // Map cluster ID to RPC endpoint
+      const getRpcEndpoint = (clusterId: string) => {
+        switch (clusterId) {
+          case 'solana:mainnet':
+            return 'https://api.mainnet-beta.solana.com'
+          case 'solana:devnet':
+            return 'https://api.devnet.solana.com'
+          case 'solana:testnet':
+            return 'https://api.testnet.solana.com'
+          case 'solana:localnet':
+          default:
+            return 'http://localhost:8899'
+        }
+      }
+      const rpcEndpoint = getRpcEndpoint(cluster.id)
+      console.log('[METADATA FETCH] Cluster ID:', cluster.id, 'RPC Endpoint:', rpcEndpoint)
+      const umi = createUmi(rpcEndpoint)
+      
+      // Derive metadata account address
+      const [metadataPda] = await PublicKey.findProgramAddress(
+        [
+          Buffer.from('metadata'),
+          new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s').toBuffer(),
+          new PublicKey(mintAddress).toBuffer(),
+        ],
+        new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s')
+      )
+      
+      // Fetch metadata
+      const metadata = await fetchMetadata(umi, publicKey(metadataPda.toString()))
+      
+      if (metadata) {
+        // Parse the metadata JSON from URI
+        const response = await fetch(metadata.uri)
+        const metadataJson = await response.json()
+        
+        // Extract values from metadata
+        setName(metadataJson.name || '')
+        setSymbol(metadataJson.symbol || '')
+        setDescription(metadataJson.description || '')
+        
+        // Extract share price and currency from attributes
+        const sharePriceAttr = metadataJson.attributes?.find((attr: any) => attr.trait_type === 'share_price')
+        const currencyAttr = metadataJson.attributes?.find((attr: any) => attr.trait_type === 'currency')
+        
+        setSharePrice(sharePriceAttr?.value || '')
+        setCurrency(currencyAttr?.value || '')
+      }
+    } catch (error) {
+      console.error('Failed to fetch token metadata:', error)
+      // Reset form if metadata fetch fails
+      setName('')
+      setSymbol('')
+      setDescription('')
+      setSharePrice('')
+      setCurrency('')
+    } finally {
+      setLoadingMetadata(false)
+    }
+  }
+
+  const handleCreateOrUpdateReitMint = () => {
+    if (!selectedReit) return
+    
+    const isUpdate = selectedReit?.fundraiser?.data?.reitMint && 
+                     selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID
+    
+    if (isUpdate) {
+      // Use update mutation for existing mint
+      updateReitMintMutation.mutate({
+        reitId: selectedReit.id,
+        mintAddress: selectedReit.fundraiser.data.reitMint,
+        name,
+        symbol,
+        description,
+        sharePrice,
+        currency,
+      })
+    } else {
+      // Use create mutation for new mint
+      createReitMintMutation.mutate({
+        reitId: selectedReit.id,
+        name,
+        symbol,
+        description,
+        sharePrice,
+        currency,
+      })
+    }
+    
+    setDialogOpen(false)
+    setSelectedReit(null)
+    setSelectedMetadataPda(null)
+    setName('')
+    setSymbol('')
+    setDescription('')
+    setSharePrice('')
+    setCurrency('')
+  }
 
   useEffect(() => {
     let mounted = true
@@ -122,6 +255,7 @@ export default function CanadianreitinvestUiBrowseReits() {
             <TableHead>REIT ID</TableHead>
             <TableHead>REIT Name</TableHead>
             <TableHead className="text-right">Total Raised (USDC)</TableHead>
+            <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
@@ -133,6 +267,204 @@ export default function CanadianreitinvestUiBrowseReits() {
                 ${((row.fundraiser?.data?.totalRaised !== undefined
                   ? Number(row.fundraiser.data.totalRaised)
                   : 0) / 1_000_000).toFixed(2)}
+              </TableCell>
+              <TableCell>
+                <Dialog open={dialogOpen} onOpenChange={(open) => {
+                setDialogOpen(open)
+                // Clear recovery state when dialog closes
+                if (!open) {
+                  setSelectedMetadataPda(null)
+                  clearPendingTx?.()
+                }
+              }}>
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={async () => {
+                        setSelectedReit(row)
+                        
+                        // Check if this is an update operation
+                        const isUpdate = row.fundraiser?.data?.reitMint && 
+                                        row.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID
+                        
+                        if (isUpdate && row.fundraiser?.data?.reitMint) {
+                          // Get metadata PDA for recovery
+                          const metadataPda = await getMetadataPdaForMint(row.fundraiser.data.reitMint)
+                          setSelectedMetadataPda(metadataPda)
+                          console.log('[BROWSE REITS] Stored metadata PDA for recovery:', metadataPda)
+                          
+                          // Trigger recovery check
+                          setTimeout(() => {
+                            checkNow?.()
+                          }, 0)
+                          
+                          // Fetch existing metadata for update
+                          await fetchTokenMetadata(row.fundraiser.data.reitMint)
+                        } else {
+                          // Reset form for create
+                          setSelectedMetadataPda(null)
+                          setName('')
+                          setSymbol('')
+                          setDescription('')
+                          setSharePrice('')
+                          setCurrency('')
+                        }
+                      }}
+                    >
+                      {row.fundraiser?.data?.reitMint && 
+                       row.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                        ? 'Update Mint' 
+                        : 'Create Mint'}
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>
+                        {selectedReit?.fundraiser?.data?.reitMint && 
+                         selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                          ? 'Update REIT Mint' 
+                          : 'Create REIT Mint'}
+                      </DialogTitle>
+                      <DialogDescription>
+                        {selectedReit?.fundraiser?.data?.reitMint && 
+                         selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                          ? 'Update the REIT mint token details.' 
+                          : 'Enter the REIT mint token details. Only name and symbol are required to create the mint.'}
+                      </DialogDescription>
+                    </DialogHeader>
+                    {loadingMetadata ? (
+                      <div className="flex items-center justify-center py-8">
+                        <span className="loading loading-spinner loading-md mr-2" />
+                        Loading existing metadata...
+                      </div>
+                    ) : (
+                      <>
+                        <div className="grid gap-4 py-4">
+                          {isCheckingRecovery && (
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                              <p className="text-sm text-blue-800">Checking for pending updates...</p>
+                            </div>
+                          )}
+
+                          {pendingTx && pendingTx.status === 'pending' && (
+                            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                              <p className="font-semibold text-sm text-yellow-900">⏳ Update Pending</p>
+                              <p className="text-xs text-yellow-800 mt-1">
+                                An update for this REIT is currently being processed on-chain. 
+                                Please wait for it to finalize before making another update.
+                              </p>
+                              <p className="text-xs text-yellow-700 mt-1">
+                                Signature: {pendingTx.signature.slice(0, 20)}...
+                              </p>
+                            </div>
+                          )}
+
+                          {pendingTx && pendingTx.status === 'failed' && (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                              <p className="font-semibold text-sm text-red-900">❌ Update Failed</p>
+                              <p className="text-xs text-red-800 mt-1">
+                                The previous update for this REIT failed. You can try again now.
+                              </p>
+                            </div>
+                          )}
+                          
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="name" className="text-right">
+                              Name
+                            </Label>
+                            <Input
+                              id="name"
+                              value={name}
+                              onChange={(e) => setName(e.target.value)}
+                              className="col-span-3"
+                              placeholder="e.g., My REIT Token"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="symbol" className="text-right">
+                              Symbol
+                            </Label>
+                            <Input
+                              id="symbol"
+                              value={symbol}
+                              onChange={(e) => setSymbol(e.target.value)}
+                              className="col-span-3"
+                              placeholder="e.g., MRT"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="description" className="text-right">
+                              Description
+                            </Label>
+                            <Input
+                              id="description"
+                              value={description}
+                              onChange={(e) => setDescription(e.target.value)}
+                              className="col-span-3"
+                              placeholder="e.g., My REIT Description"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="share-price" className="text-right">
+                              Share Price
+                            </Label>
+                            <Input
+                              id="share-price"
+                              type="number"
+                              value={sharePrice}
+                              onChange={(e) => setSharePrice(e.target.value)}
+                              className="col-span-3"
+                              placeholder="e.g., 100.00"
+                            />
+                          </div>
+                          <div className="grid grid-cols-4 items-center gap-4">
+                            <Label htmlFor="currency" className="text-right">
+                              Currency
+                            </Label>
+                            <Input
+                              id="currency"
+                              value={currency}
+                              onChange={(e) => setCurrency(e.target.value)}
+                              className="col-span-3"
+                              placeholder="e.g., CAD"
+                            />
+                          </div>
+                        </div>
+                        <DialogFooter>
+                          <Button
+                            type="submit"
+                            onClick={handleCreateOrUpdateReitMint}
+                            disabled={
+                              !name || 
+                              !symbol || 
+                              createReitMintMutation.isPending || 
+                              updateReitMintMutation.isPending || 
+                              loadingMetadata ||
+                              isCheckingRecovery ||
+                              (pendingTx?.status === 'pending')
+                            }
+                            title={
+                              pendingTx?.status === 'pending'
+                                ? 'Waiting for pending update to finalize before you can make another update'
+                                : ''
+                            }
+                          >
+                            {createReitMintMutation.isPending || updateReitMintMutation.isPending
+                              ? (selectedReit?.fundraiser?.data?.reitMint && 
+                                 selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                                  ? 'Updating...' 
+                                  : 'Creating...')
+                              : (selectedReit?.fundraiser?.data?.reitMint && 
+                                 selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                                  ? 'Update REIT Mint' 
+                                  : 'Create REIT Mint')}
+                          </Button>
+                        </DialogFooter>
+                      </>
+                    )}
+                  </DialogContent>
+                </Dialog>
               </TableCell>
             </TableRow>
           ))}

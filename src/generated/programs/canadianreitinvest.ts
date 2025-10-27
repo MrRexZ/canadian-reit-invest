@@ -15,11 +15,14 @@ import {
 } from 'gill';
 import {
   type ParsedCloseInvestorInstruction,
+  type ParsedCreateReitMintInstruction,
   type ParsedInitializeFundraiserInstruction,
   type ParsedInitializeInvestorInstruction,
   type ParsedInvestInstruction,
+  type ParsedIssueShareInstruction,
   type ParsedRefundInstruction,
   type ParsedReleaseInstruction,
+  type ParsedUpdateReitMintInstruction,
   type ParsedWireInstruction,
 } from '../instructions';
 
@@ -76,11 +79,14 @@ export function identifyCanadianreitinvestAccount(
 
 export enum CanadianreitinvestInstruction {
   CloseInvestor,
+  CreateReitMint,
   InitializeFundraiser,
   InitializeInvestor,
   Invest,
+  IssueShare,
   Refund,
   Release,
+  UpdateReitMint,
   Wire,
 }
 
@@ -98,6 +104,17 @@ export function identifyCanadianreitinvestInstruction(
     )
   ) {
     return CanadianreitinvestInstruction.CloseInvestor;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([232, 51, 175, 47, 142, 150, 194, 219])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.CreateReitMint;
   }
   if (
     containsBytes(
@@ -136,6 +153,17 @@ export function identifyCanadianreitinvestInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([195, 99, 172, 255, 224, 56, 233, 24])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.IssueShare;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([2, 96, 183, 251, 63, 208, 46, 46])
       ),
       0
@@ -153,6 +181,17 @@ export function identifyCanadianreitinvestInstruction(
     )
   ) {
     return CanadianreitinvestInstruction.Release;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([195, 217, 220, 63, 44, 24, 150, 45])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.UpdateReitMint;
   }
   if (
     containsBytes(
@@ -177,6 +216,9 @@ export type ParsedCanadianreitinvestInstruction<
       instructionType: CanadianreitinvestInstruction.CloseInvestor;
     } & ParsedCloseInvestorInstruction<TProgram>)
   | ({
+      instructionType: CanadianreitinvestInstruction.CreateReitMint;
+    } & ParsedCreateReitMintInstruction<TProgram>)
+  | ({
       instructionType: CanadianreitinvestInstruction.InitializeFundraiser;
     } & ParsedInitializeFundraiserInstruction<TProgram>)
   | ({
@@ -186,11 +228,17 @@ export type ParsedCanadianreitinvestInstruction<
       instructionType: CanadianreitinvestInstruction.Invest;
     } & ParsedInvestInstruction<TProgram>)
   | ({
+      instructionType: CanadianreitinvestInstruction.IssueShare;
+    } & ParsedIssueShareInstruction<TProgram>)
+  | ({
       instructionType: CanadianreitinvestInstruction.Refund;
     } & ParsedRefundInstruction<TProgram>)
   | ({
       instructionType: CanadianreitinvestInstruction.Release;
     } & ParsedReleaseInstruction<TProgram>)
+  | ({
+      instructionType: CanadianreitinvestInstruction.UpdateReitMint;
+    } & ParsedUpdateReitMintInstruction<TProgram>)
   | ({
       instructionType: CanadianreitinvestInstruction.Wire;
     } & ParsedWireInstruction<TProgram>);

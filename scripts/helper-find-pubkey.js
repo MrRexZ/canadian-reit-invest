@@ -4,10 +4,13 @@ import { parse as uuidParse } from 'uuid'
 
 const conn = new Connection('http://localhost:8899', 'confirmed')
 const programId = new PublicKey('FuEhMFWU9Ui35a9mpavfy7AYGqEX8diUSk1CZonEUivH')
-const uuid = '3ad6b1b1-6fbc-4f6b-9df0-d6fafabedd37'
+const uuid = '4088a2c6-97dc-421f-8b65-9acaf7a098e4' // REIT ID to test
 const reitIdHash = uuidParse(uuid)
 const [fundraiser] = await PublicKey.findProgramAddress([Buffer.from('fundraiser'), Buffer.from(reitIdHash)], programId)
 console.log('fundraiser', fundraiser.toBase58())
+
+// Display the fundraiser data
+await displayFundraiserData(fundraiser.toBase58())
 
 // Function to find the most recent investment PDA for an investor and fundraiser
 async function findRecentInvestmentPDA(investorPubkey, fundraiserPubkey) {
@@ -53,15 +56,48 @@ async function findRecentInvestmentPDA(investorPubkey, fundraiserPubkey) {
   return investmentPda
 }
 
+// Function to parse and display fundraiser PDA data
+async function displayFundraiserData(fundraiserPdaAddress) {
+  const fundraiserAccount = await conn.getAccountInfo(new PublicKey(fundraiserPdaAddress))
+  if (!fundraiserAccount) {
+    throw new Error('Fundraiser account not found')
+  }
+
+  const data = fundraiserAccount.data
+  
+  // Parse fundraiser account data
+  // Structure: discriminator (8) + admin (32) + usdc_mint (32) + reit_mint (32) + escrow_vault (32) + total_raised (8) + released_amount (8) + bump (1) + reit_accepted_currency (3)
+  const admin = new PublicKey(data.slice(8, 40)).toBase58()
+  const usdcMint = new PublicKey(data.slice(40, 72)).toBase58()
+  const reitMint = new PublicKey(data.slice(72, 104)).toBase58()
+  const escrowVault = new PublicKey(data.slice(104, 136)).toBase58()
+  const totalRaised = data.readBigUInt64LE(136)
+  const releasedAmount = data.readBigUInt64LE(144)
+  const bump = data.readUInt8(152)
+  const reitAcceptedCurrency = data.slice(153, 156).toString('utf8')
+
+  console.log('\n=== Fundraiser PDA Data ===')
+  console.log(`Address: ${fundraiserPdaAddress}`)
+  console.log(`Admin: ${admin}`)
+  console.log(`USDC Mint: ${usdcMint}`)
+  console.log(`REIT Mint: ${reitMint}`)
+  console.log(`Escrow Vault: ${escrowVault}`)
+  console.log(`Total Raised: ${totalRaised} (micro USDC)`)
+  console.log(`Released Amount: ${releasedAmount} (micro USDC)`)
+  console.log(`Bump: ${bump}`)
+  console.log(`REIT Accepted Currency: ${reitAcceptedCurrency}`)
+  console.log('===========================\n')
+}
+
 // Function to parse and display investment PDA data
-async function displayInvestmentData(investmentPdaAddress) {
-  const investmentAccount = await conn.getAccountInfo(new PublicKey(investmentPdaAddress))
+async function displayInvestmentData(investmentPda) {
+  const investmentAccount = await conn.getAccountInfo(investmentPda)
   if (!investmentAccount) {
     throw new Error('Investment account not found')
   }
 
   const data = investmentAccount.data
-  
+
   // Parse investment account data
   // Structure: discriminator (8) + investor (32) + fundraiser (32) + usdc_amount (8) + reit_amount (4) + status (1) + bump (1)
   const investor = new PublicKey(data.slice(8, 40)).toBase58()
@@ -71,19 +107,26 @@ async function displayInvestmentData(investmentPdaAddress) {
   const status = data.readUInt8(84)
   const bump = data.readUInt8(85)
 
-  // Map status to readable string
-  const statusNames = ['Pending', 'Released', 'Refunded', 'Wired', 'ShareIssued']
-  const statusName = statusNames[status] || `Unknown(${status})`
+  // Map status to string
+  const statusMap = {
+    0: 'Pending',
+    1: 'Released',
+    2: 'Refunded',
+    3: 'Wired',
+    4: 'ShareIssued',
+    5: 'ShareSold'
+  }
+  const statusString = statusMap[status] || 'Unknown'
 
   console.log('\n=== Investment PDA Data ===')
-  console.log(`Address: ${investmentPdaAddress}`)
+  console.log(`Address: ${investmentPda.toBase58()}`)
   console.log(`Investor: ${investor}`)
   console.log(`Fundraiser: ${fundraiser}`)
   console.log(`USDC Amount: ${usdcAmount} (micro USDC)`)
   console.log(`REIT Amount: ${reitAmount}`)
-  console.log(`Status: ${statusName} (${status})`)
+  console.log(`Status: ${statusString}`)
   console.log(`Bump: ${bump}`)
-  console.log('========================\n')
+  console.log('===========================\n')
 }
 
 // Example usage:

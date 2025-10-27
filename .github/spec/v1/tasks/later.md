@@ -1,6 +1,10 @@
 - [ ] Add `FeePayer` management instructions
   - Create instructions to initialize and top-up the `FeePayer` PDA (admin-only). Include safety checks and tests for insufficient balance errors.
+- Made Dev-net compatible
+  - Change some URL to use correct cluster (ex: Umi to use devnet, mainnet, localnet, etc)
+  - Test it out, there may be other things to do.
 - Rename Fundraiser to be REIT
 - users supabase table, ensure investor_pda has the investor PDA address.
 - pagination
 - security audit
+- 

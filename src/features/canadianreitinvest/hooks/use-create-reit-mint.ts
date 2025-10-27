@@ -1,6 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
 import { UiWalletAccount } from '@wallet-ui/react'
-import { useWalletUi } from '@wallet-ui/react'
 import { PublicKey, Keypair, SYSVAR_INSTRUCTIONS_PUBKEY } from '@solana/web3.js'
 import { toast } from 'sonner'
 import { supabase } from '@/lib/supabase'
@@ -9,10 +8,9 @@ import { useWalletUiSigner, useWalletUiSignAndSend } from '@wallet-ui/react-gill
 import { parse as uuidParse } from 'uuid'
 import { Address, createKeyPairSignerFromBytes } from 'gill'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
-import { uploadReitMetadataToIrys, ReitMetadata } from '@/lib/irys-upload'
+import { uploadReitMetadataToSupabase, ReitMetadata } from '@/lib/supabase-file-upload'
 
 export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
-  const { wallet } = useWalletUi()
   const signer = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
 
@@ -25,7 +23,7 @@ export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
       sharePrice: string;
       currency: string;
     }) => {
-      if (!account || !account.publicKey || !wallet) {
+      if (!account || !account.publicKey) {
         toast.error('Wallet not connected')
         return
       }
@@ -60,9 +58,9 @@ export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
 
       console.log('[CREATE MINT DEBUG] Created metadata:', metadata)
 
-      // Upload metadata to Irys
-      console.log('[CREATE MINT DEBUG] Uploading metadata to Irys...')
-      const metadataUri = await uploadReitMetadataToIrys(metadata)
+      // Upload metadata to Supabase Storage
+      console.log('[CREATE MINT DEBUG] Uploading metadata to Supabase Storage...')
+      const metadataUri = await uploadReitMetadataToSupabase(metadata, reitId)
       console.log('[CREATE MINT DEBUG] Metadata uploaded to:', metadataUri)
 
       // Check if mint already exists in database

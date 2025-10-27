@@ -37,6 +37,8 @@
     "@hookform/resolvers": "^5.2.2",
     "@metaplex-foundation/mpl-token-metadata": "^3.4.0",
     "@metaplex-foundation/umi": "^1.4.1",
+    "@metaplex-foundation/umi-bundle-defaults": "^1.4.1",
+    "@metaplex-foundation/umi-rpc-web3js": "^1.4.1",
     "@metaplex-foundation/umi-signer-wallet-adapters": "^1.4.1",
     "@metaplex-foundation/umi-uploader-irys": "^1.4.1",
     "@radix-ui/react-avatar": "^1.1.10",

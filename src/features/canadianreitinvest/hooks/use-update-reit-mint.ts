@@ -1,4 +1,5 @@
 import { useMutation } from '@tanstack/react-query'
+import { useState } from 'react'
 import { UiWalletAccount } from '@wallet-ui/react'
 import { PublicKey } from '@solana/web3.js'
 import { toast } from 'sonner'
@@ -9,16 +10,20 @@ import { parse as uuidParse } from 'uuid'
 import { getUpdateReitMintInstructionAsync } from '@/generated'
 import { CLUSTER_CONFIG } from '@/lib/cluster-config'
 import { useSolana } from '@/components/solana/use-solana'
+import { useTransactionRecovery } from './use-transaction-recovery'
 import type { Address } from 'gill'
 
 /**
  * Hook for updating REIT mint metadata
  * Handles updating both the JSON metadata file in Supabase Storage AND the on-chain Metaplex metadata
+ * Also supports transaction recovery after page refresh via useTransactionRecovery hook
  */
 export function useUpdateReitMint({ account }: { account: UiWalletAccount }) {
   const signer = account ? useWalletUiSigner({ account }) : null
   const signAndSend = useWalletUiSignAndSend()
   const { client } = useSolana()
+  const [lastMetadataPda, setLastMetadataPda] = useState<string | null>(null)
+  const { pendingTx, isCheckingRecovery, clearPendingTx } = useTransactionRecovery(lastMetadataPda)
 
   return useMutation({
     mutationFn: async ({ reitId, mintAddress, name, symbol, description, sharePrice, currency }: {
@@ -95,6 +100,9 @@ export function useUpdateReitMint({ account }: { account: UiWalletAccount }) {
       const metadataPda = await getMetadataPdaForMint(mintAddress)
       console.log('[UPDATE MINT DEBUG] Metadata PDA:', metadataPda)
       console.log('[UPDATE MINT DEBUG] New metadata URI:', metadataUri)
+      
+      // Store the metadata PDA for transaction recovery
+      setLastMetadataPda(metadataPda)
 
       // Build the on-chain update instruction
       console.log('[UPDATE MINT DEBUG] Building on-chain update instruction...')
@@ -191,4 +199,16 @@ export function useUpdateReitMint({ account }: { account: UiWalletAccount }) {
       toast.error(err instanceof Error ? err.message : 'Update mint failed')
     },
   })
+}
+
+// Export recovery state for use in consuming components
+export function useUpdateReitMintRecovery(metadataPda: string | null) {
+  const { pendingTx, isCheckingRecovery, clearPendingTx, checkNow } = useTransactionRecovery(metadataPda)
+  
+  return {
+    pendingTx,
+    isCheckingRecovery,
+    clearPendingTx,
+    checkNow,
+  }
 }

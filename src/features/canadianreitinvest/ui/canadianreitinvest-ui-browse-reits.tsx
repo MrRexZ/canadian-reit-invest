@@ -11,12 +11,13 @@ import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { useCreateReitMint } from '../hooks/use-create-reit-mint'
-import { useUpdateReitMint } from '../hooks/use-update-reit-mint'
+import { useUpdateReitMint, useUpdateReitMintRecovery } from '../hooks/use-update-reit-mint'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { parse as uuidParse } from 'uuid'
+import { getMetadataPdaForMint } from '@/lib/metaplex-update'
 
 const SYSTEM_PROGRAM_ID = SystemProgram.programId.toBase58()
 
@@ -46,8 +47,11 @@ export default function CanadianreitinvestUiBrowseReits() {
   const [currency, setCurrency] = useState('')
   const [dialogOpen, setDialogOpen] = useState(false)
   const [loadingMetadata, setLoadingMetadata] = useState(false)
-
-  // Function to fetch existing token metadata
+  const [selectedMetadataPda, setSelectedMetadataPda] = useState<string | null>(null)
+  const [recoveryTrigger, setRecoveryTrigger] = useState(0)
+  const { pendingTx, isCheckingRecovery, clearPendingTx, checkNow } = useUpdateReitMintRecovery(
+    dialogOpen && selectedMetadataPda ? selectedMetadataPda : null
+  )  // Function to fetch existing token metadata
   const fetchTokenMetadata = async (mintAddress: string) => {
     try {
       setLoadingMetadata(true)
@@ -145,6 +149,7 @@ export default function CanadianreitinvestUiBrowseReits() {
     
     setDialogOpen(false)
     setSelectedReit(null)
+    setSelectedMetadataPda(null)
     setName('')
     setSymbol('')
     setDescription('')
@@ -264,7 +269,14 @@ export default function CanadianreitinvestUiBrowseReits() {
                   : 0) / 1_000_000).toFixed(2)}
               </TableCell>
               <TableCell>
-                <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
+                <Dialog open={dialogOpen} onOpenChange={(open) => {
+                setDialogOpen(open)
+                // Clear recovery state when dialog closes
+                if (!open) {
+                  setSelectedMetadataPda(null)
+                  clearPendingTx?.()
+                }
+              }}>
                   <DialogTrigger asChild>
                     <Button
                       variant="outline"
@@ -277,10 +289,21 @@ export default function CanadianreitinvestUiBrowseReits() {
                                         row.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID
                         
                         if (isUpdate && row.fundraiser?.data?.reitMint) {
+                          // Get metadata PDA for recovery
+                          const metadataPda = await getMetadataPdaForMint(row.fundraiser.data.reitMint)
+                          setSelectedMetadataPda(metadataPda)
+                          console.log('[BROWSE REITS] Stored metadata PDA for recovery:', metadataPda)
+                          
+                          // Trigger recovery check
+                          setTimeout(() => {
+                            checkNow?.()
+                          }, 0)
+                          
                           // Fetch existing metadata for update
                           await fetchTokenMetadata(row.fundraiser.data.reitMint)
                         } else {
                           // Reset form for create
+                          setSelectedMetadataPda(null)
                           setName('')
                           setSymbol('')
                           setDescription('')
@@ -318,6 +341,34 @@ export default function CanadianreitinvestUiBrowseReits() {
                     ) : (
                       <>
                         <div className="grid gap-4 py-4">
+                          {isCheckingRecovery && (
+                            <div className="p-3 bg-blue-50 border border-blue-200 rounded-md">
+                              <p className="text-sm text-blue-800">Checking for pending updates...</p>
+                            </div>
+                          )}
+
+                          {pendingTx && pendingTx.status === 'pending' && (
+                            <div className="p-3 bg-yellow-50 border border-yellow-200 rounded-md">
+                              <p className="font-semibold text-sm text-yellow-900">⏳ Update Pending</p>
+                              <p className="text-xs text-yellow-800 mt-1">
+                                An update for this REIT is currently being processed on-chain. 
+                                Please wait for it to finalize before making another update.
+                              </p>
+                              <p className="text-xs text-yellow-700 mt-1">
+                                Signature: {pendingTx.signature.slice(0, 20)}...
+                              </p>
+                            </div>
+                          )}
+
+                          {pendingTx && pendingTx.status === 'failed' && (
+                            <div className="p-3 bg-red-50 border border-red-200 rounded-md">
+                              <p className="font-semibold text-sm text-red-900">❌ Update Failed</p>
+                              <p className="text-xs text-red-800 mt-1">
+                                The previous update for this REIT failed. You can try again now.
+                              </p>
+                            </div>
+                          )}
+                          
                           <div className="grid grid-cols-4 items-center gap-4">
                             <Label htmlFor="name" className="text-right">
                               Name
@@ -384,7 +435,20 @@ export default function CanadianreitinvestUiBrowseReits() {
                           <Button
                             type="submit"
                             onClick={handleCreateOrUpdateReitMint}
-                            disabled={!name || !symbol || createReitMintMutation.isPending || updateReitMintMutation.isPending || loadingMetadata}
+                            disabled={
+                              !name || 
+                              !symbol || 
+                              createReitMintMutation.isPending || 
+                              updateReitMintMutation.isPending || 
+                              loadingMetadata ||
+                              isCheckingRecovery ||
+                              (pendingTx?.status === 'pending')
+                            }
+                            title={
+                              pendingTx?.status === 'pending'
+                                ? 'Waiting for pending update to finalize before you can make another update'
+                                : ''
+                            }
                           >
                             {createReitMintMutation.isPending || updateReitMintMutation.isPending
                               ? (selectedReit?.fundraiser?.data?.reitMint && 

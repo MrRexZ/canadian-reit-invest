@@ -4,29 +4,26 @@ import { useWalletUiSigner, useWalletUiSignAndSend } from '@wallet-ui/react-gill
 import { UiWalletAccount } from '@wallet-ui/react'
 import { PublicKey } from '@solana/web3.js'
 import { toast } from 'sonner'
+import { TOKEN_PROGRAM_ID, getAssociatedTokenAddress } from '@solana/spl-token'
 import { useSolana } from '@/components/solana/use-solana'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { fetchMaybeInvestment } from '@/generated/accounts/investment'
 import { Address } from 'gill'
 import { parse as uuidParse } from 'uuid'
+import { getSharePriceFromMetadata } from '@/lib/metaplex-update'
 
 export function useIssueShare({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
-  const { client } = useSolana()
+  const { client, cluster } = useSolana()
 
   return useMutation({
-    mutationFn: async ({ investmentPda, reitId }: { investmentPda: string; reitId: string }) => {
+    mutationFn: async ({ investmentPda, reitId, sharePrice }: { investmentPda: string; reitId: string; sharePrice: number }) => {
       if (!account?.publicKey) throw new Error('Wallet not connected')
 
       const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
       const adminPublicKey = new PublicKey(account.publicKey)
-
-      console.log('[ISSUE SHARE DEBUG] Starting issue share process')
-      console.log('[ISSUE SHARE DEBUG] Investment PDA:', investmentPda)
-      console.log('[ISSUE SHARE DEBUG] REIT ID:', reitId)
-      console.log('[ISSUE SHARE DEBUG] Admin public key:', adminPublicKey.toBase58())
 
       // Parse reitId back to bytes for reitIdHash
       const reitIdHash = new Uint8Array(uuidParse(reitId) as Uint8Array)
@@ -55,6 +52,32 @@ export function useIssueShare({ account }: { account: UiWalletAccount }) {
 
       if (fundraiser.reitMint === PublicKey.default.toBase58()) {
         throw new Error('REIT mint not created yet')
+      }
+
+      // Map cluster ID to RPC endpoint
+      const getRpcEndpoint = (clusterId: string) => {
+        switch (clusterId) {
+          case 'solana:mainnet':
+            return 'https://api.mainnet-beta.solana.com'
+          case 'solana:devnet':
+            return 'https://api.devnet.solana.com'
+          case 'solana:testnet':
+            return 'https://api.testnet.solana.com'
+          case 'solana:localnet':
+          default:
+            return 'http://localhost:8899'
+        }
+      }
+
+      // If sharePrice is not provided, fetch it from REIT metadata
+      let finalSharePrice = sharePrice;
+      if (!finalSharePrice) {
+        console.log('[ISSUE SHARE DEBUG] Share price not provided, fetching from metadata...');
+
+        // Fetch share price from Metaplex metadata with RPC endpoint
+        const rpcEndpoint = getRpcEndpoint(cluster.id)
+        finalSharePrice = await getSharePriceFromMetadata(fundraiser.reitMint, rpcEndpoint);
+        console.log('[ISSUE SHARE DEBUG] Fetched share price from metadata:', finalSharePrice);
       }
 
       // Fetch investment account
@@ -96,27 +119,64 @@ export function useIssueShare({ account }: { account: UiWalletAccount }) {
       // Derive investor ATA for the REIT mint
       const reitMintPubkey = new PublicKey(fundraiser.reitMint)
       const investorPubkey = new PublicKey(investment.investor)
-      const [investorAta] = await PublicKey.findProgramAddress(
-        [
-          investorPubkey.toBuffer(),
-          new PublicKey('TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA').toBuffer(),
-          reitMintPubkey.toBuffer(),
-        ],
-        new PublicKey('ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL')
+      console.log('[ISSUE SHARE DEBUG] reitMint from fundraiser:', fundraiser.reitMint)
+      console.log('[ISSUE SHARE DEBUG] reitMint PublicKey:', reitMintPubkey.toBase58())
+      console.log('[ISSUE SHARE DEBUG] fundraiserPda:', fundraiserPda.toBase58())
+
+      // Derive investor PDA
+      const [investorPda] = await PublicKey.findProgramAddress(
+        [Buffer.from('investor'), investorPubkey.toBuffer()],
+        programId
       )
-      console.log('[ISSUE SHARE DEBUG] Investor ATA:', investorAta.toBase58())
+      console.log('[ISSUE SHARE DEBUG] Derived investor PDA:', investorPda.toBase58())
+
+      // Derive investor ATA - now owned by the investor wallet, not the PDA!
+      // The Rust constraint is: associated_token::authority = investor_pubkey (the wallet)
+      const investorAta = await getAssociatedTokenAddress(
+        reitMintPubkey,
+        investorPubkey,
+        false
+      )
+      console.log('[ISSUE SHARE DEBUG] Investor ATA (owned by wallet):', investorAta.toBase58())
 
       // Build issue share instruction
       console.log('[ISSUE SHARE DEBUG] Building issue share instruction...')
+      
+            // Debug all accounts before building instruction
+      console.log('[ISSUE SHARE DEBUG] ========== ACCOUNTS BEING PASSED ==========')
+      console.log('[ISSUE SHARE DEBUG] admin (signer):', signer)
+      console.log('[ISSUE SHARE DEBUG] fundraiser:', fundraiserPda.toBase58())
+      console.log('[ISSUE SHARE DEBUG] investment:', investmentPda)
+      console.log('[ISSUE SHARE DEBUG] investor:', investorPda.toBase58())
+      console.log('[ISSUE SHARE DEBUG] investorWallet:', investorPubkey.toBase58())
+      console.log('[ISSUE SHARE DEBUG] reitMint:', reitMintPubkey.toBase58())
+      console.log('[ISSUE SHARE DEBUG] investorAta:', investorAta.toBase58())
+      console.log('[ISSUE SHARE DEBUG] tokenProgram:', TOKEN_PROGRAM_ID.toBase58())
+      console.log('[ISSUE SHARE DEBUG] investorPubkey (parameter):', investorPubkey.toBase58())
+      console.log('[ISSUE SHARE DEBUG] reitIdHash:', reitIdHash)
+      console.log('[ISSUE SHARE DEBUG] sharePrice:', finalSharePrice)
+      console.log('[ISSUE SHARE DEBUG] programId:', programId.toBase58())
+      console.log('[ISSUE SHARE DEBUG] =========================================')
+      
       const instruction = await getIssueShareInstructionAsync({
         admin: signer,
         fundraiser: fundraiserPda.toBase58() as Address,
         investment: investmentPda as Address,
+        investor: investorPda.toBase58() as Address,
+        investorWallet: investorPubkey.toBase58() as Address,
         reitMint: reitMintPubkey.toBase58() as Address,
         investorAta: investorAta.toBase58() as Address,
+        tokenProgram: TOKEN_PROGRAM_ID.toBase58() as Address,
+        investorPubkey: investorPubkey.toBase58() as Address,
         reitIdHash: reitIdHash,
+        sharePrice: finalSharePrice,
       })
       console.log('[ISSUE SHARE DEBUG] Issue share instruction built successfully')
+      console.log('[ISSUE SHARE DEBUG] Instruction accounts:', instruction.accounts?.map((acc: any) => ({
+        address: typeof acc === 'string' ? acc : acc.address,
+        isSigner: typeof acc !== 'string' ? acc.isSigner : undefined,
+        isWritable: typeof acc !== 'string' ? acc.isWritable : undefined,
+      })))
 
       console.log('[ISSUE SHARE DEBUG] Sending transaction...')
       const sig = await signAndSend(instruction, signer)

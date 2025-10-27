@@ -48,10 +48,10 @@ export default function CanadianreitinvestUiBrowseReits() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [loadingMetadata, setLoadingMetadata] = useState(false)
   const [selectedMetadataPda, setSelectedMetadataPda] = useState<string | null>(null)
-  const [recoveryTrigger, setRecoveryTrigger] = useState(0)
+  // const [recoveryTrigger, setRecoveryTrigger] = useState(0)
   const { pendingTx, isCheckingRecovery, clearPendingTx, checkNow } = useUpdateReitMintRecovery(
     dialogOpen && selectedMetadataPda ? selectedMetadataPda : null
-  )  // Function to fetch existing token metadata
+  )
   const fetchTokenMetadata = async (mintAddress: string) => {
     try {
       setLoadingMetadata(true)

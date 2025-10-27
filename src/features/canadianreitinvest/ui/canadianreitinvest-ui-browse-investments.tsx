@@ -4,6 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { getUserProfiles } from '@/lib/supabase-admin'
 import { useSolana } from '@/components/solana/use-solana'
 import { fetchAllMaybeInvestment } from '@/generated/accounts/investment'
+import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { useAuth } from '@/components/auth-provider'
@@ -13,6 +14,9 @@ import { useRelease } from '../hooks/use-release'
 import { useRefund } from '../hooks/use-refund'
 import { useWire } from '../hooks/use-wire'
 import { useIssueShare } from '../hooks/use-issue-share'
+import { PublicKey } from '@solana/web3.js'
+import { parse as uuidParse } from 'uuid'
+import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 
 type InvestmentRow = {
   id: string
@@ -319,10 +323,48 @@ export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boole
                             title="Issue Share"
                             submitLabel={issueShareMutation.isPending ? "Issuing..." : "Issue Share"}
                             submitDisabled={issueShareMutation.isPending}
-                            submit={() => issueShareMutation.mutate({
-                              investmentPda: row.investment_pda,
-                              reitId: row.reit_id!,
-                            })}
+                            submit={() => {
+                              // Fetch share price from metadata before issuing shares
+                              const fetchAndIssue = async () => {
+                                try {
+                                  // Get fundraiser to find REIT mint
+                                  const reitIdHash = new Uint8Array(uuidParse(row.reit_id!) as Uint8Array)
+                                  const [fundraiserPda] = await PublicKey.findProgramAddress(
+                                    [Buffer.from('fundraiser'), Buffer.from(reitIdHash)],
+                                    new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
+                                  )
+
+                                  const fundraiserAccount = await fetchMaybeFundraiser(
+                                    client.rpc,
+                                    fundraiserPda.toBase58() as Address
+                                  )
+
+                                  if (!fundraiserAccount?.exists || !fundraiserAccount.data.reitMint) {
+                                    throw new Error('REIT mint not found')
+                                  }
+
+                                  // Fetch share price from metadata
+                                  const { getSharePriceFromMetadata } = await import('@/lib/metaplex-update')
+                                  const sharePrice = await getSharePriceFromMetadata(fundraiserAccount.data.reitMint)
+
+                                  // Issue shares with the fetched share price
+                                  issueShareMutation.mutate({
+                                    investmentPda: row.investment_pda,
+                                    reitId: row.reit_id!,
+                                    sharePrice,
+                                  })
+                                } catch (error) {
+                                  console.error('Failed to fetch share price:', error)
+                                  // Fallback: issue shares without share price (will fetch internally)
+                                  issueShareMutation.mutate({
+                                    investmentPda: row.investment_pda,
+                                    reitId: row.reit_id!,
+                                    sharePrice: 0, // Will be fetched internally
+                                  })
+                                }
+                              }
+                              fetchAndIssue()
+                            }}
                           >
                             <div className="space-y-4">
                               <p>Are you sure you want to issue shares for this investment?</p>

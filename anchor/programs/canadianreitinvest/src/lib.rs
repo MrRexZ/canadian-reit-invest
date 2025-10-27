@@ -57,7 +57,7 @@ pub mod canadianreitinvest {
         instructions::update_reit_mint::handler(ctx, reit_id_hash, name, symbol, metadata_uri)
     }
 
-    pub fn issue_share(ctx: Context<IssueShare>, reit_id_hash: [u8; 16]) -> Result<()> {
-        instructions::issue_share::handler(ctx, reit_id_hash)
+    pub fn issue_share(ctx: Context<IssueShare>, investor_pubkey: Pubkey, reit_id_hash: [u8; 16], share_price: u64) -> Result<()> {
+        instructions::issue_share::handler(ctx, investor_pubkey, reit_id_hash, share_price)
     }
 }

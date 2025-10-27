@@ -10,11 +10,15 @@ import {
   combineCodec,
   fixDecoderSize,
   fixEncoderSize,
+  getAddressDecoder,
+  getAddressEncoder,
   getBytesDecoder,
   getBytesEncoder,
   getProgramDerivedAddress,
   getStructDecoder,
   getStructEncoder,
+  getU64Decoder,
+  getU64Encoder,
   transformEncoder,
   type AccountMeta,
   type AccountSignerMeta,
@@ -33,6 +37,7 @@ import {
 } from 'gill';
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '../programs';
 import {
+  expectAddress,
   expectSome,
   getAccountMetaFactory,
   type ResolvedAccount,
@@ -51,11 +56,22 @@ export type IssueShareInstruction<
   TAccountAdmin extends string | AccountMeta<string> = string,
   TAccountFundraiser extends string | AccountMeta<string> = string,
   TAccountInvestment extends string | AccountMeta<string> = string,
+  TAccountInvestor extends string | AccountMeta<string> = string,
+  TAccountInvestorWallet extends string | AccountMeta<string> = string,
   TAccountReitMint extends string | AccountMeta<string> = string,
   TAccountInvestorAta extends string | AccountMeta<string> = string,
   TAccountTokenProgram extends
     | string
     | AccountMeta<string> = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
+  TAccountAssociatedTokenProgram extends
+    | string
+    | AccountMeta<string> = 'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL',
+  TAccountSystemProgram extends
+    | string
+    | AccountMeta<string> = '11111111111111111111111111111111',
+  TAccountRent extends
+    | string
+    | AccountMeta<string> = 'SysvarRent111111111111111111111111111111111',
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -66,11 +82,17 @@ export type IssueShareInstruction<
             AccountSignerMeta<TAccountAdmin>
         : TAccountAdmin,
       TAccountFundraiser extends string
-        ? ReadonlyAccount<TAccountFundraiser>
+        ? WritableAccount<TAccountFundraiser>
         : TAccountFundraiser,
       TAccountInvestment extends string
         ? WritableAccount<TAccountInvestment>
         : TAccountInvestment,
+      TAccountInvestor extends string
+        ? ReadonlyAccount<TAccountInvestor>
+        : TAccountInvestor,
+      TAccountInvestorWallet extends string
+        ? ReadonlyAccount<TAccountInvestorWallet>
+        : TAccountInvestorWallet,
       TAccountReitMint extends string
         ? WritableAccount<TAccountReitMint>
         : TAccountReitMint,
@@ -80,22 +102,39 @@ export type IssueShareInstruction<
       TAccountTokenProgram extends string
         ? ReadonlyAccount<TAccountTokenProgram>
         : TAccountTokenProgram,
+      TAccountAssociatedTokenProgram extends string
+        ? ReadonlyAccount<TAccountAssociatedTokenProgram>
+        : TAccountAssociatedTokenProgram,
+      TAccountSystemProgram extends string
+        ? ReadonlyAccount<TAccountSystemProgram>
+        : TAccountSystemProgram,
+      TAccountRent extends string
+        ? ReadonlyAccount<TAccountRent>
+        : TAccountRent,
       ...TRemainingAccounts,
     ]
   >;
 
 export type IssueShareInstructionData = {
   discriminator: ReadonlyUint8Array;
+  investorPubkey: Address;
   reitIdHash: ReadonlyUint8Array;
+  sharePrice: bigint;
 };
 
-export type IssueShareInstructionDataArgs = { reitIdHash: ReadonlyUint8Array };
+export type IssueShareInstructionDataArgs = {
+  investorPubkey: Address;
+  reitIdHash: ReadonlyUint8Array;
+  sharePrice: number | bigint;
+};
 
 export function getIssueShareInstructionDataEncoder(): FixedSizeEncoder<IssueShareInstructionDataArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
+      ['investorPubkey', getAddressEncoder()],
       ['reitIdHash', fixEncoderSize(getBytesEncoder(), 16)],
+      ['sharePrice', getU64Encoder()],
     ]),
     (value) => ({ ...value, discriminator: ISSUE_SHARE_DISCRIMINATOR })
   );
@@ -104,7 +143,9 @@ export function getIssueShareInstructionDataEncoder(): FixedSizeEncoder<IssueSha
 export function getIssueShareInstructionDataDecoder(): FixedSizeDecoder<IssueShareInstructionData> {
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
+    ['investorPubkey', getAddressDecoder()],
     ['reitIdHash', fixDecoderSize(getBytesDecoder(), 16)],
+    ['sharePrice', getU64Decoder()],
   ]);
 }
 
@@ -122,35 +163,58 @@ export type IssueShareAsyncInput<
   TAccountAdmin extends string = string,
   TAccountFundraiser extends string = string,
   TAccountInvestment extends string = string,
+  TAccountInvestor extends string = string,
+  TAccountInvestorWallet extends string = string,
   TAccountReitMint extends string = string,
   TAccountInvestorAta extends string = string,
   TAccountTokenProgram extends string = string,
+  TAccountAssociatedTokenProgram extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountRent extends string = string,
 > = {
   admin: TransactionSigner<TAccountAdmin>;
   fundraiser?: Address<TAccountFundraiser>;
   investment: Address<TAccountInvestment>;
+  investor?: Address<TAccountInvestor>;
+  /** Investor wallet - needed as the ATA authority (not a signer for this instruction) */
+  investorWallet: Address<TAccountInvestorWallet>;
   reitMint: Address<TAccountReitMint>;
-  investorAta: Address<TAccountInvestorAta>;
+  investorAta?: Address<TAccountInvestorAta>;
   tokenProgram?: Address<TAccountTokenProgram>;
+  associatedTokenProgram?: Address<TAccountAssociatedTokenProgram>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  rent?: Address<TAccountRent>;
+  investorPubkey: IssueShareInstructionDataArgs['investorPubkey'];
   reitIdHash: IssueShareInstructionDataArgs['reitIdHash'];
+  sharePrice: IssueShareInstructionDataArgs['sharePrice'];
 };
 
 export async function getIssueShareInstructionAsync<
   TAccountAdmin extends string,
   TAccountFundraiser extends string,
   TAccountInvestment extends string,
+  TAccountInvestor extends string,
+  TAccountInvestorWallet extends string,
   TAccountReitMint extends string,
   TAccountInvestorAta extends string,
   TAccountTokenProgram extends string,
+  TAccountAssociatedTokenProgram extends string,
+  TAccountSystemProgram extends string,
+  TAccountRent extends string,
   TProgramAddress extends Address = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
 >(
   input: IssueShareAsyncInput<
     TAccountAdmin,
     TAccountFundraiser,
     TAccountInvestment,
+    TAccountInvestor,
+    TAccountInvestorWallet,
     TAccountReitMint,
     TAccountInvestorAta,
-    TAccountTokenProgram
+    TAccountTokenProgram,
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram,
+    TAccountRent
   >,
   config?: { programAddress?: TProgramAddress }
 ): Promise<
@@ -159,9 +223,14 @@ export async function getIssueShareInstructionAsync<
     TAccountAdmin,
     TAccountFundraiser,
     TAccountInvestment,
+    TAccountInvestor,
+    TAccountInvestorWallet,
     TAccountReitMint,
     TAccountInvestorAta,
-    TAccountTokenProgram
+    TAccountTokenProgram,
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram,
+    TAccountRent
   >
 > {
   // Program address.
@@ -171,11 +240,19 @@ export async function getIssueShareInstructionAsync<
   // Original accounts.
   const originalAccounts = {
     admin: { value: input.admin ?? null, isWritable: true },
-    fundraiser: { value: input.fundraiser ?? null, isWritable: false },
+    fundraiser: { value: input.fundraiser ?? null, isWritable: true },
     investment: { value: input.investment ?? null, isWritable: true },
+    investor: { value: input.investor ?? null, isWritable: false },
+    investorWallet: { value: input.investorWallet ?? null, isWritable: false },
     reitMint: { value: input.reitMint ?? null, isWritable: true },
     investorAta: { value: input.investorAta ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    associatedTokenProgram: {
+      value: input.associatedTokenProgram ?? null,
+      isWritable: false,
+    },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    rent: { value: input.rent ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -199,9 +276,45 @@ export async function getIssueShareInstructionAsync<
       ],
     });
   }
+  if (!accounts.investor.value) {
+    accounts.investor.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getBytesEncoder().encode(
+          new Uint8Array([105, 110, 118, 101, 115, 116, 111, 114])
+        ),
+        getAddressEncoder().encode(expectSome(args.investorPubkey)),
+      ],
+    });
+  }
   if (!accounts.tokenProgram.value) {
     accounts.tokenProgram.value =
       'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+  }
+  if (!accounts.investorAta.value) {
+    accounts.investorAta.value = await getProgramDerivedAddress({
+      programAddress:
+        'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>,
+      seeds: [
+        getAddressEncoder().encode(
+          expectAddress(accounts.investorWallet.value)
+        ),
+        getAddressEncoder().encode(expectAddress(accounts.tokenProgram.value)),
+        getAddressEncoder().encode(expectAddress(accounts.reitMint.value)),
+      ],
+    });
+  }
+  if (!accounts.associatedTokenProgram.value) {
+    accounts.associatedTokenProgram.value =
+      'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>;
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+  if (!accounts.rent.value) {
+    accounts.rent.value =
+      'SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>;
   }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
@@ -210,9 +323,14 @@ export async function getIssueShareInstructionAsync<
       getAccountMeta(accounts.admin),
       getAccountMeta(accounts.fundraiser),
       getAccountMeta(accounts.investment),
+      getAccountMeta(accounts.investor),
+      getAccountMeta(accounts.investorWallet),
       getAccountMeta(accounts.reitMint),
       getAccountMeta(accounts.investorAta),
       getAccountMeta(accounts.tokenProgram),
+      getAccountMeta(accounts.associatedTokenProgram),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.rent),
     ],
     data: getIssueShareInstructionDataEncoder().encode(
       args as IssueShareInstructionDataArgs
@@ -223,9 +341,14 @@ export async function getIssueShareInstructionAsync<
     TAccountAdmin,
     TAccountFundraiser,
     TAccountInvestment,
+    TAccountInvestor,
+    TAccountInvestorWallet,
     TAccountReitMint,
     TAccountInvestorAta,
-    TAccountTokenProgram
+    TAccountTokenProgram,
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram,
+    TAccountRent
   >);
 }
 
@@ -233,35 +356,58 @@ export type IssueShareInput<
   TAccountAdmin extends string = string,
   TAccountFundraiser extends string = string,
   TAccountInvestment extends string = string,
+  TAccountInvestor extends string = string,
+  TAccountInvestorWallet extends string = string,
   TAccountReitMint extends string = string,
   TAccountInvestorAta extends string = string,
   TAccountTokenProgram extends string = string,
+  TAccountAssociatedTokenProgram extends string = string,
+  TAccountSystemProgram extends string = string,
+  TAccountRent extends string = string,
 > = {
   admin: TransactionSigner<TAccountAdmin>;
   fundraiser: Address<TAccountFundraiser>;
   investment: Address<TAccountInvestment>;
+  investor: Address<TAccountInvestor>;
+  /** Investor wallet - needed as the ATA authority (not a signer for this instruction) */
+  investorWallet: Address<TAccountInvestorWallet>;
   reitMint: Address<TAccountReitMint>;
   investorAta: Address<TAccountInvestorAta>;
   tokenProgram?: Address<TAccountTokenProgram>;
+  associatedTokenProgram?: Address<TAccountAssociatedTokenProgram>;
+  systemProgram?: Address<TAccountSystemProgram>;
+  rent?: Address<TAccountRent>;
+  investorPubkey: IssueShareInstructionDataArgs['investorPubkey'];
   reitIdHash: IssueShareInstructionDataArgs['reitIdHash'];
+  sharePrice: IssueShareInstructionDataArgs['sharePrice'];
 };
 
 export function getIssueShareInstruction<
   TAccountAdmin extends string,
   TAccountFundraiser extends string,
   TAccountInvestment extends string,
+  TAccountInvestor extends string,
+  TAccountInvestorWallet extends string,
   TAccountReitMint extends string,
   TAccountInvestorAta extends string,
   TAccountTokenProgram extends string,
+  TAccountAssociatedTokenProgram extends string,
+  TAccountSystemProgram extends string,
+  TAccountRent extends string,
   TProgramAddress extends Address = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
 >(
   input: IssueShareInput<
     TAccountAdmin,
     TAccountFundraiser,
     TAccountInvestment,
+    TAccountInvestor,
+    TAccountInvestorWallet,
     TAccountReitMint,
     TAccountInvestorAta,
-    TAccountTokenProgram
+    TAccountTokenProgram,
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram,
+    TAccountRent
   >,
   config?: { programAddress?: TProgramAddress }
 ): IssueShareInstruction<
@@ -269,9 +415,14 @@ export function getIssueShareInstruction<
   TAccountAdmin,
   TAccountFundraiser,
   TAccountInvestment,
+  TAccountInvestor,
+  TAccountInvestorWallet,
   TAccountReitMint,
   TAccountInvestorAta,
-  TAccountTokenProgram
+  TAccountTokenProgram,
+  TAccountAssociatedTokenProgram,
+  TAccountSystemProgram,
+  TAccountRent
 > {
   // Program address.
   const programAddress =
@@ -280,11 +431,19 @@ export function getIssueShareInstruction<
   // Original accounts.
   const originalAccounts = {
     admin: { value: input.admin ?? null, isWritable: true },
-    fundraiser: { value: input.fundraiser ?? null, isWritable: false },
+    fundraiser: { value: input.fundraiser ?? null, isWritable: true },
     investment: { value: input.investment ?? null, isWritable: true },
+    investor: { value: input.investor ?? null, isWritable: false },
+    investorWallet: { value: input.investorWallet ?? null, isWritable: false },
     reitMint: { value: input.reitMint ?? null, isWritable: true },
     investorAta: { value: input.investorAta ?? null, isWritable: true },
     tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
+    associatedTokenProgram: {
+      value: input.associatedTokenProgram ?? null,
+      isWritable: false,
+    },
+    systemProgram: { value: input.systemProgram ?? null, isWritable: false },
+    rent: { value: input.rent ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -299,6 +458,18 @@ export function getIssueShareInstruction<
     accounts.tokenProgram.value =
       'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
   }
+  if (!accounts.associatedTokenProgram.value) {
+    accounts.associatedTokenProgram.value =
+      'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL' as Address<'ATokenGPvbdGVxr1b2hvZbsiqW5xWH25efTNsLJA8knL'>;
+  }
+  if (!accounts.systemProgram.value) {
+    accounts.systemProgram.value =
+      '11111111111111111111111111111111' as Address<'11111111111111111111111111111111'>;
+  }
+  if (!accounts.rent.value) {
+    accounts.rent.value =
+      'SysvarRent111111111111111111111111111111111' as Address<'SysvarRent111111111111111111111111111111111'>;
+  }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   return Object.freeze({
@@ -306,9 +477,14 @@ export function getIssueShareInstruction<
       getAccountMeta(accounts.admin),
       getAccountMeta(accounts.fundraiser),
       getAccountMeta(accounts.investment),
+      getAccountMeta(accounts.investor),
+      getAccountMeta(accounts.investorWallet),
       getAccountMeta(accounts.reitMint),
       getAccountMeta(accounts.investorAta),
       getAccountMeta(accounts.tokenProgram),
+      getAccountMeta(accounts.associatedTokenProgram),
+      getAccountMeta(accounts.systemProgram),
+      getAccountMeta(accounts.rent),
     ],
     data: getIssueShareInstructionDataEncoder().encode(
       args as IssueShareInstructionDataArgs
@@ -319,9 +495,14 @@ export function getIssueShareInstruction<
     TAccountAdmin,
     TAccountFundraiser,
     TAccountInvestment,
+    TAccountInvestor,
+    TAccountInvestorWallet,
     TAccountReitMint,
     TAccountInvestorAta,
-    TAccountTokenProgram
+    TAccountTokenProgram,
+    TAccountAssociatedTokenProgram,
+    TAccountSystemProgram,
+    TAccountRent
   >);
 }
 
@@ -334,9 +515,15 @@ export type ParsedIssueShareInstruction<
     admin: TAccountMetas[0];
     fundraiser: TAccountMetas[1];
     investment: TAccountMetas[2];
-    reitMint: TAccountMetas[3];
-    investorAta: TAccountMetas[4];
-    tokenProgram: TAccountMetas[5];
+    investor: TAccountMetas[3];
+    /** Investor wallet - needed as the ATA authority (not a signer for this instruction) */
+    investorWallet: TAccountMetas[4];
+    reitMint: TAccountMetas[5];
+    investorAta: TAccountMetas[6];
+    tokenProgram: TAccountMetas[7];
+    associatedTokenProgram: TAccountMetas[8];
+    systemProgram: TAccountMetas[9];
+    rent: TAccountMetas[10];
   };
   data: IssueShareInstructionData;
 };
@@ -349,7 +536,7 @@ export function parseIssueShareInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
 ): ParsedIssueShareInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 6) {
+  if (instruction.accounts.length < 11) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -365,9 +552,14 @@ export function parseIssueShareInstruction<
       admin: getNextAccount(),
       fundraiser: getNextAccount(),
       investment: getNextAccount(),
+      investor: getNextAccount(),
+      investorWallet: getNextAccount(),
       reitMint: getNextAccount(),
       investorAta: getNextAccount(),
       tokenProgram: getNextAccount(),
+      associatedTokenProgram: getNextAccount(),
+      systemProgram: getNextAccount(),
+      rent: getNextAccount(),
     },
     data: getIssueShareInstructionDataDecoder().decode(instruction.data),
   };

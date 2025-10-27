@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react'
-import { PublicKey } from '@solana/web3.js'
 import { useSolana } from '@/components/solana/use-solana'
 import type { Address } from 'gill'
 
@@ -25,7 +24,6 @@ export function useTransactionRecovery(metadataPda: string | null) {
     setIsCheckingRecovery(true)
     try {
       const rpc = client.rpc
-      const metadataPubkey = new PublicKey(metadataPda)
 
       console.log('[TX RECOVERY] Checking for pending transactions on PDA:', metadataPda)
 

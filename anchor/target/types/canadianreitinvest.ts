@@ -874,6 +874,95 @@ export type Canadianreitinvest = {
       ]
     },
     {
+      "name": "updateReitMint",
+      "discriminator": [
+        195,
+        217,
+        220,
+        63,
+        44,
+        24,
+        150,
+        45
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "fundraiser",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  102,
+                  117,
+                  110,
+                  100,
+                  114,
+                  97,
+                  105,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "arg",
+                "path": "reitIdHash"
+              }
+            ]
+          }
+        },
+        {
+          "name": "reitMint",
+          "writable": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        },
+        {
+          "name": "instructionsSysvar"
+        },
+        {
+          "name": "metadata",
+          "writable": true
+        },
+        {
+          "name": "tokenMetadataProgram",
+          "address": "metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s"
+        }
+      ],
+      "args": [
+        {
+          "name": "reitIdHash",
+          "type": {
+            "array": [
+              "u8",
+              16
+            ]
+          }
+        },
+        {
+          "name": "name",
+          "type": "string"
+        },
+        {
+          "name": "symbol",
+          "type": "string"
+        },
+        {
+          "name": "metadataUri",
+          "type": "string"
+        }
+      ]
+    },
+    {
       "name": "wire",
       "discriminator": [
         133,
@@ -1016,6 +1105,11 @@ export type Canadianreitinvest = {
       "code": 6007,
       "name": "invalidInvestmentStatus",
       "msg": "Invalid investment status"
+    },
+    {
+      "code": 6008,
+      "name": "invalidMint",
+      "msg": "Invalid mint"
     }
   ],
   "types": [

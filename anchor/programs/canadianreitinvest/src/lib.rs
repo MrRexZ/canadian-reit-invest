@@ -14,6 +14,7 @@ use instructions::release::*;
 use instructions::refund::*;
 use instructions::wire::*;
 use instructions::create_reit_mint::*;
+use instructions::update_reit_mint::*;
 use instructions::issue_share::*;
 
 #[program]
@@ -50,6 +51,10 @@ pub mod canadianreitinvest {
 
     pub fn create_reit_mint(ctx: Context<CreateReitMint>, reit_id_hash: [u8; 16], name: String, symbol: String, metadata_uri: String) -> Result<()> {
         instructions::create_reit_mint::handler(ctx, reit_id_hash, name, symbol, metadata_uri)
+    }
+
+    pub fn update_reit_mint(ctx: Context<UpdateReitMint>, reit_id_hash: [u8; 16], name: String, symbol: String, metadata_uri: String) -> Result<()> {
+        instructions::update_reit_mint::handler(ctx, reit_id_hash, name, symbol, metadata_uri)
     }
 
     pub fn issue_share(ctx: Context<IssueShare>, reit_id_hash: [u8; 16]) -> Result<()> {

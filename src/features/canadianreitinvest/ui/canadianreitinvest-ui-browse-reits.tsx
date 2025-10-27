@@ -11,6 +11,7 @@ import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { useCreateReitMint } from '../hooks/use-create-reit-mint'
+import { useUpdateReitMint } from '../hooks/use-update-reit-mint'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
@@ -33,6 +34,7 @@ export default function CanadianreitinvestUiBrowseReits() {
   const { client, cluster } = useSolana()
   const { account } = useWalletUi()
   const createReitMintMutation = useCreateReitMint({ account: account! })
+  const updateReitMintMutation = useUpdateReitMint({ account: account! })
   const [loading, setLoading] = useState(false)
   const [rows, setRows] = useState<ReitRow[]>([])
   const [error, setError] = useState<string | null>(null)
@@ -112,16 +114,35 @@ export default function CanadianreitinvestUiBrowseReits() {
     }
   }
 
-  const handleCreateReitMint = () => {
+  const handleCreateOrUpdateReitMint = () => {
     if (!selectedReit) return
-    createReitMintMutation.mutate({
-      reitId: selectedReit.id,
-      name,
-      symbol,
-      description,
-      sharePrice,
-      currency,
-    })
+    
+    const isUpdate = selectedReit?.fundraiser?.data?.reitMint && 
+                     selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID
+    
+    if (isUpdate) {
+      // Use update mutation for existing mint
+      updateReitMintMutation.mutate({
+        reitId: selectedReit.id,
+        mintAddress: selectedReit.fundraiser.data.reitMint,
+        name,
+        symbol,
+        description,
+        sharePrice,
+        currency,
+      })
+    } else {
+      // Use create mutation for new mint
+      createReitMintMutation.mutate({
+        reitId: selectedReit.id,
+        name,
+        symbol,
+        description,
+        sharePrice,
+        currency,
+      })
+    }
+    
     setDialogOpen(false)
     setSelectedReit(null)
     setName('')
@@ -362,10 +383,10 @@ export default function CanadianreitinvestUiBrowseReits() {
                         <DialogFooter>
                           <Button
                             type="submit"
-                            onClick={handleCreateReitMint}
-                            disabled={!name || !symbol || createReitMintMutation.isPending || loadingMetadata}
+                            onClick={handleCreateOrUpdateReitMint}
+                            disabled={!name || !symbol || createReitMintMutation.isPending || updateReitMintMutation.isPending || loadingMetadata}
                           >
-                            {createReitMintMutation.isPending 
+                            {createReitMintMutation.isPending || updateReitMintMutation.isPending
                               ? (selectedReit?.fundraiser?.data?.reitMint && 
                                  selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
                                   ? 'Updating...' 

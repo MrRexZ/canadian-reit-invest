@@ -22,6 +22,7 @@ import {
   type ParsedIssueShareInstruction,
   type ParsedRefundInstruction,
   type ParsedReleaseInstruction,
+  type ParsedUpdateReitMintInstruction,
   type ParsedWireInstruction,
 } from '../instructions';
 
@@ -85,6 +86,7 @@ export enum CanadianreitinvestInstruction {
   IssueShare,
   Refund,
   Release,
+  UpdateReitMint,
   Wire,
 }
 
@@ -184,6 +186,17 @@ export function identifyCanadianreitinvestInstruction(
     containsBytes(
       data,
       fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([195, 217, 220, 63, 44, 24, 150, 45])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.UpdateReitMint;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
         new Uint8Array([133, 22, 177, 204, 246, 158, 29, 40])
       ),
       0
@@ -223,6 +236,9 @@ export type ParsedCanadianreitinvestInstruction<
   | ({
       instructionType: CanadianreitinvestInstruction.Release;
     } & ParsedReleaseInstruction<TProgram>)
+  | ({
+      instructionType: CanadianreitinvestInstruction.UpdateReitMint;
+    } & ParsedUpdateReitMintInstruction<TProgram>)
   | ({
       instructionType: CanadianreitinvestInstruction.Wire;
     } & ParsedWireInstruction<TProgram>);

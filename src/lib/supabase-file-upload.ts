@@ -30,7 +30,7 @@ export async function uploadReitMetadataToSupabase(
     // Use versioned filename to bypass CDN caching
     // If no version provided, use timestamp to ensure uniqueness
     const versionSuffix = version !== undefined ? `v${version}` : `v${Date.now()}`;
-    const filename = `reit-metadata/${reitId}-${versionSuffix}.json`;
+    const filename = `reit-metadata/${reitId}/${versionSuffix}.json`;
 
     // Convert metadata to blob
     const metadataBlob = new Blob([JSON.stringify(metadata, null, 2)], {

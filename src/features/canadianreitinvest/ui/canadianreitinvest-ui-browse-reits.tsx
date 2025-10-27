@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSolana } from '@/components/solana/use-solana'
 import { useWalletUi } from '@wallet-ui/react'
-import { PublicKey } from '@solana/web3.js'
+import { PublicKey, SystemProgram } from '@solana/web3.js'
 import { fetchAllMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
@@ -13,6 +13,8 @@ import { Label } from '@/components/ui/label'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { parse as uuidParse } from 'uuid'
+
+const SYSTEM_PROGRAM_ID = SystemProgram.programId.toBase58()
 
 type ReitRow = {
   id: string
@@ -184,14 +186,25 @@ export default function CanadianreitinvestUiBrowseReits() {
                         setCurrency('')
                       }}
                     >
-                      Create/Update Mint
+                      {row.fundraiser?.data?.reitMint && 
+                       row.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                        ? 'Update Mint' 
+                        : 'Create Mint'}
                     </Button>
                   </DialogTrigger>
                   <DialogContent>
                     <DialogHeader>
-                      <DialogTitle>Create/Update REIT Mint</DialogTitle>
+                      <DialogTitle>
+                        {selectedReit?.fundraiser?.data?.reitMint && 
+                         selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                          ? 'Update REIT Mint' 
+                          : 'Create REIT Mint'}
+                      </DialogTitle>
                       <DialogDescription>
-                        Enter the REIT mint token details. Only name and symbol are required to create the mint.
+                        {selectedReit?.fundraiser?.data?.reitMint && 
+                         selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                          ? 'Update the REIT mint token details.' 
+                          : 'Enter the REIT mint token details. Only name and symbol are required to create the mint.'}
                       </DialogDescription>
                     </DialogHeader>
                     <div className="grid gap-4 py-4">
@@ -263,7 +276,15 @@ export default function CanadianreitinvestUiBrowseReits() {
                         onClick={handleCreateReitMint}
                         disabled={!name || !symbol || createReitMintMutation.isPending}
                       >
-                        {createReitMintMutation.isPending ? 'Creating...' : 'Create REIT Mint'}
+                        {createReitMintMutation.isPending 
+                          ? (selectedReit?.fundraiser?.data?.reitMint && 
+                             selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                              ? 'Updating...' 
+                              : 'Creating...')
+                          : (selectedReit?.fundraiser?.data?.reitMint && 
+                             selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                              ? 'Update REIT Mint' 
+                              : 'Create REIT Mint')}
                       </Button>
                     </DialogFooter>
                   </DialogContent>

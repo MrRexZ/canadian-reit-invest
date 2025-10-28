@@ -59,7 +59,10 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
 
   const handleSelectInvestment = (pda: string) => {
     setSelectedInvestmentPda(pda)
-    setSearchInput('')
+    const inv = allInvestments.find((inv) => inv.investment_pda === pda)
+    if (inv) {
+      setSearchInput(`${inv.investment_pda.slice(0, 8)}...${inv.investment_pda.slice(-8)}`)
+    }
     setIsDropdownOpen(false)
   }
 
@@ -140,10 +143,18 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
                     <Input
                       type="text"
                       placeholder="Search by investment ID, investor name, email, or REIT name..."
-                      value={searchInput || (selectedInvestment ? `${selectedInvestment.investment_pda.slice(0, 8)}...${selectedInvestment.investment_pda.slice(-8)}` : '')}
+                      value={searchInput}
                       onChange={(e) => {
-                        setSearchInput(e.target.value)
+                        const newValue = e.target.value
+                        setSearchInput(newValue)
                         setIsDropdownOpen(true)
+                        // If there's a selected investment and the new value doesn't match its display, clear selection
+                        if (selectedInvestmentPda && selectedInvestment) {
+                          const display = `${selectedInvestment.investment_pda.slice(0, 8)}...${selectedInvestment.investment_pda.slice(-8)}`
+                          if (newValue !== display) {
+                            setSelectedInvestmentPda('')
+                          }
+                        }
                       }}
                       onFocus={() => setIsDropdownOpen(true)}
                       disabled={isLoadingInvestments || isIssuing}

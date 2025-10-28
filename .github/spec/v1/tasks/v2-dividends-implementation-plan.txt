@@ -3,15 +3,21 @@ DIVIDEND DISTRIBUTION SYSTEM - IMPLEMENTATION PLAN
 Canadian REIT Investment Platform
 ================================================================================
 
-VERSION: 1.1 (UPDATED - Fixed Dividend Counter Architecture)
-DATE: October 27, 2025
+VERSION: 1.2 (UPDATED - Aligned with Investment Counter Refactoring)
+DATE: October 28, 2025
 STATUS: Planning Phase - Not Yet Implemented
 
 CRITICAL UPDATE:
-This plan has been updated to fix a critical design flaw in the dividend 
-counter mechanism. The original design used a single global counter which 
-would not work correctly for multiple dividends per investment. The updated 
-design uses an InvestmentDividendCounter PDA to track dividends per investment.
+This plan has been updated to align with the investment counter refactoring
+pattern (see investment-counter-refactor-plan.txt). The dividend tracking uses
+a per-investment counter via InvestmentDividendCounter PDA, ensuring each
+investment can receive multiple dividends with sequential counters (0, 1, 2...).
+
+IMPORTANT: We do NOT reuse InvestorFundraiser PDA for dividend tracking because:
+- Dividends are per-INVESTMENT, not per investor-fundraiser relationship
+- An investor may have multiple investments in the same fundraiser
+- Each investment needs its own independent dividend sequence
+- Solana MCP expert recommends separate PDA for clearer separation of concerns
 
 ================================================================================
 1. OVERVIEW
@@ -33,8 +39,8 @@ GOALS:
 2. CURRENT SYSTEM ARCHITECTURE
 ================================================================================
 
-2.1 EXISTING STATE STRUCTURES
-------------------------------
+2.1 EXISTING STATE STRUCTURES (AFTER REFACTORING)
+--------------------------------------------------
 From anchor/programs/canadianreitinvest/src/state.rs:
 
 Fundraiser PDA:
@@ -43,10 +49,17 @@ Fundraiser PDA:
 
 Investor PDA:
 - Seeds: [b"investor", investor_pubkey]
-- Stores: investor_pubkey, investment_counter, bump
+- Stores: investor_pubkey, bump
+- Note: investment_counter field removed in refactoring
+
+InvestorFundraiser PDA (NEW - from refactoring):
+- Seeds: [b"investor_fundraiser", investor_pubkey, fundraiser_pubkey]
+- Stores: investor, fundraiser, investment_counter, bump
+- Purpose: Track investment counter per investor-fundraiser pair
 
 Investment PDA:
 - Seeds: [b"investment", investor_pubkey, fundraiser_pubkey, investment_counter]
+  (counter now comes from InvestorFundraiser PDA)
 - Stores: investor, fundraiser, usdc_amount, reit_amount, status, bump
 - Status enum: Pending, Released, Refunded, Wired, ShareIssued, ShareSold
 
@@ -61,23 +74,37 @@ Investment PDA:
 3. PROPOSED DIVIDEND SYSTEM DESIGN
 ================================================================================
 
-3.1 DIVIDEND COUNTER PDA STRUCTURE (NEW - CRITICAL FIX)
--------------------------------------------------------
-PROBLEM IDENTIFIED: 
-Similar to the investment_counter issue, we cannot use a global dividend counter.
-Each Investment needs its own dividend counter to track multiple dividend 
-distributions over time.
+3.1 DIVIDEND COUNTER PDA STRUCTURE (NEW)
+-----------------------------------------
+DESIGN DECISION: 
+Following the same pattern as InvestorFundraiser (from investment-counter-refactor-plan),
+we create a dedicated counter PDA per investment for dividend tracking.
+
+WHY NOT REUSE InvestorFundraiser?
+- InvestorFundraiser tracks investment_counter (# of investments per investor-fundraiser)
+- Dividends are issued per INVESTMENT (not per investor-fundraiser relationship)
+- An investor can have multiple investments in same fundraiser (e.g., Investment #0, #1, #2)
+- Each investment needs its own independent dividend sequence
+- Mixing investment counter and dividend counter in same PDA violates separation of concerns
+
+SOLANA MCP EXPERT RECOMMENDATION:
+"Choose Option 2 with the refined PDA structure. It's the more robust and scalable 
+solution for your dividend tracking requirements. Create a single InvestmentDividendCounter 
+PDA for each investment."
 
 Account Name: InvestmentDividendCounter
 Purpose: Track dividend counter per investment
 Seeds: [b"investment_dividend_counter", investment_pda]
 
 Fields:
-- investment: Pubkey                  // The investment this counter tracks
 - dividend_counter: u64               // Counter for dividends issued for THIS investment
 - bump: u8                            // PDA bump seed
 
-Space: 32 + 8 + 1 = 41 bytes + 8 discriminator = 49 bytes
+Space: 8 + 1 = 9 bytes + 8 discriminator = 17 bytes
+
+NOTE: Removed investment: Pubkey field per Solana MCP recommendation. 
+The investment is already encoded in the PDA seeds, so storing it again 
+is redundant and wastes space.
 
 3.2 DIVIDEND PDA STRUCTURE
 --------------------------
@@ -113,16 +140,29 @@ RATIONALE FOR STRUCTURE:
 - Counter-based seeds allow unlimited dividend issuances over time
 
 EXAMPLE SCENARIO:
-Investor Alice has 2 investments:
-- Investment A in Fundraiser X
-- Investment B in Fundraiser Y
+Investor Alice has 2 investments in the SAME fundraiser:
+- Investment A (counter 0) in Fundraiser X
+- Investment B (counter 1) in Fundraiser X
 
 Dividends issued:
-1. Dividend for Investment A → Counter 0, Seeds: [b"dividend", investment_A, 0]
-2. Dividend for Investment B → Counter 0, Seeds: [b"dividend", investment_B, 0]
-3. Second dividend for Investment A → Counter 1, Seeds: [b"dividend", investment_A, 1]
+1. First dividend for Investment A:
+   - InvestmentDividendCounter PDA: [b"investment_dividend_counter", investment_A]
+   - Counter value: 0
+   - Dividend PDA: [b"dividend", investment_A, 0]
+
+2. First dividend for Investment B:
+   - InvestmentDividendCounter PDA: [b"investment_dividend_counter", investment_B]
+   - Counter value: 0
+   - Dividend PDA: [b"dividend", investment_B, 0]
+
+3. Second dividend for Investment A:
+   - InvestmentDividendCounter PDA: [b"investment_dividend_counter", investment_A]
+   - Counter value: 1 (incremented from previous)
+   - Dividend PDA: [b"dividend", investment_A, 1]
 
 Result: Each investment has its own sequential dividend counter!
+This mirrors the InvestorFundraiser pattern where each investor-fundraiser 
+pair has its own investment counter.
 
 3.3 ALTERNATIVE CONSIDERED: CUMULATIVE APPROACH
 -----------------------------------------------
@@ -202,11 +242,11 @@ pub struct IssueDividends<'info> {
     )]
     pub fundraiser: Account<'info, state::Fundraiser>,
     
-    // Counter PDA to track dividend sequence (NEW)
+    // Counter PDA to track dividend sequence (init_if_needed pattern)
     #[account(
         init_if_needed,
         payer = admin,
-        space = 8 + 41, // discriminator + InvestmentDividendCounter size
+        space = 8 + InvestmentDividendCounter::INIT_SPACE,
         seeds = [b"investment_dividend_counter", investment.key().as_ref()],
         bump
     )]
@@ -216,7 +256,7 @@ pub struct IssueDividends<'info> {
     #[account(
         init,
         payer = admin,
-        space = 8 + 129, // discriminator + Dividend struct size
+        space = 8 + Dividend::INIT_SPACE,
         seeds = [
             b"dividend",
             investment.key().as_ref(),
@@ -246,15 +286,20 @@ CRITICAL CHANGES FROM ORIGINAL SPEC:
 
 4.3 NEW HELPER STRUCTURE: InvestmentDividendCounter
 ---------------------------------------------------
+File: anchor/programs/canadianreitinvest/src/state.rs
+
+/// Tracks dividend issuance for a specific investment
+/// Seeds: [b"investment_dividend_counter", investment_pda]
 #[account]
 #[derive(InitSpace)]
 pub struct InvestmentDividendCounter {
-    pub investment: Pubkey,     // The investment this counter tracks
     pub dividend_counter: u64,  // Increments with each dividend payout for THIS investment
     pub bump: u8,              // PDA bump seed
 }
 
 Purpose: Enables deterministic PDA derivation with sequential counter per investment
+Pattern: Mirrors InvestorFundraiser structure for consistency
+Space: 9 bytes + 8 discriminator = 17 bytes total
 
 4.4 NEW STRUCTURE: Dividend
 ----------------------------
@@ -295,9 +340,10 @@ pub fn handler(ctx: Context<IssueDividends>, usdc_amount: u64) -> Result<()> {
     );
     
     // Initialize counter if first dividend for this investment
+    // (init_if_needed handles this, but we still check for initialization logic)
     let counter = &mut ctx.accounts.investment_dividend_counter;
-    if counter.investment == Pubkey::default() {
-        counter.investment = ctx.accounts.investment.key();
+    if counter.dividend_counter == 0 && counter.bump == 0 {
+        // First time initialization
         counter.dividend_counter = 0;
         counter.bump = ctx.bumps.investment_dividend_counter;
     }
@@ -342,6 +388,12 @@ pub fn handler(ctx: Context<IssueDividends>, usdc_amount: u64) -> Result<()> {
 }
 ```
 
+KEY IMPLEMENTATION NOTES:
+- Uses init_if_needed on counter PDA (similar to invest instruction pattern)
+- Checks counter initialization state before first use
+- Uses checked_add for counter increment (prevents overflow)
+- Follows same pattern as invest instruction with InvestorFundraiser
+
 4.6 SECURITY VALIDATIONS
 ------------------------
 ✓ Admin-only: Constraint validates admin.key() == fundraiser.admin
@@ -356,7 +408,6 @@ pub fn handler(ctx: Context<IssueDividends>, usdc_amount: u64) -> Result<()> {
 ADDITIONAL RECOMMENDED CHECKS:
 - Verify admin has sufficient USDC balance before transfer
 - Add maximum dividend amount constraint
-- Consider rate limiting (e.g., max 1 dividend per investment per day)
 - Emit detailed events for audit trail
 
 4.7 USDC AMOUNT HANDLING
@@ -681,79 +732,33 @@ Listen for DividendsIssued events:
 □ Admin-only actions properly gated
 
 ================================================================================
-9. TESTING STRATEGY
+9. IMPLEMENTATION SEQUENCE
 ================================================================================
 
-9.1 UNIT TESTS (Anchor Tests)
-------------------------------
-Test File: anchor/tests/dividends.test.ts
-
-Test Cases:
-1. ✓ Successful dividend issuance
-2. ✓ Unauthorized admin rejection
-3. ✓ Invalid investor rejection
-4. ✓ Mismatched investment rejection
-5. ✓ Multiple dividends to same investor-investment
-6. ✓ Correct USDC transfer amount
-7. ✓ Event emission verification
-8. ✓ Counter increment verification
-9. ✗ Insufficient admin balance (should fail gracefully)
-10. ✗ Invalid token accounts
-
-9.2 INTEGRATION TESTS
----------------------
-1. Full flow: invest → mint shares → issue dividend → verify balance
-2. Multiple investors receiving dividends in same transaction batch
-3. Frontend form submission → backend processing → on-chain confirmation
-
-9.3 LOCALNET TESTING
---------------------
-Prerequisites:
-- USDC mint on localnet (see guide/USDC_LOCALNET_GUIDE.md)
-- Admin wallet funded with USDC
-- Test investor accounts with investments
-
-Testing Script:
-1. Deploy program to localnet
-2. Initialize fundraiser
-3. Create test investment
-4. Mint REIT shares to investor
-5. Issue dividend from admin
-6. Verify investor USDC balance increased
-7. Verify Dividends PDA created with correct data
-8. Verify event emitted
-
-================================================================================
-10. IMPLEMENTATION SEQUENCE
-================================================================================
-
-10.1 PHASE 1: ONCHAIN PROGRAM (Anchor)
+9.1 PHASE 1: ONCHAIN PROGRAM (Anchor)
 ---------------------------------------
 Step 1.1: Define state structures
-  □ Create Dividends struct in state.rs
-  □ Create DividendCounter struct
-  □ Add to InitSpace derives
+  □ Add InvestmentDividendCounter struct to state.rs
+  □ Add Dividend struct to state.rs
+  □ Update InitSpace derives
+  □ Add comments documenting PDA seeds
 
 Step 1.2: Create instruction file
-  □ Create anchor/programs/.../instructions/issue_dividends.rs
+  □ Create anchor/programs/canadianreitinvest/src/instructions/issue_dividends.rs
   □ Define IssueDividends accounts struct
   □ Implement handler function
-  □ Add error codes to errors.rs
+  □ Add error codes to errors.rs (DividendCounterOverflow, InvalidInvestmentStatus, etc.)
 
 Step 1.3: Wire up in lib.rs
-  □ Import instruction module
+  □ Import issue_dividends module
   □ Add pub fn issue_dividends entry point
+  □ Export new state structures
 
 Step 1.4: Add event definition
-  □ Define DividendsIssued event
+  □ Define DividendIssued event in lib.rs or events.rs
   □ Emit in handler after successful transfer
 
-Step 1.5: Write tests
-  □ Create test file
-  □ Implement all test cases from section 9.1
-  □ Run tests: cd anchor && anchor test
-
-10.2 PHASE 2: CODAMA TYPE GENERATION
+9.2 PHASE 2: CODAMA TYPE GENERATION
 -------------------------------------
 Step 2.1: Generate TypeScript types
   □ Build program: cd anchor && anchor build
@@ -761,187 +766,383 @@ Step 2.1: Generate TypeScript types
   □ Verify generated files in src/generated/
 
 Step 2.2: Update frontend imports
-  □ Import issueDividendsInstruction
-  □ Import Dividends type definitions
+  □ Import issueDividendsInstruction from generated types
+  □ Import InvestmentDividendCounter and Dividend type definitions
   □ Add to barrel exports if needed
 
-10.3 PHASE 3: BACKEND API
+9.3 PHASE 3: BACKEND API
 --------------------------
 Step 3.1: Database migrations
   □ Create dividends_history table (if using Supabase)
-  □ Add indexes for querying
-  □ Test migrations
+  □ Add indexes for querying (investor_wallet, investment_pda, issued_at)
+  □ Test migrations on local Supabase instance
 
 Step 3.2: API endpoints
   □ Implement POST /api/admin/dividends/issue
-  □ Implement GET /api/admin/investors
-  □ Implement GET /api/admin/dividends/history
+  □ Implement GET /api/admin/investors (filter by ShareIssued status)
+  □ Implement GET /api/admin/dividends/history?investor=<pubkey>
   □ Add authentication middleware (admin-only)
 
 Step 3.3: Integration utilities
-  □ Create helper functions for PDA derivation
-  □ Create helper for USDC amount conversion
+  □ Create PDA derivation helpers in shared utilities
+  □ Create USDC amount conversion helper (UI ↔ smallest unit)
   □ Add transaction construction utilities
 
-10.4 PHASE 4: FRONTEND UI
+9.4 PHASE 4: FRONTEND UI
 --------------------------
 Step 4.1: Create admin dividend page
-  □ Create src/features/admin/dividends/
-  □ Implement dividend-page.tsx
+  □ Create src/features/admin/dividends/ directory
+  □ Implement dividend-page.tsx component
   □ Add route to app-routes.tsx
+  □ Add navigation link in admin dashboard
 
 Step 4.2: Build form components
-  □ Investor selection dropdown
+  □ Investor selection dropdown with search
   □ Investment selection dropdown (filtered by investor)
-  □ Amount input with validation
+  □ Amount input with validation (min 0.01 USDC)
   □ Submit button with loading state
+  □ Confirmation modal before submission
 
 Step 4.3: Implement transaction logic
-  □ Account derivation functions
-  □ Transaction construction
-  □ Signature confirmation
-  □ Error handling and user feedback
+  □ Create useIssueDividend hook
+  □ Implement account derivation functions
+  □ Build transaction with proper accounts
+  □ Handle signature confirmation
+  □ Error handling and user feedback (toast notifications)
 
 Step 4.4: Add history view
-  □ Display past dividends for selected investor
-  □ Format amounts correctly (6 decimal USDC)
+  □ Display past dividends for selected investor/investment
+  □ Format amounts correctly (convert from smallest unit)
   □ Link to Solana Explorer for each transaction
-
-10.5 PHASE 5: TESTING & DEPLOYMENT
------------------------------------
-Step 5.1: Localnet testing
-  □ Deploy to localnet
-  □ Test full flow with script
-  □ Verify frontend integration
-
-Step 5.2: Devnet deployment
-  □ Deploy program to devnet
-  □ Fund admin wallet with devnet USDC
-  □ Test with real wallets
-  □ Monitor for issues
-
-Step 5.3: Mainnet preparation
-  □ Security audit review
-  □ Load testing for concurrent dividends
-  □ Backup and recovery procedures
-  □ Admin training/documentation
-
-Step 5.4: Mainnet deployment
-  □ Deploy program to mainnet
-  □ Verify program ID in frontend config
-  □ Test with small amount first
-  □ Monitor first few transactions closely
+  □ Export to CSV functionality for tax reporting
 
 ================================================================================
-11. RISK ASSESSMENT
+10. RISK ASSESSMENT
 ================================================================================
 
-11.1 TECHNICAL RISKS
+10.1 TECHNICAL RISKS
 --------------------
 RISK: PDA collision if counter not properly incremented
 LIKELIHOOD: Low
-MITIGATION: Atomic counter increment, comprehensive tests
+MITIGATION: Atomic counter increment via checked_add, init_if_needed pattern
 
 RISK: USDC amount calculation errors (decimal handling)
 LIKELIHOOD: Medium
-MITIGATION: Extensive unit tests, UI validation, double-check logic
+MITIGATION: Frontend validation, conversion utilities, display formatting
 
 RISK: Admin wallet compromise leading to unauthorized dividends
 LIKELIHOOD: Low
-MITIGATION: Multi-sig wallet, hardware wallet, amount limits
+MITIGATION: Hardware wallet, multi-sig (future), amount limits, rate limiting
 
 RISK: Frontend/backend desync on account derivation
 LIKELIHOOD: Medium
-MITIGATION: Shared utility functions, integration tests
+MITIGATION: Shared utility functions, consistent encoding (u64 little-endian)
 
-11.2 OPERATIONAL RISKS
+10.2 OPERATIONAL RISKS
 ----------------------
 RISK: Distributing dividends to wrong investors
 LIKELIHOOD: Low
-MITIGATION: UI confirmation modal, preview before submit, audit logs
+MITIGATION: Confirmation modal, preview before submit, audit logs
 
 RISK: Incorrect dividend amounts
 LIKELIHOOD: Medium
-MITIGATION: Amount validation, preview, approval workflow for large amounts
+MITIGATION: Amount validation, preview display, approval workflow
 
-RISK: Running out of admin USDC during batch distributions
+RISK: Running out of admin USDC during distributions
 LIKELIHOOD: Low
-MITIGATION: Pre-flight balance check, error handling
+MITIGATION: Pre-flight balance check, error handling, batch monitoring
 
-11.3 COMPLIANCE RISKS
+10.3 COMPLIANCE RISKS
 ---------------------
 RISK: Tax reporting for dividend distributions
 LIKELIHOOD: High
-MITIGATION: Comprehensive logging, export to CSV functionality
+MITIGATION: Comprehensive logging, CSV export, on-chain audit trail
 
 RISK: Regulatory requirements for dividend disclosures
 LIKELIHOOD: Medium
-MITIGATION: Consult legal counsel, maintain audit trail
+MITIGATION: Legal consultation, maintain detailed records
 
 ================================================================================
-12. FUTURE ENHANCEMENTS
+11. FUTURE ENHANCEMENTS
 ================================================================================
 
-12.1 BATCH DIVIDEND DISTRIBUTION
+11.1 BATCH DIVIDEND DISTRIBUTION
 ---------------------------------
 Allow admin to issue dividends to multiple investors in single transaction
 - Reduces transaction costs
 - Faster distribution
 - Requires careful PDA management
+- Consider using Anchor's remaining_accounts pattern
 
-12.2 PROPORTIONAL DIVIDEND CALCULATION
+11.2 PROPORTIONAL DIVIDEND CALCULATION
 ---------------------------------------
 Auto-calculate dividend per investor based on REIT token holdings
 - Query all investors' token balances
 - Calculate proportional distribution
 - Generate transactions programmatically
+- Useful for quarterly distributions
 
-12.3 SCHEDULED DIVIDENDS
+11.3 SCHEDULED DIVIDENDS
 -------------------------
 Set up recurring dividend distributions
 - Quarterly/monthly schedules
-- Automated execution via keeper network
+- Automated execution via Clockwork or similar
 - Email notifications to investors
+- Integration with calendar systems
 
-12.4 DIVIDEND REINVESTMENT
+11.4 DIVIDEND REINVESTMENT
 ---------------------------
 Allow investors to auto-reinvest dividends into more REIT tokens
-- Optional flag on Investor PDA
+- Optional flag on investment or investor profile
 - Direct purchase of additional shares
-- Compound returns
+- Compound returns over time
+- Tax implications to consider
 
-12.5 MULTI-SIGNATURE APPROVAL
+11.5 MULTI-SIGNATURE APPROVAL
 ------------------------------
 Require multiple admin approvals for large dividend amounts
 - Squads Protocol integration
-- Threshold-based triggers
-- Enhanced security
+- Threshold-based triggers (e.g., > $10k requires 2-of-3 approval)
+- Enhanced security for mainnet
+- Audit trail of approvers
 
 ================================================================================
-13. DOCUMENTATION REQUIREMENTS
+13. SUCCESS CRITERIA
 ================================================================================
 
-13.1 CODE DOCUMENTATION
------------------------
-□ Inline comments for complex logic
-□ Function-level JSDoc/Rustdoc
-□ Account structure documentation
-□ PDA seed documentation
-□ Error code descriptions
+Project will be considered successful when:
 
-13.2 USER DOCUMENTATION
------------------------
-□ Admin guide: How to issue dividends
-□ Investor guide: What to expect
-□ FAQ: Common questions
-□ Troubleshooting guide
+✓ Admin can issue USDC dividends to specific investments via UI
+✓ Dividends are recorded on-chain with complete audit trail
+✓ USDC transfers execute correctly (6 decimal handling)
+✓ No duplicate dividends can be issued for same counter value
+✓ Only authorized admins can issue dividends
+✓ Events are emitted for off-chain tracking and notifications
+✓ Frontend UI is intuitive and provides clear feedback
+✓ Database records match on-chain state
+✓ Transaction confirmations visible to admin with explorer links
 
-13.3 DEVELOPER DOCUMENTATION
------------------------------
-□ Integration guide for frontend
-□ API documentation
-□ Event schema documentation
-□ Testing guide
+Performance Benchmarks:
+- Transaction confirmation: < 30 seconds (typical Solana time)
+- UI responsiveness: < 200ms for user interactions
+- Database sync delay: < 10 seconds after transaction confirmation
+
+================================================================================
+14. DEPENDENCIES & PREREQUISITES
+================================================================================
+
+14.1 ONCHAIN DEPENDENCIES
+--------------------------
+□ Anchor Framework 0.30.x+ (compatible with project version)
+□ Solana Program Library (SPL Token)
+□ USDC mint address (mainnet/devnet/localnet)
+□ Existing program structure (fundraiser, investment PDAs)
+
+14.2 FRONTEND DEPENDENCIES
+---------------------------
+□ @solana/web3.js
+□ @solana/wallet-adapter
+□ @solana/spl-token
+□ React Query (for data fetching)
+□ Codama (for type generation)
+□ Shadcn UI components
+
+14.3 BACKEND DEPENDENCIES
+--------------------------
+□ Supabase client (if using)
+
+14.4 INFRASTRUCTURE
+-------------------
+□ Solana RPC endpoint (Chainstack/QuickNode/Helius)
+□ Database for off-chain records (Supabase recommended)
+□ Admin wallet with USDC for distributions
+□ Secure key management for admin wallet
+
+================================================================================
+15. SOLANA MCP EXPERT RECOMMENDATIONS INCORPORATED
+================================================================================
+
+From consultation with Solana MCP server:
+
+✓ Create separate InvestmentDividendCounter PDA per investment
+  → "Choose Option 2 with the refined PDA structure. It's the more robust 
+     and scalable solution."
+  → Do NOT reuse InvestorFundraiser for dividend tracking
+
+✓ Minimal PDA structure for counter
+  → Removed redundant investment: Pubkey field
+  → Investment already encoded in PDA seeds
+  → Saves space: 17 bytes vs 49 bytes
+
+✓ Use token_interface::transfer_checked (not transfer)
+  → Ensures mint, decimals, and amount validation
+  → Required for security
+
+✓ PDA seeds: [b"dividend", investment_pda, counter]
+  → Deterministic and collision-free
+  → Each investment has independent dividend sequence
+
+✓ Emit events for off-chain tracking
+  → Include all relevant data points (investor, investment, fundraiser, amount)
+  → Timestamp for ordering
+
+✓ Authority checks via Anchor constraints
+  → admin.key() == fundraiser.admin
+  → Prevents unauthorized operations
+
+✓ init_if_needed pattern for counter initialization
+  → Follows same pattern as invest instruction
+  → Reduces code complexity
+
+✓ Use checked_add for counter increment
+  → Prevents overflow attacks
+  → Safe arithmetic operations
+
+================================================================================
+16. ALIGNMENT WITH INVESTMENT COUNTER REFACTORING
+================================================================================
+
+This dividend implementation follows the same architectural patterns as the
+investment counter refactoring (see investment-counter-refactor-plan.txt):
+
+PATTERN CONSISTENCY:
+- InvestorFundraiser PDA: Tracks investment_counter per investor-fundraiser
+- InvestmentDividendCounter PDA: Tracks dividend_counter per investment
+- Both use init_if_needed pattern for counter initialization
+- Both use checked_add for safe counter increment
+- Both use u64 counters with little-endian encoding
+
+WHY THIS PATTERN WORKS:
+1. Clear separation of concerns
+2. Each entity has its own counter scope
+3. No ambiguity when multiple relationships exist
+4. Deterministic PDA derivation
+5. Scales indefinitely (u64 max = 18 quintillion)
+
+IMPLEMENTATION LEARNINGS APPLIED:
+□ Pass counter as instruction parameter (for proper seed derivation)
+□ Use Buffer.writeBigUInt64LE in TypeScript for u64 encoding
+□ Match Rust's to_le_bytes() encoding exactly
+□ Initialize counter to 0 on first use
+□ Increment after successful operation
+
+================================================================================
+17. NOTES FOR IMPLEMENTERS
+================================================================================
+
+CRITICAL REMINDERS:
+1. Do NOT install codama deps in anchor/ folder
+   - Use root-level codama: npm run codama:js from project root
+   - Never run npm install in anchor/ directory
+
+2. Counter encoding MUST match between TypeScript and Rust
+   - TypeScript: Buffer.writeBigUInt64LE(counter, 0)
+   - Rust: counter.to_le_bytes()
+   - Mismatch causes ConstraintSeeds errors
+
+3. init_if_needed requires payer parameter
+   - Admin pays for PDA initialization
+   - Ensure admin has sufficient SOL balance
+
+4. USDC decimals = 6 (not 9 like SOL)
+   - 1 USDC = 1,000,000 smallest units
+   - Always use transfer_checked with correct decimals
+
+5. Test on localnet before devnet/mainnet
+   - See guide/USDC_LOCALNET_GUIDE.md for setup
+   - Create test investments with ShareIssued status
+   - Verify counter increments correctly
+
+================================================================================
+18. REVIEW & APPROVAL
+================================================================================
+
+This plan should be reviewed by:
+□ Lead Developer (technical implementation feasibility)
+□ Product Owner (feature requirements alignment)
+□ Security Auditor (security considerations)
+□ Admin User (UI/UX usability)
+
+Approval required before proceeding to implementation.
+
+Approval Signatures:
+_______________________  Date: __________
+Lead Developer
+
+_______________________  Date: __________
+Product Owner
+
+================================================================================
+END OF IMPLEMENTATION PLAN
+================================================================================
+
+Document Version: 1.2 (UPDATED - Aligned with Investment Counter Refactoring)
+Last Updated: October 28, 2025
+Next Review: After Phase 1 completion (onchain program implementation)
+
+Related Documents:
+- investment-counter-refactor-plan.txt (architectural patterns)
+- .github/copilot-instructions.md (project guidelines)
+- guide/USDC_LOCALNET_GUIDE.md (testing setup)
+
+================================================================================
+APPENDIX A: KEY CHANGES FROM VERSION 1.1
+================================================================================
+
+VERSION 1.1 → 1.2 UPDATES:
+
+1. CLARIFIED WHY NOT TO REUSE InvestorFundraiser
+   - Added detailed explanation at document start
+   - Emphasized per-investment vs per-investor-fundraiser distinction
+   - Included Solana MCP expert recommendation
+
+2. UPDATED STATE STRUCTURE SECTION
+   - Reflected current codebase after investment counter refactoring
+   - Documented InvestorFundraiser PDA addition
+   - Noted investment_counter removal from Investor PDA
+
+3. OPTIMIZED InvestmentDividendCounter SIZE
+   - Removed redundant investment: Pubkey field
+   - Reduced from 49 bytes to 17 bytes total
+   - Investment already encoded in PDA seeds
+
+4. ENHANCED EXAMPLE SCENARIO
+   - Added case with multiple investments in SAME fundraiser
+   - Clarified counter independence per investment
+   - Showed parallel with InvestorFundraiser pattern
+
+5. IMPROVED HANDLER LOGIC
+   - Added initialization state checking
+   - Documented init_if_needed behavior
+   - Added implementation notes
+
+6. REMOVED TESTING & DEPLOYMENT SECTIONS
+   - Focused on implementation planning only
+   - Matches investment-counter-refactor-plan format
+   - Reduces document complexity
+
+7. EXPANDED IMPLEMENTATION SEQUENCE
+   - More detailed steps per phase
+   - Added specific file locations
+   - Included validation checkpoints
+
+8. ADDED ALIGNMENT SECTION
+   - Cross-referenced investment counter refactoring
+   - Documented pattern consistency
+   - Explained architectural decisions
+
+9. ENHANCED NOTES FOR IMPLEMENTERS
+   - Critical reminders about codama usage
+   - Encoding best practices
+   - Common pitfalls to avoid
+
+RATIONALE FOR CHANGES:
+- Align with actual implemented investment counter refactoring
+- Incorporate Solana MCP expert recommendations
+- Optimize for developer clarity and implementation success
+- Reduce redundancy and document size
+
+================================================================================
 
 ================================================================================
 14. SUCCESS CRITERIA
@@ -955,7 +1156,6 @@ Project will be considered successful when:
 ✓ No duplicate dividends can be issued
 ✓ Only authorized admins can issue dividends
 ✓ Events are emitted for off-chain tracking
-✓ All tests pass (unit, integration, e2e)
 ✓ Frontend UI is intuitive and error-free
 ✓ Database records match on-chain state
 ✓ Transaction confirmations visible to admin
@@ -964,36 +1164,6 @@ Performance Benchmarks:
 - Transaction confirmation: < 5 seconds
 - UI responsiveness: < 200ms for interactions
 - Database sync delay: < 10 seconds after transaction
-
-================================================================================
-15. DEPENDENCIES & PREREQUISITES
-================================================================================
-
-15.1 ONCHAIN DEPENDENCIES
---------------------------
-□ Anchor Framework 0.30.x+
-□ Solana Program Library (SPL Token)
-□ USDC mint address (mainnet/devnet/localnet)
-
-15.2 FRONTEND DEPENDENCIES
----------------------------
-□ @solana/web3.js
-□ @solana/wallet-adapter
-□ React Query
-□ Codama (for type generation)
-□ Shadcn UI components
-
-15.3 BACKEND DEPENDENCIES
---------------------------
-□ Supabase client (if using)
-□ Node.js runtime
-□ TypeScript
-
-15.4 INFRASTRUCTURE
--------------------
-□ Solana RPC endpoint (Chainstack/QuickNode/etc)
-□ Database for off-chain records
-□ Admin wallet with USDC for distributions
 
 ================================================================================
 16. SOLANA MCP EXPERT RECOMMENDATIONS INCORPORATED
@@ -1028,53 +1198,6 @@ From consultation with Solana MCP server:
   → USDC has 6 decimals, not 9 like SOL
   → Critical for correct transfers
 
-================================================================================
-17. NOTES FROM SPEC REVIEW
-================================================================================
-
-SPEC ISSUES IDENTIFIED:
-1. Schema in spec shows "pub struct Investment" but should be "pub struct Dividends"
-   → Corrected in this plan
-
-2. Missing "investment_pda" type annotation (should be Pubkey)
-   → Added in PDA structure section
-
-3. No mention of counter for multiple dividends
-   → Added counter-based approach per MCP recommendations
-
-4. Frontend fetching mechanism not detailed
-   → Expanded with React Query and API structure
-
-5. No guidance on USDC decimal handling
-   → Added comprehensive section on amount conversion
-
-SPEC ENHANCEMENTS MADE:
-□ Added DividendCounter helper struct
-□ Defined complete accounts structure
-□ Added event emission
-□ Detailed security checks
-□ Expanded testing strategy
-□ Added implementation phases
-□ Included risk assessment
-
-================================================================================
-18. REVIEW & APPROVAL
-================================================================================
-
-This plan should be reviewed by:
-□ Lead Developer (technical implementation)
-□ Product Owner (feature requirements)
-□ Security Auditor (security considerations)
-□ Admin User (UI/UX usability)
-
-Approval required before proceeding to implementation.
-
-Approval Signatures:
-_______________________  Date: __________
-Lead Developer
-
-_______________________  Date: __________
-Product Owner
 
 ================================================================================
 END OF IMPLEMENTATION PLAN

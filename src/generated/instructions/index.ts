@@ -11,6 +11,7 @@ export * from './createReitMint';
 export * from './initializeFundraiser';
 export * from './initializeInvestor';
 export * from './invest';
+export * from './issueDividend';
 export * from './issueShare';
 export * from './refund';
 export * from './release';

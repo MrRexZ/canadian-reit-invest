@@ -3,6 +3,7 @@ import { WalletDropdown } from '@/components/wallet-dropdown'
 import { AppHero } from '@/components/app-hero'
 import { CanadianreitinvestUiProgramExplorerLink } from './ui/canadianreitinvest-ui-program-explorer-link'
 import { CanadianreitinvestUiInitializeFundraiser } from './ui/canadianreitinvest-ui-initialize-fundraiser'
+import { AdminDividendPage } from './ui/admin-dividend-page'
 import AuthFeature from '@/features/auth/auth-feature'
 import { useAuth } from '@/components/auth-provider'
 import InvestorPage from '@/features/investor/investor-page'
@@ -89,7 +90,7 @@ export default function CanadianreitinvestFeature() {
 }
 
 function AdminTabs({ account }: { account: any }) {
-  const [tab, setTab] = useState<'create' | 'browse' | 'investments' | 'mint'>('create')
+  const [tab, setTab] = useState<'create' | 'browse' | 'investments' | 'dividends' | 'mint'>('create')
 
   return (
     <div className="flex gap-0">
@@ -119,6 +120,12 @@ function AdminTabs({ account }: { account: any }) {
           >
             Mint Tokens
           </button>
+          <button
+            className={`text-left px-3 py-2 rounded-md ${tab === 'dividends' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
+            onClick={() => setTab('dividends')}
+          >
+            Issue Dividends
+          </button>
         </nav>
       </aside>
 
@@ -142,6 +149,14 @@ function AdminTabs({ account }: { account: any }) {
         ) : tab === 'investments' ? (
           <div>
             <BrowseInvestments isAdmin={true} />
+          </div>
+        ) : tab === 'dividends' ? (
+          <div>
+            <div className="pb-4">
+              <h1 className="text-4xl font-bold">Issue Dividends</h1>
+              <p className="mt-2 text-muted-foreground">Transfer USDC dividends to investors</p>
+            </div>
+            <AdminDividendPage account={account} />
           </div>
         ) : (
           <div>

@@ -8,3 +8,4 @@ pub mod wire;
 pub mod create_reit_mint;
 pub mod update_reit_mint;
 pub mod issue_share;
+pub mod issue_dividend;

@@ -605,6 +605,81 @@ export type Canadianreitinvest = {
       ]
     },
     {
+      "name": "issueDividend",
+      "discriminator": [
+        143,
+        141,
+        2,
+        140,
+        130,
+        248,
+        167,
+        67
+      ],
+      "accounts": [
+        {
+          "name": "admin",
+          "docs": [
+            "Admin who signs and authorizes the dividend payment"
+          ],
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "investment",
+          "docs": [
+            "Investment PDA to validate investor eligibility",
+            "Must have ShareIssued status"
+          ]
+        },
+        {
+          "name": "investor",
+          "docs": [
+            "Investor receiving the dividend (derived from investment)"
+          ]
+        },
+        {
+          "name": "fundraiser",
+          "docs": [
+            "Fundraiser PDA for admin authorization check"
+          ]
+        },
+        {
+          "name": "adminUsdcAta",
+          "docs": [
+            "Admin's USDC token account (source of dividend)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "investorUsdcAta",
+          "docs": [
+            "Investor's USDC token account (destination for dividend)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "usdcMint",
+          "docs": [
+            "USDC mint for validation"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "docs": [
+            "Token program for transfer"
+          ],
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
+        }
+      ],
+      "args": [
+        {
+          "name": "amount",
+          "type": "u64"
+        }
+      ]
+    },
+    {
       "name": "issueShare",
       "discriminator": [
         195,
@@ -1228,6 +1303,21 @@ export type Canadianreitinvest = {
       ]
     }
   ],
+  "events": [
+    {
+      "name": "dividendIssued",
+      "discriminator": [
+        229,
+        74,
+        90,
+        243,
+        0,
+        174,
+        78,
+        169
+      ]
+    }
+  ],
   "errors": [
     {
       "code": 6000,
@@ -1273,9 +1363,46 @@ export type Canadianreitinvest = {
       "code": 6008,
       "name": "invalidMint",
       "msg": "Invalid mint"
+    },
+    {
+      "code": 6009,
+      "name": "invalidFundraiserMismatch",
+      "msg": "Invalid fundraiser mismatch"
     }
   ],
   "types": [
+    {
+      "name": "dividendIssued",
+      "docs": [
+        "Event emitted when dividend is issued",
+        "Provides permanent audit trail on Solana blockchain"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "investment",
+            "type": "pubkey"
+          },
+          {
+            "name": "investor",
+            "type": "pubkey"
+          },
+          {
+            "name": "fundraiser",
+            "type": "pubkey"
+          },
+          {
+            "name": "amount",
+            "type": "u64"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    },
     {
       "name": "fundraiser",
       "type": {

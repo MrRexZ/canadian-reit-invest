@@ -33,6 +33,7 @@ export enum CanadianreitinvestAccount {
   Fundraiser,
   Investment,
   Investor,
+  InvestorFundraiser,
 }
 
 export function identifyCanadianreitinvestAccount(
@@ -71,6 +72,17 @@ export function identifyCanadianreitinvestAccount(
     )
   ) {
     return CanadianreitinvestAccount.Investor;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([9, 157, 88, 28, 2, 147, 58, 109])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestAccount.InvestorFundraiser;
   }
   throw new Error(
     'The provided account could not be identified as a canadianreitinvest account.'

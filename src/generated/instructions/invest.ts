@@ -54,6 +54,7 @@ export type InvestInstruction<
   TProgram extends string = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
   TAccountInvestorSigner extends string | AccountMeta<string> = string,
   TAccountInvestor extends string | AccountMeta<string> = string,
+  TAccountInvestorFundraiser extends string | AccountMeta<string> = string,
   TAccountFundraiser extends string | AccountMeta<string> = string,
   TAccountInvestment extends string | AccountMeta<string> = string,
   TAccountUsdcMint extends string | AccountMeta<string> = string,
@@ -83,6 +84,9 @@ export type InvestInstruction<
       TAccountInvestor extends string
         ? WritableAccount<TAccountInvestor>
         : TAccountInvestor,
+      TAccountInvestorFundraiser extends string
+        ? WritableAccount<TAccountInvestorFundraiser>
+        : TAccountInvestorFundraiser,
       TAccountFundraiser extends string
         ? WritableAccount<TAccountFundraiser>
         : TAccountFundraiser,
@@ -118,11 +122,13 @@ export type InvestInstructionData = {
   discriminator: ReadonlyUint8Array;
   amount: bigint;
   reitIdHash: ReadonlyUint8Array;
+  counter: bigint;
 };
 
 export type InvestInstructionDataArgs = {
   amount: number | bigint;
   reitIdHash: ReadonlyUint8Array;
+  counter: number | bigint;
 };
 
 export function getInvestInstructionDataEncoder(): FixedSizeEncoder<InvestInstructionDataArgs> {
@@ -131,6 +137,7 @@ export function getInvestInstructionDataEncoder(): FixedSizeEncoder<InvestInstru
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['amount', getU64Encoder()],
       ['reitIdHash', fixEncoderSize(getBytesEncoder(), 16)],
+      ['counter', getU64Encoder()],
     ]),
     (value) => ({ ...value, discriminator: INVEST_DISCRIMINATOR })
   );
@@ -141,6 +148,7 @@ export function getInvestInstructionDataDecoder(): FixedSizeDecoder<InvestInstru
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['amount', getU64Decoder()],
     ['reitIdHash', fixDecoderSize(getBytesDecoder(), 16)],
+    ['counter', getU64Decoder()],
   ]);
 }
 
@@ -157,6 +165,7 @@ export function getInvestInstructionDataCodec(): FixedSizeCodec<
 export type InvestAsyncInput<
   TAccountInvestorSigner extends string = string,
   TAccountInvestor extends string = string,
+  TAccountInvestorFundraiser extends string = string,
   TAccountFundraiser extends string = string,
   TAccountInvestment extends string = string,
   TAccountUsdcMint extends string = string,
@@ -170,8 +179,10 @@ export type InvestAsyncInput<
   investorSigner: TransactionSigner<TAccountInvestorSigner>;
   /** Investor PDA: init if needed so users don't have to pre-create it */
   investor?: Address<TAccountInvestor>;
+  /** NEW: InvestorFundraiser PDA for per-fundraiser tracking */
+  investorFundraiser?: Address<TAccountInvestorFundraiser>;
   fundraiser?: Address<TAccountFundraiser>;
-  investment: Address<TAccountInvestment>;
+  investment?: Address<TAccountInvestment>;
   /** Investor's USDC ATA. Create it if missing so users don't have to pre-create their ATA. */
   usdcMint: Address<TAccountUsdcMint>;
   /** Investor's USDC ATA. Create it if missing so users don't have to pre-create their ATA. */
@@ -183,11 +194,13 @@ export type InvestAsyncInput<
   rent?: Address<TAccountRent>;
   amount: InvestInstructionDataArgs['amount'];
   reitIdHash: InvestInstructionDataArgs['reitIdHash'];
+  counter: InvestInstructionDataArgs['counter'];
 };
 
 export async function getInvestInstructionAsync<
   TAccountInvestorSigner extends string,
   TAccountInvestor extends string,
+  TAccountInvestorFundraiser extends string,
   TAccountFundraiser extends string,
   TAccountInvestment extends string,
   TAccountUsdcMint extends string,
@@ -202,6 +215,7 @@ export async function getInvestInstructionAsync<
   input: InvestAsyncInput<
     TAccountInvestorSigner,
     TAccountInvestor,
+    TAccountInvestorFundraiser,
     TAccountFundraiser,
     TAccountInvestment,
     TAccountUsdcMint,
@@ -218,6 +232,7 @@ export async function getInvestInstructionAsync<
     TProgramAddress,
     TAccountInvestorSigner,
     TAccountInvestor,
+    TAccountInvestorFundraiser,
     TAccountFundraiser,
     TAccountInvestment,
     TAccountUsdcMint,
@@ -237,6 +252,10 @@ export async function getInvestInstructionAsync<
   const originalAccounts = {
     investorSigner: { value: input.investorSigner ?? null, isWritable: true },
     investor: { value: input.investor ?? null, isWritable: true },
+    investorFundraiser: {
+      value: input.investorFundraiser ?? null,
+      isWritable: true,
+    },
     fundraiser: { value: input.fundraiser ?? null, isWritable: true },
     investment: { value: input.investment ?? null, isWritable: true },
     usdcMint: { value: input.usdcMint ?? null, isWritable: false },
@@ -285,6 +304,38 @@ export async function getInvestInstructionAsync<
       ],
     });
   }
+  if (!accounts.investorFundraiser.value) {
+    accounts.investorFundraiser.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getBytesEncoder().encode(
+          new Uint8Array([
+            105, 110, 118, 101, 115, 116, 111, 114, 95, 102, 117, 110, 100, 114,
+            97, 105, 115, 101, 114,
+          ])
+        ),
+        getAddressEncoder().encode(
+          expectAddress(accounts.investorSigner.value)
+        ),
+        getAddressEncoder().encode(expectAddress(accounts.fundraiser.value)),
+      ],
+    });
+  }
+  if (!accounts.investment.value) {
+    accounts.investment.value = await getProgramDerivedAddress({
+      programAddress,
+      seeds: [
+        getBytesEncoder().encode(
+          new Uint8Array([105, 110, 118, 101, 115, 116, 109, 101, 110, 116])
+        ),
+        getAddressEncoder().encode(
+          expectAddress(accounts.investorSigner.value)
+        ),
+        getAddressEncoder().encode(expectAddress(accounts.fundraiser.value)),
+        getU64Encoder().encode(expectSome(args.counter)),
+      ],
+    });
+  }
   if (!accounts.investorUsdcAta.value) {
     accounts.investorUsdcAta.value = await getProgramDerivedAddress({
       programAddress:
@@ -326,6 +377,7 @@ export async function getInvestInstructionAsync<
     accounts: [
       getAccountMeta(accounts.investorSigner),
       getAccountMeta(accounts.investor),
+      getAccountMeta(accounts.investorFundraiser),
       getAccountMeta(accounts.fundraiser),
       getAccountMeta(accounts.investment),
       getAccountMeta(accounts.usdcMint),
@@ -344,6 +396,7 @@ export async function getInvestInstructionAsync<
     TProgramAddress,
     TAccountInvestorSigner,
     TAccountInvestor,
+    TAccountInvestorFundraiser,
     TAccountFundraiser,
     TAccountInvestment,
     TAccountUsdcMint,
@@ -359,6 +412,7 @@ export async function getInvestInstructionAsync<
 export type InvestInput<
   TAccountInvestorSigner extends string = string,
   TAccountInvestor extends string = string,
+  TAccountInvestorFundraiser extends string = string,
   TAccountFundraiser extends string = string,
   TAccountInvestment extends string = string,
   TAccountUsdcMint extends string = string,
@@ -372,6 +426,8 @@ export type InvestInput<
   investorSigner: TransactionSigner<TAccountInvestorSigner>;
   /** Investor PDA: init if needed so users don't have to pre-create it */
   investor: Address<TAccountInvestor>;
+  /** NEW: InvestorFundraiser PDA for per-fundraiser tracking */
+  investorFundraiser: Address<TAccountInvestorFundraiser>;
   fundraiser: Address<TAccountFundraiser>;
   investment: Address<TAccountInvestment>;
   /** Investor's USDC ATA. Create it if missing so users don't have to pre-create their ATA. */
@@ -385,11 +441,13 @@ export type InvestInput<
   rent?: Address<TAccountRent>;
   amount: InvestInstructionDataArgs['amount'];
   reitIdHash: InvestInstructionDataArgs['reitIdHash'];
+  counter: InvestInstructionDataArgs['counter'];
 };
 
 export function getInvestInstruction<
   TAccountInvestorSigner extends string,
   TAccountInvestor extends string,
+  TAccountInvestorFundraiser extends string,
   TAccountFundraiser extends string,
   TAccountInvestment extends string,
   TAccountUsdcMint extends string,
@@ -404,6 +462,7 @@ export function getInvestInstruction<
   input: InvestInput<
     TAccountInvestorSigner,
     TAccountInvestor,
+    TAccountInvestorFundraiser,
     TAccountFundraiser,
     TAccountInvestment,
     TAccountUsdcMint,
@@ -419,6 +478,7 @@ export function getInvestInstruction<
   TProgramAddress,
   TAccountInvestorSigner,
   TAccountInvestor,
+  TAccountInvestorFundraiser,
   TAccountFundraiser,
   TAccountInvestment,
   TAccountUsdcMint,
@@ -437,6 +497,10 @@ export function getInvestInstruction<
   const originalAccounts = {
     investorSigner: { value: input.investorSigner ?? null, isWritable: true },
     investor: { value: input.investor ?? null, isWritable: true },
+    investorFundraiser: {
+      value: input.investorFundraiser ?? null,
+      isWritable: true,
+    },
     fundraiser: { value: input.fundraiser ?? null, isWritable: true },
     investment: { value: input.investment ?? null, isWritable: true },
     usdcMint: { value: input.usdcMint ?? null, isWritable: false },
@@ -481,6 +545,7 @@ export function getInvestInstruction<
     accounts: [
       getAccountMeta(accounts.investorSigner),
       getAccountMeta(accounts.investor),
+      getAccountMeta(accounts.investorFundraiser),
       getAccountMeta(accounts.fundraiser),
       getAccountMeta(accounts.investment),
       getAccountMeta(accounts.usdcMint),
@@ -499,6 +564,7 @@ export function getInvestInstruction<
     TProgramAddress,
     TAccountInvestorSigner,
     TAccountInvestor,
+    TAccountInvestorFundraiser,
     TAccountFundraiser,
     TAccountInvestment,
     TAccountUsdcMint,
@@ -520,17 +586,19 @@ export type ParsedInvestInstruction<
     investorSigner: TAccountMetas[0];
     /** Investor PDA: init if needed so users don't have to pre-create it */
     investor: TAccountMetas[1];
-    fundraiser: TAccountMetas[2];
-    investment: TAccountMetas[3];
+    /** NEW: InvestorFundraiser PDA for per-fundraiser tracking */
+    investorFundraiser: TAccountMetas[2];
+    fundraiser: TAccountMetas[3];
+    investment: TAccountMetas[4];
     /** Investor's USDC ATA. Create it if missing so users don't have to pre-create their ATA. */
-    usdcMint: TAccountMetas[4];
+    usdcMint: TAccountMetas[5];
     /** Investor's USDC ATA. Create it if missing so users don't have to pre-create their ATA. */
-    investorUsdcAta: TAccountMetas[5];
-    escrowVault: TAccountMetas[6];
-    tokenProgram: TAccountMetas[7];
-    associatedTokenProgram: TAccountMetas[8];
-    systemProgram: TAccountMetas[9];
-    rent: TAccountMetas[10];
+    investorUsdcAta: TAccountMetas[6];
+    escrowVault: TAccountMetas[7];
+    tokenProgram: TAccountMetas[8];
+    associatedTokenProgram: TAccountMetas[9];
+    systemProgram: TAccountMetas[10];
+    rent: TAccountMetas[11];
   };
   data: InvestInstructionData;
 };
@@ -543,7 +611,7 @@ export function parseInvestInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
 ): ParsedInvestInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 11) {
+  if (instruction.accounts.length < 12) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -558,6 +626,7 @@ export function parseInvestInstruction<
     accounts: {
       investorSigner: getNextAccount(),
       investor: getNextAccount(),
+      investorFundraiser: getNextAccount(),
       fundraiser: getNextAccount(),
       investment: getNextAccount(),
       usdcMint: getNextAccount(),

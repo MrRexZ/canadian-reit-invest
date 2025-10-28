@@ -7,7 +7,6 @@ pub fn handler(ctx: Context<InitializeInvestor>) -> Result<()> {
 
     let investor = &mut ctx.accounts.investor;
     investor.investor_pubkey = ctx.accounts.signer.key();
-    investor.investment_counter = 0;
     investor.bump = ctx.bumps.investor;
 
     msg!("InitializeInvestor handler complete");

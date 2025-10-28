@@ -21,8 +21,6 @@ import {
   getBytesEncoder,
   getStructDecoder,
   getStructEncoder,
-  getU64Decoder,
-  getU64Encoder,
   getU8Decoder,
   getU8Encoder,
   transformEncoder,
@@ -50,22 +48,16 @@ export function getInvestorDiscriminatorBytes() {
 export type Investor = {
   discriminator: ReadonlyUint8Array;
   investorPubkey: Address;
-  investmentCounter: bigint;
   bump: number;
 };
 
-export type InvestorArgs = {
-  investorPubkey: Address;
-  investmentCounter: number | bigint;
-  bump: number;
-};
+export type InvestorArgs = { investorPubkey: Address; bump: number };
 
 export function getInvestorEncoder(): FixedSizeEncoder<InvestorArgs> {
   return transformEncoder(
     getStructEncoder([
       ['discriminator', fixEncoderSize(getBytesEncoder(), 8)],
       ['investorPubkey', getAddressEncoder()],
-      ['investmentCounter', getU64Encoder()],
       ['bump', getU8Encoder()],
     ]),
     (value) => ({ ...value, discriminator: INVESTOR_DISCRIMINATOR })
@@ -76,7 +68,6 @@ export function getInvestorDecoder(): FixedSizeDecoder<Investor> {
   return getStructDecoder([
     ['discriminator', fixDecoderSize(getBytesDecoder(), 8)],
     ['investorPubkey', getAddressDecoder()],
-    ['investmentCounter', getU64Decoder()],
     ['bump', getU8Decoder()],
   ]);
 }
@@ -139,5 +130,5 @@ export async function fetchAllMaybeInvestor(
 }
 
 export function getInvestorSize(): number {
-  return 49;
+  return 41;
 }

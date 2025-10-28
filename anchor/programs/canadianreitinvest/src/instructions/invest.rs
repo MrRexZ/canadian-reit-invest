@@ -4,7 +4,7 @@ use anchor_spl::associated_token::AssociatedToken;
 
 use crate::state;
 
-pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16]) -> Result<()> {
+pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16], counter: u64) -> Result<()> {
     msg!("Invest handler start");
 
     if amount == 0 {
@@ -16,11 +16,15 @@ pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16]) -> Re
     // Debug logs for PDA addresses and seeds
     msg!("Fundraiser PDA: {} (seeds: [b\"fundraiser\", reit_id_hash: {:?}])", fundraiser.key(), _reit_id_hash);
     msg!("Investor PDA: {} (seeds: [b\"investor\", investor_signer: {}])", ctx.accounts.investor.key(), ctx.accounts.investor_signer.key());
+    msg!("InvestorFundraiser PDA: {} (seeds: [b\"investor_fundraiser\", investor_signer: {}, fundraiser: {}])", 
+          ctx.accounts.investor_fundraiser.key(),
+          ctx.accounts.investor_signer.key(),
+          fundraiser.key());
     msg!("Investment PDA: {} (seeds: [b\"investment\", investor_signer: {}, fundraiser: {}, counter: {}])",
           ctx.accounts.investment.key(),
           ctx.accounts.investor_signer.key(),
           fundraiser.key(),
-          ctx.accounts.investor.investment_counter);
+          counter);
 
     // Verify escrow vault matches fundraiser. This will be enforced by constraints as well.
     if ctx.accounts.escrow_vault.key() != fundraiser.escrow_vault {
@@ -41,12 +45,20 @@ pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16]) -> Re
     let investor = &mut ctx.accounts.investor;
     if investor.investor_pubkey == Pubkey::default() {
         investor.investor_pubkey = ctx.accounts.investor_signer.key();
-        investor.investment_counter = 0;
         investor.bump = ctx.bumps.investor;
     }
 
-    // Update investor counter
-    investor.investment_counter = investor
+    // Initialize InvestorFundraiser account if newly created
+    let investor_fundraiser = &mut ctx.accounts.investor_fundraiser;
+    if investor_fundraiser.investor == Pubkey::default() {
+        investor_fundraiser.investor = ctx.accounts.investor_signer.key();
+        investor_fundraiser.fundraiser = fundraiser.key();
+        investor_fundraiser.investment_counter = 0;
+        investor_fundraiser.bump = ctx.bumps.investor_fundraiser;
+    }
+
+    // Update per-fundraiser counter
+    investor_fundraiser.investment_counter = investor_fundraiser
         .investment_counter
         .checked_add(1)
         .ok_or(error!(crate::errors::CustomError::InvestmentCounterOverflow))?;
@@ -74,7 +86,7 @@ pub fn handler(ctx: Context<Invest>, amount: u64, _reit_id_hash: [u8; 16]) -> Re
 }
 
 #[derive(Accounts)]
-#[instruction(amount: u64, reit_id_hash: [u8; 16])]
+#[instruction(amount: u64, reit_id_hash: [u8; 16], counter: u64)]
 pub struct Invest<'info> {
     #[account(mut)]
     pub investor_signer: Signer<'info>,
@@ -89,11 +101,21 @@ pub struct Invest<'info> {
     )]
     pub investor: Account<'info, state::Investor>,
 
+    /// NEW: InvestorFundraiser PDA for per-fundraiser tracking
+    #[account(
+        init_if_needed,
+        payer = investor_signer,
+        space = 8 + state::InvestorFundraiser::INIT_SPACE,
+        seeds = [b"investor_fundraiser", investor_signer.key().as_ref(), fundraiser.key().as_ref()],
+        bump
+    )]
+    pub investor_fundraiser: Account<'info, state::InvestorFundraiser>,
+
     /// CHECK: derived in constraint
     #[account(
         mut,
         seeds = [b"fundraiser", reit_id_hash.as_slice()],
-        bump = fundraiser.bump,
+        bump,
     )]
     pub fundraiser: Account<'info, state::Fundraiser>,
 
@@ -101,7 +123,7 @@ pub struct Invest<'info> {
         init,
         payer = investor_signer,
         space = 8 + state::Investment::INIT_SPACE,
-        seeds = [b"investment", investor_signer.key().as_ref(), fundraiser.key().as_ref(), &investor.investment_counter.to_le_bytes()],
+        seeds = [b"investment", investor_signer.key().as_ref(), fundraiser.key().as_ref(), &counter.to_le_bytes()],
         bump
     )]
     pub investment: Account<'info, state::Investment>,

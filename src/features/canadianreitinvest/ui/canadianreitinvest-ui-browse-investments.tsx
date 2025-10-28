@@ -1,13 +1,5 @@
-import { useEffect, useState } from 'react'
 import { InvestmentStatus } from '@/generated/types/investmentStatus'
-import { supabase } from '@/lib/supabase'
-import { getUserProfiles } from '@/lib/supabase-admin'
-import { useSolana } from '@/components/solana/use-solana'
-import { fetchAllMaybeInvestment } from '@/generated/accounts/investment'
-import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
-import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
-import { useAuth } from '@/components/auth-provider'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { AppModal } from '@/components/app-modal'
 import { useRelease } from '../hooks/use-release'
@@ -17,131 +9,27 @@ import { useIssueShare } from '../hooks/use-issue-share'
 import { PublicKey } from '@solana/web3.js'
 import { parse as uuidParse } from 'uuid'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
-
-type InvestmentRow = {
-  id: string
-  investment_pda: string
-  investor_user_id: string
-  reit_id?: string
-  created_at: string
-  investment?: any
-  reit_name?: string
-  user_name?: string
-  user_email?: string
-}
+import { useSolana } from '@/components/solana/use-solana'
+import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
+import { useInvestmentsQuery } from '../data-access/use-investments-query'
+import { Address } from 'gill'
 
 export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boolean }) {
   const { client } = useSolana()
-  const { user } = useAuth()
-  const [loading, setLoading] = useState(false)
-  const [rows, setRows] = useState<InvestmentRow[]>([])
-  const [error, setError] = useState<string | null>(null)
   const { account } = useSolana()
+  
+  // Use React Query hook for data fetching and automatic polling/invalidation
+  const { data: rows = [], isLoading, error } = useInvestmentsQuery({ isAdmin })
+  
   const releaseMutation = useRelease({ account: account! })
   const refundMutation = useRefund({ account: account! })
   const wireMutation = useWire({ account: account! })
   const issueShareMutation = useIssueShare({ account: account! })
 
-  useEffect(() => {
-    let mounted = true
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        // Fetch investments based on role
-        let query = supabase.from('investments').select('*')
+  if (isLoading) return <span className="loading loading-spinner loading-md" />
+  if (error) return <div className="text-red-600">Error: {error instanceof Error ? error.message : String(error)}</div>
 
-        if (!isAdmin && user) {
-          // Investors can only see their own investments
-          query = query.eq('investor_user_id', user.id)
-        }
-        // Admins can see all investments (no filter needed)
-
-        const { data: investments, error: dbError } = await query.order('created_at', { ascending: false })
-        if (dbError) throw new Error(dbError.message)
-
-        if (!investments || investments.length === 0) {
-          if (mounted) setRows([])
-          return
-        }
-
-        // Fetch REIT names for display
-        const reitIds = [...new Set(investments.map(inv => inv.reit_id).filter(Boolean))]
-        const { data: reits } = await supabase
-          .from('reits')
-          .select('id, reit_name')
-          .in('id', reitIds)
-
-        const reitMap = new Map(reits?.map(r => [r.id, r.reit_name]) || [])
-
-        // Fetch user details for admin view
-        let userMap = new Map<string, { name?: string; email?: string }>()
-        if (isAdmin) {
-          const investorUserIds = [...new Set(investments.map(inv => inv.investor_user_id))]
-          const userProfiles = await getUserProfiles(investorUserIds)
-          userMap = new Map(userProfiles.map(u => [u.id, { name: u.name, email: u.email }]))
-        }
-
-        // Step 1: Prepare investment PDA addresses
-        const investmentAddresses = investments.map(inv => inv.investment_pda as unknown as Address)
-
-        // Step 2: Batch fetch all investment accounts
-        const chunkSize = 100
-        const fetched: InvestmentRow[] = []
-
-        for (let i = 0; i < investmentAddresses.length; i += chunkSize) {
-          const chunk = investmentAddresses.slice(i, i + chunkSize)
-
-          try {
-            const accounts = await fetchAllMaybeInvestment(client.rpc, chunk)
-            for (let j = 0; j < chunk.length; j++) {
-              const investment = investments[i + j]
-              const userInfo = userMap.get(investment.investor_user_id)
-              fetched.push({
-                ...investment,
-                investment: accounts[j],
-                reit_name: investment.reit_id ? reitMap.get(investment.reit_id) : undefined,
-                user_name: userInfo?.name,
-                user_email: userInfo?.email,
-              })
-            }
-          } catch (e) {
-            // If batch fails, add rows without investment data
-            for (let j = 0; j < chunk.length; j++) {
-              const investment = investments[i + j]
-              const userInfo = userMap.get(investment.investor_user_id)
-              fetched.push({
-                ...investment,
-                investment: null,
-                reit_name: investment.reit_id ? reitMap.get(investment.reit_id) : undefined,
-                user_name: userInfo?.name,
-                user_email: userInfo?.email,
-              })
-            }
-          }
-        }
-
-        if (mounted) setRows(fetched)
-      } catch (err: any) {
-        console.error('Failed to load investments', err)
-        if (mounted) setError(err?.message ?? String(err))
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    }
-
-    if (user || isAdmin) {
-      load()
-    }
-    return () => {
-      mounted = false
-    }
-  }, [client, user, isAdmin])
-
-  if (loading) return <span className="loading loading-spinner loading-md" />
-  if (error) return <div className="text-red-600">Error: {error}</div>
-
-  if (!loading && rows.length === 0) {
+  if (!isLoading && rows.length === 0) {
     return (
       <div>
         <h3 className="text-lg font-semibold mb-4">Browse Investments</h3>

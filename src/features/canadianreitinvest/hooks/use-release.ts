@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { getReleaseInstructionAsync } from '@/generated'
 import { useWalletUiSigner, useWalletUiSignAndSend } from '@wallet-ui/react-gill'
 import { UiWalletAccount } from '@wallet-ui/react'
@@ -16,6 +16,7 @@ export function useRelease({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
   const { client } = useSolana()
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async ({ investmentPda, reitId }: { investmentPda: string; reitId: string }) => {
@@ -139,6 +140,46 @@ export function useRelease({ account }: { account: UiWalletAccount }) {
       console.log('[RELEASE DEBUG] Transaction signature:', sig)
       console.log('[RELEASE DEBUG] Transaction URL:', `https://explorer.solana.com/tx/${sig}?cluster=localnet`)
 
+      // CRITICAL: Wait for transaction confirmation before proceeding
+      console.log('[RELEASE DEBUG] Waiting for transaction confirmation...')
+      let confirmationStatus = null
+      let retries = 0
+      const maxRetries = 30 // ~30 seconds with 1 second polling
+      
+      while (retries < maxRetries) {
+        try {
+          const signatureStatus = await client.rpc.getSignatureStatuses([sig as any]).send()
+          const status = signatureStatus.value?.[0]
+          
+          if (status?.err) {
+            console.error('[RELEASE DEBUG] Transaction failed with error:', status.err)
+            throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`)
+          }
+          
+          if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') {
+            confirmationStatus = status.confirmationStatus
+            console.log(`[RELEASE DEBUG] Transaction confirmed at "${confirmationStatus}" commitment level`)
+            break
+          }
+          
+          retries++
+          if (retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second before retry
+          }
+        } catch (statusError) {
+          console.warn('[RELEASE DEBUG] Error checking transaction status:', statusError)
+          retries++
+          if (retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000))
+          }
+        }
+      }
+      
+      if (!confirmationStatus) {
+        console.error('[RELEASE DEBUG] Transaction confirmation timeout - did not reach confirmed status within 30 seconds')
+        throw new Error('Transaction confirmation timeout. The investment may not have been released.')
+      }
+
       // Verify the transaction was successful by checking updated accounts
       console.log('[RELEASE DEBUG] Verifying transaction results...')
 
@@ -174,6 +215,11 @@ export function useRelease({ account }: { account: UiWalletAccount }) {
       toast.success(`Investment released successfully! TX: ${sig.slice(0, 8)}...${sig.slice(-8)}`)
 
       return sig
+    },
+    onSuccess: () => {
+      // Invalidate queries to trigger refetch for all users
+      queryClient.invalidateQueries({ queryKey: ['investments'] })
+      queryClient.invalidateQueries({ queryKey: ['fundraiser'] })
     },
     onError: (err) => {
       console.error(err)

@@ -9,3 +9,4 @@
 export * from './fundraiser';
 export * from './investment';
 export * from './investor';
+export * from './investorFundraiser';

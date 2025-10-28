@@ -9,8 +9,9 @@ import { getAssociatedTokenAddressSync, ASSOCIATED_TOKEN_PROGRAM_ID } from '@sol
 import { useSolana } from '@/components/solana/use-solana'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
-import { fetchMaybeInvestor } from '@/generated/accounts/investor'
+import { fetchMaybeInvestorFundraiser } from '@/generated/accounts/investorFundraiser'
 import { supabase } from '@/lib/supabase'
+import { deriveInvestorFundraiserPda, deriveInvestmentPda } from '@/lib/pda-utils'
 
 export function useInvest({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
@@ -20,43 +21,79 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
 
   return useMutation({
     mutationFn: async ({ amount, reitIdHash, reitId, userId }: { amount: number; reitIdHash: Uint8Array; reitId: string; userId: string }) => {
+      console.log('=== INVEST MUTATION START ===')
+      console.log('[INVEST] Input parameters:', {
+        amount,
+        reitId,
+        userId,
+        reitIdHash: Array.from(reitIdHash),
+        reitIdHashLength: reitIdHash.length,
+      })
+
       if (!account?.publicKey) throw new Error('Wallet not connected')
 
       const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
       const investorPublicKey = new PublicKey(account.publicKey)
 
+      console.log('[INVEST] Program and wallet info:', {
+        programId: programId.toBase58(),
+        investorPublicKey: investorPublicKey.toBase58(),
+        programAddress: CANADIANREITINVEST_PROGRAM_ADDRESS,
+      })
+
       // Step 1: Derive fundraiser PDA from reit_id_hash
       const seedBuffer = Buffer.from(reitIdHash)
-      console.debug('INVEST DEBUG: programId=', programId.toBase58())
-      console.debug('INVEST DEBUG: reitIdHash (bytes)=', reitIdHash)
-      console.debug('INVEST DEBUG: reitIdHash (hex)=', seedBuffer.toString('hex'))
-      console.debug('INVEST DEBUG: seedBuffer.length=', seedBuffer.length)
-      const [fundraiserPda] = await PublicKey.findProgramAddress(
+      console.log('[INVEST] Fundraiser PDA derivation:', {
+        seed1: 'fundraiser',
+        seed2Hex: seedBuffer.toString('hex'),
+        seed2Length: seedBuffer.length,
+        seed2Bytes: Array.from(seedBuffer),
+      })
+
+      const [fundraiserPda, fundraiserBump] = await PublicKey.findProgramAddress(
         [Buffer.from('fundraiser'), seedBuffer],
         programId
       )
-      console.debug('INVEST DEBUG: derived fundraiserPda=', fundraiserPda.toBase58())
+      console.log('[INVEST] Derived fundraiser PDA:', {
+        address: fundraiserPda.toBase58(),
+        bump: fundraiserBump,
+      })
 
       // Step 2: Fetch fundraiser account
+      console.log('[INVEST] Fetching fundraiser account from chain...')
       const fundraiserAccount = await fetchMaybeFundraiser(
         client.rpc,
         fundraiserPda.toBase58() as Address
       )
-      console.debug('INVEST DEBUG: fundraiserAccount.exists=', fundraiserAccount?.exists)
+      console.log('[INVEST] Fundraiser account fetch result:', {
+        exists: fundraiserAccount?.exists,
+        address: fundraiserAccount?.address,
+      })
+
       if (!fundraiserAccount?.exists) {
-        console.error('Fundraiser account does not exist at', fundraiserPda.toBase58())
+        console.error('[INVEST ERROR] Fundraiser account does not exist at', fundraiserPda.toBase58())
         throw new Error('Fundraiser not found')
       }
 
       const fundraiser = fundraiserAccount.data
-      console.debug('INVEST DEBUG: fundraiser.usdcMint=', fundraiser.usdcMint)
-      console.debug('INVEST DEBUG: fundraiser.escrowVault=', fundraiser.escrowVault)
+      console.log('[INVEST] Fundraiser account data:', {
+        usdcMint: fundraiser.usdcMint,
+        escrowVault: fundraiser.escrowVault,
+        totalRaised: fundraiser.totalRaised?.toString(),
+        bump: fundraiser.bump,
+      })
 
       // Step 3: Get investor's USDC ATA
       const usdcMint = new PublicKey(fundraiser.usdcMint)
-      console.log('usdcMint:', usdcMint.toBase58())
-      console.log('fundraiser.usdcMint:', fundraiser.usdcMint)
+      console.log('[INVEST] USDC mint info:', {
+        usdcMintFromFundraiser: fundraiser.usdcMint,
+        usdcMintPubkey: usdcMint.toBase58(),
+      })
+
       const investorUsdcAta = getAssociatedTokenAddressSync(usdcMint, investorPublicKey)
+      console.log('[INVEST] Investor USDC ATA:', {
+        address: investorUsdcAta.toBase58(),
+      })
 
       // Step 4: We no longer require the frontend to pre-create the USDC ATA.
       // The program will create the associated token account if it's missing (init_if_needed).
@@ -64,47 +101,77 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       // (No client-side existence check required.)
 
       // Step 5: Derive investor PDA (will be created by init_if_needed in the invest instruction)
-      const [investorPda] = await PublicKey.findProgramAddress(
+      const [investorPda, investorBump] = await PublicKey.findProgramAddress(
         [Buffer.from('investor'), investorPublicKey.toBuffer()],
         programId
       )
-      console.debug('INVEST DEBUG: derived investorPda=', investorPda.toBase58())
+      console.log('[INVEST] Investor PDA derivation:', {
+        address: investorPda.toBase58(),
+        bump: investorBump,
+        seeds: ['investor', investorPublicKey.toBase58()],
+      })
 
-      // Step 6: Fetch current investor account to get investment counter for PDA derivation
-      const investorAccount = await fetchMaybeInvestor(
+      // Step 6: Derive InvestorFundraiser PDA and fetch current counter
+      const [investorFundraiserPda, investorFundraiserBump] = deriveInvestorFundraiserPda(investorPublicKey, fundraiserPda)
+      console.log('[INVEST] InvestorFundraiser PDA derivation:', {
+        address: investorFundraiserPda.toBase58(),
+        bump: investorFundraiserBump,
+        seeds: ['investor_fundraiser', investorPublicKey.toBase58(), fundraiserPda.toBase58()],
+      })
+
+      console.log('[INVEST] Fetching InvestorFundraiser account from chain...')
+      const investorFundraiserAccount = await fetchMaybeInvestorFundraiser(
         client.rpc,
-        investorPda.toBase58() as Address
+        investorFundraiserPda.toBase58() as Address
       )
-      console.debug('INVEST DEBUG: investorAccount.exists=', investorAccount?.exists)
+      console.log('[INVEST] InvestorFundraiser account fetch result:', {
+        exists: investorFundraiserAccount?.exists,
+        address: investorFundraiserAccount?.address,
+      })
 
-      // Get current counter (0 if investor account doesn't exist yet)
-      const currentCounter = investorAccount?.exists
-        ? Number(investorAccount.data.investmentCounter)
+      // Get current counter for this fundraiser (0 if InvestorFundraiser account doesn't exist yet)
+      const currentCounter = investorFundraiserAccount?.exists
+        ? Number(investorFundraiserAccount.data.investmentCounter)
         : 0
-      console.debug('INVEST DEBUG: currentCounter=', currentCounter)
+      console.log('[INVEST] Investment counter for this fundraiser:', {
+        currentCounter,
+        accountExists: investorFundraiserAccount?.exists,
+      })
 
-      // Step 7: Derive investment PDA using the current counter
-      const investmentCounterBuf = Buffer.alloc(8)
-      investmentCounterBuf.writeBigUInt64LE(BigInt(currentCounter))
-
-      const [investmentPda] = await PublicKey.findProgramAddress(
-        [
-          Buffer.from('investment'),
-          investorPublicKey.toBuffer(),
-          fundraiserPda.toBuffer(),
-          investmentCounterBuf,
-        ],
-        programId
-      )
-      console.debug('INVEST DEBUG: derived investmentPda=', investmentPda.toBase58())
+      // Step 7: Derive investment PDA using the per-fundraiser counter
+      const [investmentPda, investmentBump] = deriveInvestmentPda(investorPublicKey, fundraiserPda, currentCounter)
+      console.log('[INVEST] Investment PDA derivation:', {
+        address: investmentPda.toBase58(),
+        bump: investmentBump,
+        counter: currentCounter,
+        seeds: ['investment', investorPublicKey.toBase58(), fundraiserPda.toBase58(), currentCounter],
+      })
 
       // Step 7: Get escrow vault from fundraiser
       const escrowVault = new PublicKey(fundraiser.escrowVault)
+      console.log('[INVEST] Escrow vault:', {
+        address: escrowVault.toBase58(),
+      })
 
       // Step 8: Build and send invest instruction
+      console.log('[INVEST] Building invest instruction with accounts:', {
+        investorSigner: account.publicKey,
+        investor: investorPda.toBase58(),
+        investorFundraiser: investorFundraiserPda.toBase58(),
+        fundraiser: fundraiserPda.toBase58(),
+        investment: investmentPda.toBase58(),
+        investorUsdcAta: investorUsdcAta.toBase58(),
+        usdcMint: usdcMint.toBase58(),
+        associatedTokenProgram: ASSOCIATED_TOKEN_PROGRAM_ID.toBase58(),
+        escrowVault: escrowVault.toBase58(),
+        amount: amount.toString(),
+        reitIdHash: Array.from(reitIdHash),
+      })
+
       const instruction = await getInvestInstructionAsync({
         investorSigner: signer,
         investor: investorPda.toBase58() as Address,
+        investorFundraiser: investorFundraiserPda.toBase58() as Address,
         fundraiser: fundraiserPda.toBase58() as Address,
         investment: investmentPda.toBase58() as Address,
         investorUsdcAta: investorUsdcAta.toBase58() as Address,
@@ -113,9 +180,12 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
         escrowVault: escrowVault.toBase58() as Address,
         amount: BigInt(amount),
         reitIdHash: reitIdHash as unknown as Uint8Array,
+        counter: BigInt(currentCounter),
       })
 
+      console.log('[INVEST] Instruction built successfully, sending transaction...')
       const sig = await signAndSend(instruction, signer)
+      console.log('[INVEST] Transaction sent with signature:', sig)
       toast.success('Investment submitted')
 
       // Wait for transaction to be confirmed before completing mutation
@@ -129,14 +199,19 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
           const signatureStatus = await client.rpc.getSignatureStatuses([sig as any]).send()
           const status = signatureStatus.value?.[0]
 
+          console.log(`[INVEST] Confirmation check attempt ${retries + 1}/${maxRetries}:`, {
+            status: status?.confirmationStatus,
+            err: status?.err,
+          })
+
           if (status?.err) {
-            console.error('[INVEST] Transaction failed with error:', status.err)
+            console.error('[INVEST ERROR] Transaction failed with error:', status.err)
             throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`)
           }
 
           if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') {
             confirmationStatus = status.confirmationStatus
-            console.log(`[INVEST] Transaction confirmed at "${confirmationStatus}" commitment level`)
+            console.log(`[INVEST] ✓ Transaction confirmed at "${confirmationStatus}" commitment level`)
             break
           }
 
@@ -154,11 +229,12 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       }
 
       if (!confirmationStatus) {
-        console.error('[INVEST] Transaction confirmation timeout - did not reach confirmed status within 30 seconds')
+        console.error('[INVEST ERROR] Transaction confirmation timeout - did not reach confirmed status within 30 seconds')
         throw new Error('Transaction confirmation timeout. The investment may not have been created.')
       }
 
       // Insert investment record into Supabase for atomicity
+      console.log('[INVEST] Inserting investment record into Supabase...')
       try {
         const { error: dbError } = await supabase
           .from('investments')
@@ -169,20 +245,22 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
           })
 
         if (dbError) {
-          console.error('Failed to insert investment into database:', dbError)
+          console.error('[INVEST ERROR] Failed to insert investment into database:', dbError)
           // Note: Onchain transaction succeeded, but DB insert failed
           // This is a rare case that may require manual reconciliation
           toast.error('Investment created onchain but database update failed. Please contact support.')
         } else {
-          console.log('Investment record inserted into database successfully')
+          console.log('[INVEST] ✓ Investment record inserted into database successfully')
           // Invalidate investments query to trigger UI update
           queryClient.invalidateQueries({ queryKey: ['investments'] })
         }
       } catch (dbErr) {
-        console.error('Exception during database insertion:', dbErr)
+        console.error('[INVEST ERROR] Exception during database insertion:', dbErr)
         toast.error('Investment created onchain but database update failed. Please contact support.')
       }
 
+      console.log('[INVEST] ==> Investment flow completed successfully')
+      console.log('=== INVEST MUTATION END ===')
       return sig
     },
     onSuccess: () => {
@@ -191,7 +269,9 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       queryClient.invalidateQueries({ queryKey: ['fundraiser'] })
     },
     onError: (err) => {
-      console.error(err)
+      console.error('[INVEST ERROR] Mutation failed:', err)
+      console.error('[INVEST ERROR] Error stack:', err instanceof Error ? err.stack : 'No stack trace')
+      console.log('=== INVEST MUTATION END (ERROR) ===')
       toast.error(err instanceof Error ? err.message : 'Investment failed')
     },
   })

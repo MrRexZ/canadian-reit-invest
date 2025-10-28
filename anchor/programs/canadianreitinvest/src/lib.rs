@@ -33,8 +33,8 @@ pub mod canadianreitinvest {
         instructions::close_investor::handler(ctx)
     }
 
-    pub fn invest(ctx: Context<Invest>, amount: u64, reit_id_hash: [u8; 16]) -> Result<()> {
-        instructions::invest::handler(ctx, amount, reit_id_hash)
+    pub fn invest(ctx: Context<Invest>, amount: u64, reit_id_hash: [u8; 16], counter: u64) -> Result<()> {
+        instructions::invest::handler(ctx, amount, reit_id_hash, counter)
     }
 
     pub fn release(ctx: Context<Release>, reit_id_hash: [u8; 16]) -> Result<()> {

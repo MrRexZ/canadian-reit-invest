@@ -11,7 +11,6 @@ import { useLocation } from 'react-router'
 import { useState } from 'react'
 import BrowseReits from './ui/canadianreitinvest-ui-browse-reits'
 import BrowseInvestments from './ui/canadianreitinvest-ui-browse-investments'
-import { LocalnetMintTokens } from '@/features/localnet-management/ui/localnet-mint-tokens'
 
 export default function CanadianreitinvestFeature() {
   const { account } = useSolana()
@@ -90,7 +89,7 @@ export default function CanadianreitinvestFeature() {
 }
 
 function AdminTabs({ account }: { account: any }) {
-  const [tab, setTab] = useState<'create' | 'browse' | 'investments' | 'dividends' | 'mint'>('create')
+  const [tab, setTab] = useState<'create' | 'browse' | 'investments' | 'dividends'>('create')
 
   return (
     <div className="flex gap-0">
@@ -113,12 +112,6 @@ function AdminTabs({ account }: { account: any }) {
             onClick={() => setTab('investments')}
           >
             Browse Investments
-          </button>
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'mint' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('mint')}
-          >
-            Mint Tokens
           </button>
           <button
             className={`text-left px-3 py-2 rounded-md ${tab === 'dividends' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
@@ -158,18 +151,7 @@ function AdminTabs({ account }: { account: any }) {
             </div>
             <AdminDividendPage account={account} />
           </div>
-        ) : (
-          <div>
-            <div className="pb-4">
-              <h1 className="text-4xl font-bold">Mint Tokens</h1>
-              <p className="mt-2 text-muted-foreground">Mint USDC tokens for testing on localnet</p>
-            </div>
-
-            <div className="space-y-6 max-w-md">
-              <LocalnetMintTokens account={account} />
-            </div>
-          </div>
-        )}
+        ) : null}
       </section>
     </div>
   )

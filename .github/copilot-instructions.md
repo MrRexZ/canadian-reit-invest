@@ -52,6 +52,7 @@ Key features:
 - **Deployment**: Use Anchor CLI for Solana deployment. Frontend deployed via Vercel/Netlify.
 - **Environment**: Local development with `solana-test-validator`, test-ledger for testing.
 - Don't ever install codama deps at anchor subfolder. When need to run Codama, use the codama installed at root folder. don't install "@codama/nodes-from-anchor` at anchor subfolder. Use the `npm run codama:js` command to generate.
+- Ask Solana MCP server for things related to Solana (such as Anchor). See MCP Server Configuration section below for details.
 
 When assisting with code, prioritize security, correctness, and alignment with the REIT investment flow. If unsure, ask for clarification on business logic.
 

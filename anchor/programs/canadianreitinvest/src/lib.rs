@@ -16,6 +16,7 @@ use instructions::wire::*;
 use instructions::create_reit_mint::*;
 use instructions::update_reit_mint::*;
 use instructions::issue_share::*;
+use instructions::issue_dividend::*;
 
 #[program]
 pub mod canadianreitinvest {
@@ -59,5 +60,9 @@ pub mod canadianreitinvest {
 
     pub fn issue_share(ctx: Context<IssueShare>, investor_pubkey: Pubkey, reit_id_hash: [u8; 16], share_price: u64) -> Result<()> {
         instructions::issue_share::handler(ctx, investor_pubkey, reit_id_hash, share_price)
+    }
+
+    pub fn issue_dividend(ctx: Context<IssueDividend>, amount: u64) -> Result<()> {
+        instructions::issue_dividend::handler(ctx, amount)
     }
 }

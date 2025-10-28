@@ -5,6 +5,7 @@ import { UiWalletAccount } from '@wallet-ui/react'
 import { Address } from 'gill'
 import { PublicKey } from '@solana/web3.js'
 import { toast } from 'sonner'
+import { getAssociatedTokenAddressSync } from '@solana/spl-token'
 import { useSolana } from '@/components/solana/use-solana'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
@@ -94,12 +95,28 @@ export function useRefund({ account }: { account: UiWalletAccount }) {
         throw new Error('Signer is not the fundraiser admin')
       }
 
+      // Get USDC mint from fundraiser
+      const usdcMint = new PublicKey(fundraiser.usdcMint)
+      const investor = new PublicKey(investment.investor)
+
+      // Get admin USDC ATA
+      const adminUsdcAta = getAssociatedTokenAddressSync(usdcMint, adminPublicKey)
+      console.log('[REFUND DEBUG] Admin USDC ATA:', adminUsdcAta.toBase58())
+
+      // Get investor USDC ATA
+      const investorUsdcAta = getAssociatedTokenAddressSync(usdcMint, investor)
+      console.log('[REFUND DEBUG] Investor USDC ATA:', investorUsdcAta.toBase58())
+
       // Build refund instruction
       console.log('[REFUND DEBUG] Building refund instruction...')
       const instruction = await getRefundInstructionAsync({
         admin: signer,
         fundraiser: fundraiserPda.toBase58() as Address,
         investment: investmentPda as Address,
+        investor: investor.toBase58() as Address,
+        adminUsdcAta: adminUsdcAta.toBase58() as Address,
+        investorUsdcAta: investorUsdcAta.toBase58() as Address,
+        usdcMint: usdcMint.toBase58() as Address,
         reitIdHash: reitIdHash,
       })
       console.log('[REFUND DEBUG] Refund instruction built successfully')
@@ -166,9 +183,10 @@ export function useRefund({ account }: { account: UiWalletAccount }) {
 
       console.log('[REFUND DEBUG] Transaction verification complete')
 
-      toast.success(`Investment refunded successfully! TX: ${sig.slice(0, 8)}...${sig.slice(-8)}`)
+      const refundAmount = Number(investment.usdcAmount) / 1_000_000 // Convert from smallest unit to USDC
+      toast.success(`Investment refunded successfully! ${refundAmount} USDC returned to investor. TX: ${sig.slice(0, 8)}...${sig.slice(-8)}`)
 
-      return sig
+      return { sig, amount: refundAmount, investor: investment.investor }
     },
     onSuccess: () => {
       // Invalidate queries to trigger refetch for all users

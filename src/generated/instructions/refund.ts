@@ -51,6 +51,13 @@ export type RefundInstruction<
   TAccountAdmin extends string | AccountMeta<string> = string,
   TAccountFundraiser extends string | AccountMeta<string> = string,
   TAccountInvestment extends string | AccountMeta<string> = string,
+  TAccountInvestor extends string | AccountMeta<string> = string,
+  TAccountAdminUsdcAta extends string | AccountMeta<string> = string,
+  TAccountInvestorUsdcAta extends string | AccountMeta<string> = string,
+  TAccountUsdcMint extends string | AccountMeta<string> = string,
+  TAccountTokenProgram extends
+    | string
+    | AccountMeta<string> = 'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA',
   TRemainingAccounts extends readonly AccountMeta<string>[] = [],
 > = Instruction<TProgram> &
   InstructionWithData<ReadonlyUint8Array> &
@@ -66,6 +73,21 @@ export type RefundInstruction<
       TAccountInvestment extends string
         ? WritableAccount<TAccountInvestment>
         : TAccountInvestment,
+      TAccountInvestor extends string
+        ? ReadonlyAccount<TAccountInvestor>
+        : TAccountInvestor,
+      TAccountAdminUsdcAta extends string
+        ? WritableAccount<TAccountAdminUsdcAta>
+        : TAccountAdminUsdcAta,
+      TAccountInvestorUsdcAta extends string
+        ? WritableAccount<TAccountInvestorUsdcAta>
+        : TAccountInvestorUsdcAta,
+      TAccountUsdcMint extends string
+        ? ReadonlyAccount<TAccountUsdcMint>
+        : TAccountUsdcMint,
+      TAccountTokenProgram extends string
+        ? ReadonlyAccount<TAccountTokenProgram>
+        : TAccountTokenProgram,
       ...TRemainingAccounts,
     ]
   >;
@@ -108,10 +130,25 @@ export type RefundAsyncInput<
   TAccountAdmin extends string = string,
   TAccountFundraiser extends string = string,
   TAccountInvestment extends string = string,
+  TAccountInvestor extends string = string,
+  TAccountAdminUsdcAta extends string = string,
+  TAccountInvestorUsdcAta extends string = string,
+  TAccountUsdcMint extends string = string,
+  TAccountTokenProgram extends string = string,
 > = {
   admin: TransactionSigner<TAccountAdmin>;
   fundraiser?: Address<TAccountFundraiser>;
   investment: Address<TAccountInvestment>;
+  /** Investor receiving the refund (derived from investment) */
+  investor: Address<TAccountInvestor>;
+  /** Admin's USDC token account (source of refund) */
+  adminUsdcAta: Address<TAccountAdminUsdcAta>;
+  /** Investor's USDC token account (destination for refund) */
+  investorUsdcAta: Address<TAccountInvestorUsdcAta>;
+  /** USDC mint for validation */
+  usdcMint: Address<TAccountUsdcMint>;
+  /** Token program for transfer */
+  tokenProgram?: Address<TAccountTokenProgram>;
   reitIdHash: RefundInstructionDataArgs['reitIdHash'];
 };
 
@@ -119,12 +156,22 @@ export async function getRefundInstructionAsync<
   TAccountAdmin extends string,
   TAccountFundraiser extends string,
   TAccountInvestment extends string,
+  TAccountInvestor extends string,
+  TAccountAdminUsdcAta extends string,
+  TAccountInvestorUsdcAta extends string,
+  TAccountUsdcMint extends string,
+  TAccountTokenProgram extends string,
   TProgramAddress extends Address = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
 >(
   input: RefundAsyncInput<
     TAccountAdmin,
     TAccountFundraiser,
-    TAccountInvestment
+    TAccountInvestment,
+    TAccountInvestor,
+    TAccountAdminUsdcAta,
+    TAccountInvestorUsdcAta,
+    TAccountUsdcMint,
+    TAccountTokenProgram
   >,
   config?: { programAddress?: TProgramAddress }
 ): Promise<
@@ -132,7 +179,12 @@ export async function getRefundInstructionAsync<
     TProgramAddress,
     TAccountAdmin,
     TAccountFundraiser,
-    TAccountInvestment
+    TAccountInvestment,
+    TAccountInvestor,
+    TAccountAdminUsdcAta,
+    TAccountInvestorUsdcAta,
+    TAccountUsdcMint,
+    TAccountTokenProgram
   >
 > {
   // Program address.
@@ -144,6 +196,11 @@ export async function getRefundInstructionAsync<
     admin: { value: input.admin ?? null, isWritable: true },
     fundraiser: { value: input.fundraiser ?? null, isWritable: false },
     investment: { value: input.investment ?? null, isWritable: true },
+    investor: { value: input.investor ?? null, isWritable: false },
+    adminUsdcAta: { value: input.adminUsdcAta ?? null, isWritable: true },
+    investorUsdcAta: { value: input.investorUsdcAta ?? null, isWritable: true },
+    usdcMint: { value: input.usdcMint ?? null, isWritable: false },
+    tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -167,6 +224,10 @@ export async function getRefundInstructionAsync<
       ],
     });
   }
+  if (!accounts.tokenProgram.value) {
+    accounts.tokenProgram.value =
+      'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+  }
 
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   return Object.freeze({
@@ -174,6 +235,11 @@ export async function getRefundInstructionAsync<
       getAccountMeta(accounts.admin),
       getAccountMeta(accounts.fundraiser),
       getAccountMeta(accounts.investment),
+      getAccountMeta(accounts.investor),
+      getAccountMeta(accounts.adminUsdcAta),
+      getAccountMeta(accounts.investorUsdcAta),
+      getAccountMeta(accounts.usdcMint),
+      getAccountMeta(accounts.tokenProgram),
     ],
     data: getRefundInstructionDataEncoder().encode(
       args as RefundInstructionDataArgs
@@ -183,7 +249,12 @@ export async function getRefundInstructionAsync<
     TProgramAddress,
     TAccountAdmin,
     TAccountFundraiser,
-    TAccountInvestment
+    TAccountInvestment,
+    TAccountInvestor,
+    TAccountAdminUsdcAta,
+    TAccountInvestorUsdcAta,
+    TAccountUsdcMint,
+    TAccountTokenProgram
   >);
 }
 
@@ -191,10 +262,25 @@ export type RefundInput<
   TAccountAdmin extends string = string,
   TAccountFundraiser extends string = string,
   TAccountInvestment extends string = string,
+  TAccountInvestor extends string = string,
+  TAccountAdminUsdcAta extends string = string,
+  TAccountInvestorUsdcAta extends string = string,
+  TAccountUsdcMint extends string = string,
+  TAccountTokenProgram extends string = string,
 > = {
   admin: TransactionSigner<TAccountAdmin>;
   fundraiser: Address<TAccountFundraiser>;
   investment: Address<TAccountInvestment>;
+  /** Investor receiving the refund (derived from investment) */
+  investor: Address<TAccountInvestor>;
+  /** Admin's USDC token account (source of refund) */
+  adminUsdcAta: Address<TAccountAdminUsdcAta>;
+  /** Investor's USDC token account (destination for refund) */
+  investorUsdcAta: Address<TAccountInvestorUsdcAta>;
+  /** USDC mint for validation */
+  usdcMint: Address<TAccountUsdcMint>;
+  /** Token program for transfer */
+  tokenProgram?: Address<TAccountTokenProgram>;
   reitIdHash: RefundInstructionDataArgs['reitIdHash'];
 };
 
@@ -202,15 +288,34 @@ export function getRefundInstruction<
   TAccountAdmin extends string,
   TAccountFundraiser extends string,
   TAccountInvestment extends string,
+  TAccountInvestor extends string,
+  TAccountAdminUsdcAta extends string,
+  TAccountInvestorUsdcAta extends string,
+  TAccountUsdcMint extends string,
+  TAccountTokenProgram extends string,
   TProgramAddress extends Address = typeof CANADIANREITINVEST_PROGRAM_ADDRESS,
 >(
-  input: RefundInput<TAccountAdmin, TAccountFundraiser, TAccountInvestment>,
+  input: RefundInput<
+    TAccountAdmin,
+    TAccountFundraiser,
+    TAccountInvestment,
+    TAccountInvestor,
+    TAccountAdminUsdcAta,
+    TAccountInvestorUsdcAta,
+    TAccountUsdcMint,
+    TAccountTokenProgram
+  >,
   config?: { programAddress?: TProgramAddress }
 ): RefundInstruction<
   TProgramAddress,
   TAccountAdmin,
   TAccountFundraiser,
-  TAccountInvestment
+  TAccountInvestment,
+  TAccountInvestor,
+  TAccountAdminUsdcAta,
+  TAccountInvestorUsdcAta,
+  TAccountUsdcMint,
+  TAccountTokenProgram
 > {
   // Program address.
   const programAddress =
@@ -221,6 +326,11 @@ export function getRefundInstruction<
     admin: { value: input.admin ?? null, isWritable: true },
     fundraiser: { value: input.fundraiser ?? null, isWritable: false },
     investment: { value: input.investment ?? null, isWritable: true },
+    investor: { value: input.investor ?? null, isWritable: false },
+    adminUsdcAta: { value: input.adminUsdcAta ?? null, isWritable: true },
+    investorUsdcAta: { value: input.investorUsdcAta ?? null, isWritable: true },
+    usdcMint: { value: input.usdcMint ?? null, isWritable: false },
+    tokenProgram: { value: input.tokenProgram ?? null, isWritable: false },
   };
   const accounts = originalAccounts as Record<
     keyof typeof originalAccounts,
@@ -230,12 +340,23 @@ export function getRefundInstruction<
   // Original args.
   const args = { ...input };
 
+  // Resolve default values.
+  if (!accounts.tokenProgram.value) {
+    accounts.tokenProgram.value =
+      'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA' as Address<'TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA'>;
+  }
+
   const getAccountMeta = getAccountMetaFactory(programAddress, 'programId');
   return Object.freeze({
     accounts: [
       getAccountMeta(accounts.admin),
       getAccountMeta(accounts.fundraiser),
       getAccountMeta(accounts.investment),
+      getAccountMeta(accounts.investor),
+      getAccountMeta(accounts.adminUsdcAta),
+      getAccountMeta(accounts.investorUsdcAta),
+      getAccountMeta(accounts.usdcMint),
+      getAccountMeta(accounts.tokenProgram),
     ],
     data: getRefundInstructionDataEncoder().encode(
       args as RefundInstructionDataArgs
@@ -245,7 +366,12 @@ export function getRefundInstruction<
     TProgramAddress,
     TAccountAdmin,
     TAccountFundraiser,
-    TAccountInvestment
+    TAccountInvestment,
+    TAccountInvestor,
+    TAccountAdminUsdcAta,
+    TAccountInvestorUsdcAta,
+    TAccountUsdcMint,
+    TAccountTokenProgram
   >);
 }
 
@@ -258,6 +384,16 @@ export type ParsedRefundInstruction<
     admin: TAccountMetas[0];
     fundraiser: TAccountMetas[1];
     investment: TAccountMetas[2];
+    /** Investor receiving the refund (derived from investment) */
+    investor: TAccountMetas[3];
+    /** Admin's USDC token account (source of refund) */
+    adminUsdcAta: TAccountMetas[4];
+    /** Investor's USDC token account (destination for refund) */
+    investorUsdcAta: TAccountMetas[5];
+    /** USDC mint for validation */
+    usdcMint: TAccountMetas[6];
+    /** Token program for transfer */
+    tokenProgram: TAccountMetas[7];
   };
   data: RefundInstructionData;
 };
@@ -270,7 +406,7 @@ export function parseRefundInstruction<
     InstructionWithAccounts<TAccountMetas> &
     InstructionWithData<ReadonlyUint8Array>
 ): ParsedRefundInstruction<TProgram, TAccountMetas> {
-  if (instruction.accounts.length < 3) {
+  if (instruction.accounts.length < 8) {
     // TODO: Coded error.
     throw new Error('Not enough accounts');
   }
@@ -286,6 +422,11 @@ export function parseRefundInstruction<
       admin: getNextAccount(),
       fundraiser: getNextAccount(),
       investment: getNextAccount(),
+      investor: getNextAccount(),
+      adminUsdcAta: getNextAccount(),
+      investorUsdcAta: getNextAccount(),
+      usdcMint: getNextAccount(),
+      tokenProgram: getNextAccount(),
     },
     data: getRefundInstructionDataDecoder().decode(instruction.data),
   };

@@ -14,12 +14,12 @@ import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { useInvestmentsQuery } from '../data-access/use-investments-query'
 import { Address } from 'gill'
 
-export default function BrowseInvestments({ isAdmin = false }: { isAdmin?: boolean }) {
+export default function BrowseInvestments({ isAdmin = false, userId }: { isAdmin?: boolean; userId?: string }) {
   const { client } = useSolana()
   const { account } = useSolana()
   
   // Use React Query hook for data fetching and automatic polling/invalidation
-  const { data: rows = [], isLoading, error } = useInvestmentsQuery({ isAdmin })
+  const { data: rows = [], isLoading, error } = useInvestmentsQuery({ isAdmin, userId })
   
   const releaseMutation = useRelease({ account: account! })
   const refundMutation = useRefund({ account: account! })

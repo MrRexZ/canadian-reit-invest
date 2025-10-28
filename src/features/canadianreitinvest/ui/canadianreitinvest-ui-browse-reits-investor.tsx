@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { UiWalletAccount } from '@wallet-ui/react'
 import { CanadianreitinvestUiInvest } from './canadianreitinvest-ui-invest'
@@ -8,116 +8,23 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { supabase } from '@/lib/supabase'
-import { useSolana } from '@/components/solana/use-solana'
-import { PublicKey } from '@solana/web3.js'
-import { fetchAllMaybeFundraiser } from '@/generated/accounts/fundraiser'
-import { Address } from 'gill'
-import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
-import { parse as uuidParse } from 'uuid'
-
-type ReitData = {
-  id: string
-  reit_name?: string
-  fundraiser?: any
-}
+import { useReitsQuery } from '../data-access/use-reits-query'
+import type { ReitData } from '../data-access/use-reits-query'
 
 export default function BrowseReitsInvestor({ account }: { account: UiWalletAccount }) {
-  const { client, cluster } = useSolana()
-  const [loading, setLoading] = useState(false)
-  const [reits, setReits] = useState<ReitData[]>([])
-  const [error, setError] = useState<string | null>(null)
   const [selectedReit, setSelectedReit] = useState<ReitData | null>(null)
 
-  useEffect(() => {
-    let mounted = true
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const { data: reitsList, error: dbError } = await supabase.from('reits').select('*')
-        if (dbError) throw new Error(dbError.message)
-
-        if (!reitsList || reitsList.length === 0) {
-          if (mounted) setReits([])
-          return
-        }
-
-        // Step 1: Derive all fundraiser PDAs locally
-        const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
-        const pdaPairs = await Promise.all(
-          reitsList.map(async (r: any) => {
-            const id: string = r.id
-            const reitName: string | undefined = r.reit_name
-            const idBytes = uuidParse(id) as unknown as Uint8Array
-            console.log(`=== BROWSE REITS - PDA DERIVATION for ${reitName} ===`)
-            console.log('REIT ID (UUID):', id)
-            console.log('idBytes (hex):', Buffer.from(idBytes).toString('hex'))
-            const [fundraiserPda] = await PublicKey.findProgramAddress(
-              [Buffer.from('fundraiser'), Buffer.from(idBytes)],
-              programId
-            )
-            console.log('Derived fundraiserPda:', fundraiserPda.toBase58())
-            return {
-              id,
-              reit_name: reitName,
-              fundraiserAddress: fundraiserPda.toBase58() as unknown as Address,
-            }
-          })
-        )
-
-        // Step 2: Batch fetch all fundraiser accounts
-        const chunkSize = 100
-        const fetched: ReitData[] = []
-
-        for (let i = 0; i < pdaPairs.length; i += chunkSize) {
-          const chunk = pdaPairs.slice(i, i + chunkSize)
-          const addresses = chunk.map((p) => p.fundraiserAddress)
-
-          try {
-            const accounts = await fetchAllMaybeFundraiser(client.rpc, addresses)
-            for (let j = 0; j < chunk.length; j++) {
-              fetched.push({
-                id: chunk[j].id,
-                reit_name: chunk[j].reit_name,
-                fundraiser: accounts[j],
-              })
-            }
-          } catch (e) {
-            // If batch fails, add rows without fundraiser data
-            for (const pair of chunk) {
-              fetched.push({
-                id: pair.id,
-                reit_name: pair.reit_name,
-                fundraiser: null,
-              })
-            }
-          }
-        }
-
-        if (mounted) setReits(fetched)
-      } catch (err: any) {
-        console.error('Failed to load REITs', err)
-        if (mounted) setError(err?.message ?? String(err))
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      mounted = false
-    }
-  }, [client, cluster])
+  // Use React Query hook for data fetching and automatic polling/invalidation
+  const { data: reits = [], isLoading, error } = useReitsQuery()
 
   const handleCloseInvestModal = () => {
     setSelectedReit(null)
   }
 
-  if (loading) return <span className="loading loading-spinner loading-md" />
-  if (error) return <div className="text-red-600">Error: {error}</div>
+  if (isLoading) return <span className="loading loading-spinner loading-md" />
+  if (error) return <div className="text-red-600">Error: {error instanceof Error ? error.message : String(error)}</div>
 
-  if (!loading && reits.length === 0) {
+  if (!isLoading && reits.length === 0) {
     return (
       <div>
         <h2 className="text-2xl font-bold mb-2">Available REITs</h2>

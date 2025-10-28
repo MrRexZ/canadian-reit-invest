@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { getInvestInstructionAsync } from '@/generated'
 import { useWalletUiSigner, useWalletUiSignAndSend } from '@wallet-ui/react-gill'
 import { UiWalletAccount } from '@wallet-ui/react'
@@ -16,6 +16,7 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
   const { client } = useSolana()
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async ({ amount, reitIdHash, reitId, userId }: { amount: number; reitIdHash: Uint8Array; reitId: string; userId: string }) => {
@@ -117,6 +118,46 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       const sig = await signAndSend(instruction, signer)
       toast.success('Investment submitted')
 
+      // Wait for transaction to be confirmed before completing mutation
+      console.log('[INVEST] Waiting for transaction confirmation...')
+      let confirmationStatus = null
+      let retries = 0
+      const maxRetries = 30 // ~30 seconds with 1 second polling
+
+      while (retries < maxRetries) {
+        try {
+          const signatureStatus = await client.rpc.getSignatureStatuses([sig as any]).send()
+          const status = signatureStatus.value?.[0]
+
+          if (status?.err) {
+            console.error('[INVEST] Transaction failed with error:', status.err)
+            throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`)
+          }
+
+          if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') {
+            confirmationStatus = status.confirmationStatus
+            console.log(`[INVEST] Transaction confirmed at "${confirmationStatus}" commitment level`)
+            break
+          }
+
+          retries++
+          if (retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second before retry
+          }
+        } catch (statusError) {
+          console.warn('[INVEST] Error checking transaction status:', statusError)
+          retries++
+          if (retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000))
+          }
+        }
+      }
+
+      if (!confirmationStatus) {
+        console.error('[INVEST] Transaction confirmation timeout - did not reach confirmed status within 30 seconds')
+        throw new Error('Transaction confirmation timeout. The investment may not have been created.')
+      }
+
       // Insert investment record into Supabase for atomicity
       try {
         const { error: dbError } = await supabase
@@ -134,6 +175,8 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
           toast.error('Investment created onchain but database update failed. Please contact support.')
         } else {
           console.log('Investment record inserted into database successfully')
+          // Invalidate investments query to trigger UI update
+          queryClient.invalidateQueries({ queryKey: ['investments'] })
         }
       } catch (dbErr) {
         console.error('Exception during database insertion:', dbErr)
@@ -141,6 +184,11 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       }
 
       return sig
+    },
+    onSuccess: () => {
+      // Invalidate queries to trigger refetch for all users
+      queryClient.invalidateQueries({ queryKey: ['investments'] })
+      queryClient.invalidateQueries({ queryKey: ['fundraiser'] })
     },
     onError: (err) => {
       console.error(err)

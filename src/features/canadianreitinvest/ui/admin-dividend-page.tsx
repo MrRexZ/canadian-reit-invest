@@ -1,36 +1,23 @@
 import { useState, useMemo } from 'react'
-import { useQuery } from '@tanstack/react-query'
 import { UiWalletAccount } from '@wallet-ui/react'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
-import { Loader2, Check, AlertCircle, ExternalLink } from 'lucide-react'
-import { useSolana } from '@/components/solana/use-solana'
+import { Loader2, Check, AlertCircle, ExternalLink, ChevronDown } from 'lucide-react'
 import { useIssueDividend } from '../hooks/use-issue-dividend'
-import { fetchMaybeInvestment } from '@/generated/accounts/investment'
 import { InvestmentStatus } from '@/generated/types'
-import { Address } from 'gill'
-import { supabase } from '@/lib/supabase'
+import { useInvestmentsQuery } from '../data-access/use-investments-query'
 import { toast } from 'sonner'
-
-interface Investment {
-  pda: string
-  investor: string
-  investorEmail?: string
-  usdcAmount: number
-  reitAmount: number
-  status: InvestmentStatus
-}
 
 interface AdminDividendPageProps {
   account: UiWalletAccount
 }
 
 export function AdminDividendPage({ account }: AdminDividendPageProps) {
-  const { client } = useSolana()
-  
   const [selectedInvestmentPda, setSelectedInvestmentPda] = useState<string>('')
+  const [searchInput, setSearchInput] = useState<string>('')
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [dividendAmount, setDividendAmount] = useState<string>('')
   const [lastTxSig, setLastTxSig] = useState<string>('')
 
@@ -39,68 +26,42 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
   })
 
   // Fetch all investments with ShareIssued status
-  const { data: investments = [], isLoading: isLoadingInvestments } = useQuery({
-    queryKey: ['admin-investments', 'share-issued'],
-    queryFn: async () => {
-      // First, fetch all investments from Supabase
-      const { data, error } = await supabase
-        .from('investments')
-        .select('investment_pda, investor_user_id')
-
-      if (error) {
-        console.error('Failed to fetch investments from Supabase:', error)
-        toast.error('Failed to load investments')
-        return []
-      }
-
-      const investmentsWithData: Investment[] = []
-
-      // For each investment, fetch the on-chain PDA to check status
-      for (const inv of data || []) {
-        try {
-          const investmentData = await fetchMaybeInvestment(
-            client.rpc,
-            inv.investment_pda as Address
-          )
-
-          if (!investmentData?.exists) {
-            console.warn(`Investment PDA does not exist: ${inv.investment_pda}`)
-            continue
-          }
-
-          const investment = investmentData.data
-          
-          // Only include investments with ShareIssued status
-          if (investment.status !== InvestmentStatus.ShareIssued) {
-            console.log(`Investment ${inv.investment_pda} has status ${investment.status}, skipping`)
-            continue
-          }
-
-          investmentsWithData.push({
-            pda: inv.investment_pda,
-            investor: investment.investor,
-            usdcAmount: Number(investment.usdcAmount || 0),
-            reitAmount: Number(investment.reitAmount || 0),
-            status: investment.status,
-          })
-        } catch (error) {
-          console.error(`Failed to fetch investment ${inv.investment_pda}:`, error)
-        }
-      }
-
-      if (investmentsWithData.length === 0) {
-        console.warn('No investments with ShareIssued status found')
-      }
-
-      return investmentsWithData
-    },
-    enabled: !!client && !!account,
-    refetchInterval: 30000, // Refetch every 30 seconds
+  const { data: allInvestments = [], isLoading: isLoadingInvestments } = useInvestmentsQuery({
+    isAdmin: true,
   })
 
+  // Filter investments to only those with ShareIssued status
+  const shareIssuedInvestments = useMemo(() => {
+    return allInvestments.filter((inv) => {
+      const status = inv.investment?.data?.status
+      return status === InvestmentStatus.ShareIssued
+    })
+  }, [allInvestments])
+
+  // Filter by search input
+  const filteredInvestments = useMemo(() => {
+    if (!searchInput.trim()) return shareIssuedInvestments
+
+    const query = searchInput.toLowerCase()
+    return shareIssuedInvestments.filter((inv) => {
+      const pdaMatch = inv.investment_pda.toLowerCase().includes(query)
+      const nameMatch = (inv.user_name || '').toLowerCase().includes(query)
+      const emailMatch = (inv.user_email || '').toLowerCase().includes(query)
+      const reitMatch = (inv.reit_name || '').toLowerCase().includes(query)
+      return pdaMatch || nameMatch || emailMatch || reitMatch
+    })
+  }, [searchInput, shareIssuedInvestments])
+
+  // Get selected investment data
   const selectedInvestment = useMemo(() => {
-    return investments.find((inv) => inv.pda === selectedInvestmentPda)
-  }, [investments, selectedInvestmentPda])
+    return allInvestments.find((inv) => inv.investment_pda === selectedInvestmentPda)
+  }, [allInvestments, selectedInvestmentPda])
+
+  const handleSelectInvestment = (pda: string) => {
+    setSelectedInvestmentPda(pda)
+    setSearchInput('')
+    setIsDropdownOpen(false)
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -130,7 +91,9 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
           setLastTxSig(result.sig)
           setDividendAmount('')
           setSelectedInvestmentPda('')
-          toast.success(`Dividend issued: ${result.amount} USDC to ${result.investor}`)
+          setSearchInput('')
+          const investorDisplay = selectedInvestment?.user_name || result.investor.slice(0, 8)
+          toast.success(`Dividend issued: ${result.amount} USDC to ${investorDisplay}`)
         },
         onError: (error) => {
           console.error('Dividend issuance failed:', error)
@@ -168,34 +131,88 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Investment Selection */}
+            {/* Investment Selection - Searchable Dropdown */}
             <div className="space-y-2">
               <label className="block text-sm font-medium">Select Investment</label>
-              <div className="border rounded-md p-3">
-                {isLoadingInvestments ? (
-                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" />
-                    Loading investments...
+              <div className="relative">
+                <div className="border rounded-md bg-white">
+                  <div className="flex items-center">
+                    <Input
+                      type="text"
+                      placeholder="Search by investment ID, investor name, email, or REIT name..."
+                      value={searchInput || (selectedInvestment ? `${selectedInvestment.investment_pda.slice(0, 8)}...${selectedInvestment.investment_pda.slice(-8)}` : '')}
+                      onChange={(e) => {
+                        setSearchInput(e.target.value)
+                        setIsDropdownOpen(true)
+                      }}
+                      onFocus={() => setIsDropdownOpen(true)}
+                      disabled={isLoadingInvestments || isIssuing}
+                      className="border-0 flex-1"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                      disabled={isLoadingInvestments || isIssuing}
+                      className="px-3 py-2"
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </button>
                   </div>
-                ) : investments.length === 0 ? (
-                  <div className="text-sm text-muted-foreground">
-                    No investments with ShareIssued status
-                  </div>
-                ) : (
-                  <select
-                    value={selectedInvestmentPda}
-                    onChange={(e) => setSelectedInvestmentPda(e.target.value)}
-                    className="w-full bg-transparent"
-                    disabled={isIssuing}
-                  >
-                    <option value="">Choose an investment...</option>
-                    {investments.map((inv) => (
-                      <option key={inv.pda} value={inv.pda}>
-                        {inv.pda.slice(0, 8)}...{inv.pda.slice(-8)} ({(inv.usdcAmount / 1_000_000).toFixed(2)} USDC)
-                      </option>
-                    ))}
-                  </select>
-                )}
+
+                  {/* Dropdown Options */}
+                  {isDropdownOpen && (
+                    <div className="border-t max-h-64 overflow-y-auto">
+                      {isLoadingInvestments ? (
+                        <div className="flex items-center justify-center p-4">
+                          <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                          <span className="text-sm text-muted-foreground">Loading investments...</span>
+                        </div>
+                      ) : filteredInvestments.length === 0 ? (
+                        <div className="p-4 text-sm text-muted-foreground text-center">
+                          {shareIssuedInvestments.length === 0
+                            ? 'No investments with ShareIssued status'
+                            : 'No matching investments'}
+                        </div>
+                      ) : (
+                        filteredInvestments.map((inv) => {
+                          const usdcAmount = inv.investment?.data?.usdcAmount
+                            ? Number(inv.investment.data.usdcAmount) / 1_000_000
+                            : 0
+                          const isSelected = inv.investment_pda === selectedInvestmentPda
+
+                          return (
+                            <button
+                              key={inv.investment_pda}
+                              type="button"
+                              onClick={() => handleSelectInvestment(inv.investment_pda)}
+                              className={`w-full text-left px-4 py-3 hover:bg-slate-100 border-b last:border-b-0 transition ${
+                                isSelected ? 'bg-blue-50' : ''
+                              }`}
+                            >
+                              <div className="flex items-start justify-between gap-2">
+                                <div className="flex-1 min-w-0">
+                                  <div className="font-mono text-sm font-medium">
+                                    {inv.investment_pda}
+                                  </div>
+                                  <div className="text-xs text-muted-foreground mt-1 space-y-0.5">
+                                    {inv.user_name && <div>Investor: {inv.user_name}</div>}
+                                    {inv.user_email && <div className="truncate">Email: {inv.user_email}</div>}
+                                    {inv.reit_name && <div>REIT: {inv.reit_name}</div>}
+                                  </div>
+                                </div>
+                                <div className="text-right flex-shrink-0">
+                                  <div className="text-sm font-medium">
+                                    {usdcAmount.toFixed(2)} USDC
+                                  </div>
+                                </div>
+                              </div>
+                            </button>
+                          )
+                        })
+                      )}
+                    </div>
+                  )}
+                </div>
               </div>
             </div>
 
@@ -204,15 +221,34 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
               <Alert className="bg-blue-50 border-blue-200">
                 <AlertCircle className="h-4 w-4 text-blue-600" />
                 <AlertDescription className="text-blue-900">
-                  <div className="space-y-1 text-sm">
+                  <div className="space-y-2 text-sm">
                     <div>
-                      <strong>Investor:</strong> {selectedInvestment.investor.slice(0, 8)}...{selectedInvestment.investor.slice(-8)}
+                      <strong>Investment ID:</strong> {selectedInvestment.investment_pda}
+                    </div>
+                    {selectedInvestment.user_name && (
+                      <div>
+                        <strong>Investor Name:</strong> {selectedInvestment.user_name}
+                      </div>
+                    )}
+                    {selectedInvestment.user_email && (
+                      <div>
+                        <strong>Investor Email:</strong> {selectedInvestment.user_email}
+                      </div>
+                    )}
+                    {selectedInvestment.reit_name && (
+                      <div>
+                        <strong>REIT Name:</strong> {selectedInvestment.reit_name}
+                      </div>
+                    )}
+                    <div>
+                      <strong>Original Investment:</strong>{' '}
+                      {selectedInvestment.investment?.data?.usdcAmount
+                        ? (Number(selectedInvestment.investment.data.usdcAmount) / 1_000_000).toFixed(2)
+                        : '0.00'}{' '}
+                      USDC
                     </div>
                     <div>
-                      <strong>Original Investment:</strong> {(selectedInvestment.usdcAmount / 1_000_000).toFixed(2)} USDC
-                    </div>
-                    <div>
-                      <strong>REIT Tokens Held:</strong> {selectedInvestment.reitAmount}
+                      <strong>REIT Tokens Held:</strong> {selectedInvestment.investment?.data?.reitAmount || 0}
                     </div>
                   </div>
                 </AlertDescription>

@@ -13,7 +13,7 @@ export type ReitData = {
   fundraiser?: any
 }
 
-export function useReitsQuery() {
+export function useReitsInvestorQuery() {
   const { client } = useSolana()
 
   return useQuery({

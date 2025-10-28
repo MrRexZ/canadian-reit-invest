@@ -8,14 +8,14 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog'
-import { useReitsQuery } from '../data-access/use-reits-query'
-import type { ReitData } from '../data-access/use-reits-query'
+import { useReitsInvestorQuery } from '../data-access/use-reits-investor-query'
+import type { ReitData } from '../data-access/use-reits-investor-query'
 
 export default function BrowseReitsInvestor({ account }: { account: UiWalletAccount }) {
   const [selectedReit, setSelectedReit] = useState<ReitData | null>(null)
 
   // Use React Query hook for data fetching and automatic polling/invalidation
-  const { data: reits = [], isLoading, error } = useReitsQuery()
+  const { data: reits = [], isLoading, error } = useReitsInvestorQuery()
 
   const handleCloseInvestModal = () => {
     setSelectedReit(null)

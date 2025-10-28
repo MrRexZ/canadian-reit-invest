@@ -3,9 +3,15 @@ DIVIDEND DISTRIBUTION SYSTEM - IMPLEMENTATION PLAN
 Canadian REIT Investment Platform
 ================================================================================
 
-VERSION: 1.0
+VERSION: 1.1 (UPDATED - Fixed Dividend Counter Architecture)
 DATE: October 27, 2025
 STATUS: Planning Phase - Not Yet Implemented
+
+CRITICAL UPDATE:
+This plan has been updated to fix a critical design flaw in the dividend 
+counter mechanism. The original design used a single global counter which 
+would not work correctly for multiple dividends per investment. The updated 
+design uses an InvestmentDividendCounter PDA to track dividends per investment.
 
 ================================================================================
 1. OVERVIEW
@@ -55,45 +61,94 @@ Investment PDA:
 3. PROPOSED DIVIDEND SYSTEM DESIGN
 ================================================================================
 
-3.1 DIVIDEND PDA STRUCTURE
+3.1 DIVIDEND COUNTER PDA STRUCTURE (NEW - CRITICAL FIX)
+-------------------------------------------------------
+PROBLEM IDENTIFIED: 
+Similar to the investment_counter issue, we cannot use a global dividend counter.
+Each Investment needs its own dividend counter to track multiple dividend 
+distributions over time.
+
+Account Name: InvestmentDividendCounter
+Purpose: Track dividend counter per investment
+Seeds: [b"investment_dividend_counter", investment_pda]
+
+Fields:
+- investment: Pubkey                  // The investment this counter tracks
+- dividend_counter: u64               // Counter for dividends issued for THIS investment
+- bump: u8                            // PDA bump seed
+
+Space: 32 + 8 + 1 = 41 bytes + 8 discriminator = 49 bytes
+
+3.2 DIVIDEND PDA STRUCTURE
 --------------------------
 Based on spec requirements and Solana MCP recommendations:
 
-Account Name: Dividends
-Seeds: [b"dividends", investor_pubkey, investment_pda, dividend_counter]
-       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
-       NOTE: Adding counter allows multiple dividend payouts over time
+Account Name: Dividend
+Seeds: [b"dividend", investment_pda, dividend_counter]
+       ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+       NOTE: Counter comes from InvestmentDividendCounter PDA
 
 Fields:
 - investor: Pubkey                    // Investor receiving dividend
 - fundraiser: Pubkey                  // Associated fundraiser PDA
-- investment_pda: Pubkey              // Specific investment this dividend relates to
+- investment: Pubkey                  // Specific investment this dividend relates to
 - usdc_amount: u64                    // Dividend amount (in lamports, 1 USDC = 1,000,000)
-- dividend_counter: u64               // Sequential counter for this investor-investment pair
+- dividend_counter: u64               // Sequential counter for this investment's dividends
 - timestamp: i64                      // Unix timestamp when dividend was issued
 - bump: u8                            // PDA bump seed
 
 Space Calculation: 32 + 32 + 32 + 8 + 8 + 8 + 1 = 121 bytes + 8 byte discriminator = 129 bytes
 
 RATIONALE FOR STRUCTURE:
-- Individual PDAs per payout (vs cumulative) provides:
+- InvestmentDividendCounter PDA per investment provides:
+  * Correct per-investment dividend tracking
+  * No ambiguity when investor has multiple investments
+  * Sequential counters per investment (0, 1, 2... for each investment)
+  * Deterministic PDA derivation
+- Individual Dividend PDAs per payout provides:
   * Complete audit trail of all dividend payments
-  * Ability to query payment history
+  * Ability to query payment history per investment
   * Better transparency for investors
   * Easier reconciliation and tax reporting
 - Counter-based seeds allow unlimited dividend issuances over time
-- Investment PDA link maintains relationship to original investment
 
-3.2 ALTERNATIVE CONSIDERED: CUMULATIVE APPROACH
+EXAMPLE SCENARIO:
+Investor Alice has 2 investments:
+- Investment A in Fundraiser X
+- Investment B in Fundraiser Y
+
+Dividends issued:
+1. Dividend for Investment A → Counter 0, Seeds: [b"dividend", investment_A, 0]
+2. Dividend for Investment B → Counter 0, Seeds: [b"dividend", investment_B, 0]
+3. Second dividend for Investment A → Counter 1, Seeds: [b"dividend", investment_A, 1]
+
+Result: Each investment has its own sequential dividend counter!
+
+3.3 ALTERNATIVE CONSIDERED: CUMULATIVE APPROACH
 -----------------------------------------------
 An alternative approach would store cumulative dividends:
-- Single PDA per investor-investment: [b"dividends", investor_pubkey, investment_pda]
+- Single PDA per investment: [b"dividend_cumulative", investment_pda]
 - Field: cumulative_dividends: u64
 
 PROS: Lower PDA count, more gas efficient
 CONS: No individual payout history, harder to audit
 
 DECISION: Use individual PDAs for transparency and auditability requirements
+
+3.4 WHY NOT USE investor_pubkey IN DIVIDEND SEEDS?
+--------------------------------------------------
+ORIGINAL SPEC PROPOSED: [b"dividends", investor_pubkey, investment_pda, counter]
+
+PROBLEM: This creates dependency on investor_pubkey when it's already encoded
+in the investment_pda. The investment PDA already contains the investor pubkey
+in its seeds: [b"investment", investor_pubkey, fundraiser_pubkey, inv_counter]
+
+BENEFITS OF SIMPLIFIED SEEDS: [b"dividend", investment_pda, dividend_counter]
+- Simpler PDA derivation (fewer seeds)
+- Investment PDA is unique per investor already
+- Reduces seed length (stays within Solana limits)
+- More efficient derivation
+- Cleaner logical hierarchy: Investment → Dividends
 
 ================================================================================
 4. INSTRUCTION DESIGN: issue_dividends
@@ -103,16 +158,17 @@ DECISION: Use individual PDAs for transparency and auditability requirements
 --------------------------
 pub fn issue_dividends(
     ctx: Context<IssueDividends>,
-    investor_pubkey: Pubkey,        // Target investor
-    investment_pda: Pubkey,         // Related investment
-    reit_id_hash: [u8; 16],         // Fundraiser identifier
-    usdc_amount: u64,               // Dividend amount in smallest unit (1 USDC = 1_000_000)
+    investment_pda: Pubkey,         // The investment to issue dividend for
+    usdc_amount: u64,                // Dividend amount in smallest unit (1 USDC = 1_000_000)
 ) -> Result<()>
+
+Note: investor_pubkey and fundraiser can be derived from investment_pda,
+reducing instruction parameters
 
 4.2 ACCOUNTS STRUCTURE
 ----------------------
 #[derive(Accounts)]
-#[instruction(investor_pubkey: Pubkey, investment_pda: Pubkey, reit_id_hash: [u8; 16], usdc_amount: u64)]
+#[instruction(investment_pda: Pubkey, usdc_amount: u64)]
 pub struct IssueDividends<'info> {
     // Admin who signs and pays for transaction
     #[account(mut)]
@@ -122,55 +178,58 @@ pub struct IssueDividends<'info> {
     #[account(mut)]
     pub admin_usdc_ata: InterfaceAccount<'info, TokenAccount>,
     
-    // Investor receiving dividend (non-signer, CHECK annotation)
-    /// CHECK: Investor public key validated against Investment PDA
+    // Investment PDA that this dividend is for
+    #[account(
+        constraint = investment.status == InvestmentStatus::ShareIssued @ ErrorCode::InvalidInvestmentStatus
+    )]
+    pub investment: Account<'info, state::Investment>,
+    
+    // Investor receiving dividend (derived from investment)
+    /// CHECK: Derived from investment.investor field
     pub investor: AccountInfo<'info>,
     
     // Investor's USDC token account (destination)
-    #[account(mut)]
+    #[account(
+        mut,
+        constraint = investor_usdc_ata.owner == investment.investor @ ErrorCode::InvalidTokenAccount
+    )]
     pub investor_usdc_ata: InterfaceAccount<'info, TokenAccount>,
     
     // Fundraiser PDA for admin validation
     #[account(
-        seeds = [b"fundraiser", reit_id_hash.as_slice()],
-        bump = fundraiser.bump,
+        constraint = fundraiser.key() == investment.fundraiser @ ErrorCode::FundraiserMismatch,
         constraint = admin.key() == fundraiser.admin @ ErrorCode::UnauthorizedAdmin
     )]
     pub fundraiser: Account<'info, state::Fundraiser>,
     
-    // Investment PDA to link dividend to original investment
-    #[account(
-        constraint = investment.investor == investor_pubkey @ ErrorCode::InvestorMismatch,
-        constraint = investment.fundraiser == fundraiser.key() @ ErrorCode::FundraiserMismatch
-    )]
-    pub investment: Account<'info, state::Investment>,
-    
-    // Counter account to track dividend sequence (NEW ACCOUNT TYPE NEEDED)
+    // Counter PDA to track dividend sequence (NEW)
     #[account(
         init_if_needed,
         payer = admin,
-        space = 8 + 8, // discriminator + u64 counter
-        seeds = [b"dividend_counter", investor_pubkey.as_ref(), investment_pda.as_ref()],
+        space = 8 + 41, // discriminator + InvestmentDividendCounter size
+        seeds = [b"investment_dividend_counter", investment.key().as_ref()],
         bump
     )]
-    pub dividend_counter: Account<'info, DividendCounter>,
+    pub investment_dividend_counter: Account<'info, InvestmentDividendCounter>,
     
-    // Dividends PDA to store this payout record
+    // Dividend PDA to store this payout record
     #[account(
         init,
         payer = admin,
-        space = 8 + 129, // discriminator + Dividends struct size
+        space = 8 + 129, // discriminator + Dividend struct size
         seeds = [
-            b"dividends",
-            investor_pubkey.as_ref(),
-            investment_pda.as_ref(),
-            &dividend_counter.count.to_le_bytes()
+            b"dividend",
+            investment.key().as_ref(),
+            &investment_dividend_counter.dividend_counter.to_le_bytes()
         ],
         bump
     )]
-    pub dividends: Account<'info, state::Dividends>,
+    pub dividend: Account<'info, state::Dividend>,
     
     // USDC mint for transfer validation
+    #[account(
+        constraint = usdc_mint.key() == fundraiser.usdc_mint @ ErrorCode::InvalidUsdcMint
+    )]
     pub usdc_mint: InterfaceAccount<'info, Mint>,
     
     // System and token programs
@@ -178,39 +237,129 @@ pub struct IssueDividends<'info> {
     pub system_program: Program<'info, System>,
 }
 
-4.3 NEW HELPER STRUCTURE: DividendCounter
-------------------------------------------
+CRITICAL CHANGES FROM ORIGINAL SPEC:
+- Removed investor_pubkey parameter (derived from investment)
+- Removed reit_id_hash parameter (fundraiser derived from investment)
+- Changed dividend_counter account to investment_dividend_counter
+- Seeds changed to: [b"dividend", investment_pda, counter] (not investor_pubkey)
+- Counter PDA seeds: [b"investment_dividend_counter", investment_pda]
+
+4.3 NEW HELPER STRUCTURE: InvestmentDividendCounter
+---------------------------------------------------
 #[account]
-pub struct DividendCounter {
-    pub count: u64, // Increments with each dividend payout
+#[derive(InitSpace)]
+pub struct InvestmentDividendCounter {
+    pub investment: Pubkey,     // The investment this counter tracks
+    pub dividend_counter: u64,  // Increments with each dividend payout for THIS investment
+    pub bump: u8,              // PDA bump seed
 }
 
-Purpose: Enables deterministic PDA derivation with sequential counter
+Purpose: Enables deterministic PDA derivation with sequential counter per investment
 
-4.4 INSTRUCTION LOGIC
+4.4 NEW STRUCTURE: Dividend
+----------------------------
+#[account]
+#[derive(InitSpace)]
+pub struct Dividend {
+    pub investor: Pubkey,           // Investor who received this dividend
+    pub fundraiser: Pubkey,         // Fundraiser this dividend relates to
+    pub investment: Pubkey,         // Investment this dividend was issued for
+    pub usdc_amount: u64,           // Dividend amount in USDC smallest unit
+    pub dividend_counter: u64,      // Counter value for this dividend
+    pub timestamp: i64,             // When dividend was issued
+    pub bump: u8,                   // PDA bump seed
+}
+
+4.5 INSTRUCTION LOGIC
 ---------------------
 1. Validate admin authority (via fundraiser constraint)
-2. Validate investor matches investment PDA
-3. Validate investment belongs to correct fundraiser
-4. Get current dividend counter value
-5. Perform USDC transfer (admin ATA → investor ATA)
+2. Validate investment exists and has ShareIssued status
+3. Derive investor from investment PDA
+4. Initialize or get InvestmentDividendCounter PDA for this investment
+5. Get current dividend counter value for THIS investment
+6. Perform USDC transfer (admin ATA → investor ATA)
    - Use token_interface::transfer_checked for security
    - Amount in smallest unit (1 USDC = 1,000,000)
    - Validate mint decimals
-6. Initialize Dividends PDA with payout data
-7. Increment dividend counter for future payouts
-8. Emit DividendsIssued event for off-chain tracking
+7. Initialize Dividend PDA with payout data
+8. Increment InvestmentDividendCounter for future dividends
+9. Emit DividendIssued event for off-chain tracking
 
-4.5 SECURITY VALIDATIONS
+Handler pseudocode:
+```rust
+pub fn handler(ctx: Context<IssueDividends>, usdc_amount: u64) -> Result<()> {
+    // Validate investment is ready for dividends
+    require!(
+        ctx.accounts.investment.status == InvestmentStatus::ShareIssued,
+        ErrorCode::InvalidInvestmentStatus
+    );
+    
+    // Initialize counter if first dividend for this investment
+    let counter = &mut ctx.accounts.investment_dividend_counter;
+    if counter.investment == Pubkey::default() {
+        counter.investment = ctx.accounts.investment.key();
+        counter.dividend_counter = 0;
+        counter.bump = ctx.bumps.investment_dividend_counter;
+    }
+    
+    // Transfer USDC from admin to investor
+    let cpi_accounts = TransferChecked {
+        from: ctx.accounts.admin_usdc_ata.to_account_info(),
+        to: ctx.accounts.investor_usdc_ata.to_account_info(),
+        authority: ctx.accounts.admin.to_account_info(),
+        mint: ctx.accounts.usdc_mint.to_account_info(),
+    };
+    let cpi_program = ctx.accounts.token_program.to_account_info();
+    let cpi_context = CpiContext::new(cpi_program, cpi_accounts);
+    transfer_checked(cpi_context, usdc_amount, ctx.accounts.usdc_mint.decimals)?;
+    
+    // Initialize Dividend PDA
+    let dividend = &mut ctx.accounts.dividend;
+    dividend.investor = ctx.accounts.investment.investor;
+    dividend.fundraiser = ctx.accounts.investment.fundraiser;
+    dividend.investment = ctx.accounts.investment.key();
+    dividend.usdc_amount = usdc_amount;
+    dividend.dividend_counter = counter.dividend_counter;
+    dividend.timestamp = Clock::get()?.unix_timestamp;
+    dividend.bump = ctx.bumps.dividend;
+    
+    // Increment counter for next dividend
+    counter.dividend_counter = counter.dividend_counter
+        .checked_add(1)
+        .ok_or(ErrorCode::DividendCounterOverflow)?;
+    
+    // Emit event
+    emit!(DividendIssued {
+        investor: dividend.investor,
+        investment: dividend.investment,
+        fundraiser: dividend.fundraiser,
+        usdc_amount: dividend.usdc_amount,
+        dividend_counter: dividend.dividend_counter,
+        timestamp: dividend.timestamp,
+    });
+    
+    Ok(())
+}
+```
+
+4.6 SECURITY VALIDATIONS
 ------------------------
 ✓ Admin-only: Constraint validates admin.key() == fundraiser.admin
-✓ No double-spend: Each counter value creates unique PDA
-✓ Investment validation: Ensures investor owns investment
-✓ Amount validation: Should add check for reasonable amount
-✓ Token account validation: Ensures correct mint and ownership
+✓ No double-spend: Each counter value per investment creates unique PDA
+✓ Investment validation: Ensures investment has ShareIssued status
+✓ Investment-fundraiser link: Ensures investment belongs to correct fundraiser
+✓ Amount validation: Should add check for reasonable amount (e.g., < 1M USDC)
+✓ Token account validation: Ensures correct mint, owner, and account relationships
 ✓ Transfer authority: Admin must own admin_usdc_ata
+✓ Per-investment counter: Each investment tracks its own dividend sequence
 
-4.6 USDC AMOUNT HANDLING
+ADDITIONAL RECOMMENDED CHECKS:
+- Verify admin has sufficient USDC balance before transfer
+- Add maximum dividend amount constraint
+- Consider rate limiting (e.g., max 1 dividend per investment per day)
+- Emit detailed events for audit trail
+
+4.7 USDC AMOUNT HANDLING
 -------------------------
 CRITICAL: USDC has 6 decimals on Solana
 
@@ -235,9 +384,9 @@ Admin wants to distribute 5 USDC dividend:
 5.1 EVENT STRUCTURE
 -------------------
 #[event]
-pub struct DividendsIssued {
+pub struct DividendIssued {
     pub investor: Pubkey,
-    pub investment_pda: Pubkey,
+    pub investment: Pubkey,
     pub fundraiser: Pubkey,
     pub usdc_amount: u64,
     pub dividend_counter: u64,
@@ -250,12 +399,12 @@ Purpose: Off-chain indexing, analytics, notifications
 ------------------
 Emit after successful USDC transfer and PDA initialization:
 
-emit!(DividendsIssued {
-    investor: ctx.accounts.investor.key(),
-    investment_pda: ctx.accounts.investment.key(),
-    fundraiser: ctx.accounts.fundraiser.key(),
+emit!(DividendIssued {
+    investor: ctx.accounts.investment.investor,
+    investment: ctx.accounts.investment.key(),
+    fundraiser: ctx.accounts.investment.fundraiser,
     usdc_amount: usdc_amount,
-    dividend_counter: ctx.accounts.dividend_counter.count,
+    dividend_counter: ctx.accounts.investment_dividend_counter.dividend_counter,
     timestamp: Clock::get()?.unix_timestamp,
 });
 
@@ -339,31 +488,55 @@ Response: [
 Using generated Codama types:
 
 ```typescript
-import { issueShareInstruction } from '@/generated/canadianreitinvest';
+import { issueDividendsInstruction } from '@/generated/canadianreitinvest';
 
 const handleSubmitDividend = async () => {
   // Convert USDC to smallest unit (6 decimals)
   const usdcSmallestUnit = dividendAmount * 1_000_000;
+  
+  // Get investment PDA (already selected from dropdown)
+  const investmentPda = new PublicKey(selectedInvestment);
+  
+  // Fetch investment to get investor and fundraiser
+  const investment = await program.account.investment.fetch(investmentPda);
+  const investorPubkey = investment.investor;
+  const fundraiserPda = investment.fundraiser;
   
   // Get or derive required accounts
   const adminPubkey = wallet.publicKey;
   const adminUsdcAta = getAssociatedTokenAddress(USDC_MINT, adminPubkey);
   const investorUsdcAta = getAssociatedTokenAddress(
     USDC_MINT, 
-    new PublicKey(selectedInvestor.walletPubkey)
+    investorPubkey
   );
   
-  // Derive PDAs
-  const [fundraiserPda] = PublicKey.findProgramAddressSync(
-    [Buffer.from("fundraiser"), reitIdHash],
+  // Derive InvestmentDividendCounter PDA
+  const [investmentDividendCounterPda] = PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("investment_dividend_counter"),
+      investmentPda.toBuffer()
+    ],
     PROGRAM_ID
   );
   
-  const [dividendCounterPda] = PublicKey.findProgramAddressSync(
+  // Fetch or initialize counter to get current value
+  let dividendCounter = 0;
+  try {
+    const counterAccount = await program.account.investmentDividendCounter.fetch(
+      investmentDividendCounterPda
+    );
+    dividendCounter = counterAccount.dividendCounter.toNumber();
+  } catch (e) {
+    // Counter doesn't exist yet, will be initialized to 0
+    dividendCounter = 0;
+  }
+  
+  // Derive Dividend PDA with current counter value
+  const [dividendPda] = PublicKey.findProgramAddressSync(
     [
-      Buffer.from("dividend_counter"),
-      new PublicKey(selectedInvestor.walletPubkey).toBuffer(),
-      new PublicKey(selectedInvestment).toBuffer()
+      Buffer.from("dividend"),
+      investmentPda.toBuffer(),
+      Buffer.from(new Uint8Array(new BigUint64Array([BigInt(dividendCounter)]).buffer))
     ],
     PROGRAM_ID
   );
@@ -372,19 +545,17 @@ const handleSubmitDividend = async () => {
   const instruction = issueDividendsInstruction({
     admin: adminPubkey,
     adminUsdcAta,
-    investor: new PublicKey(selectedInvestor.walletPubkey),
+    investment: investmentPda,
+    investor: investorPubkey,
     investorUsdcAta,
     fundraiser: fundraiserPda,
-    investment: new PublicKey(selectedInvestment),
-    dividendCounter: dividendCounterPda,
-    dividends: dividendsPda, // Derived with counter value
+    investmentDividendCounter: investmentDividendCounterPda,
+    dividend: dividendPda,
     usdcMint: USDC_MINT,
     tokenProgram: TOKEN_PROGRAM_ID,
     systemProgram: SystemProgram.programId,
   }, {
-    investorPubkey: new PublicKey(selectedInvestor.walletPubkey),
-    investmentPda: new PublicKey(selectedInvestment),
-    reitIdHash: reitIdHash,
+    investmentPda: investmentPda,
     usdcAmount: usdcSmallestUnit,
   });
   
@@ -397,6 +568,13 @@ const handleSubmitDividend = async () => {
   toast.success(`Dividend issued successfully! TX: ${signature}`);
 };
 ```
+
+CRITICAL CHANGES FROM ORIGINAL:
+- Simplified parameters: Only investment_pda and usdc_amount needed
+- Derive investor and fundraiser from investment (no need to pass separately)
+- Use InvestmentDividendCounter PDA (per-investment, not global)
+- Simpler PDA seeds: [b"dividend", investment_pda, counter]
+- Fetch counter before deriving dividend PDA to get correct seed
 
 6.5 UI/UX CONSIDERATIONS
 ------------------------
@@ -902,9 +1080,70 @@ Product Owner
 END OF IMPLEMENTATION PLAN
 ================================================================================
 
-Document Version: 1.0
+Document Version: 1.1 (UPDATED - Critical Architecture Fix)
 Last Updated: October 27, 2025
 Next Review: After Phase 1 completion
+
+================================================================================
+APPENDIX A: CRITICAL CHANGES FROM ORIGINAL SPEC (v1.0 → v1.1)
+================================================================================
+
+PROBLEM IDENTIFIED:
+The original spec used a global DividendCounter PDA with seeds:
+  [b"dividend_counter", investor_pubkey, investment_pda]
+
+This had the same fundamental flaw as the investment_counter issue:
+- If an investor has multiple investments, we cannot determine which counter 
+  to use for which investment
+- Counter would be global across all investments for that investor-investment pair
+- Seeds were unnecessarily complex with redundant investor_pubkey
+
+SOLUTION IMPLEMENTED:
+Changed to per-investment counter with simpler seeds:
+  InvestmentDividendCounter PDA: [b"investment_dividend_counter", investment_pda]
+  Dividend PDA: [b"dividend", investment_pda, dividend_counter]
+
+BENEFITS:
+✓ Each investment has its own dividend counter (0, 1, 2...)
+✓ No ambiguity when investor has multiple investments
+✓ Simpler PDA derivation (investment_pda already encodes investor)
+✓ Logical hierarchy: Investment → Dividends
+✓ Matches the pattern used in InvestorFundraiser refactoring
+
+KEY STRUCTURAL CHANGES:
+1. Added InvestmentDividendCounter struct and PDA
+2. Changed Dividend PDA seeds (removed investor_pubkey)
+3. Simplified instruction parameters (only investment_pda + amount)
+4. Updated frontend derivation logic
+5. Updated event emission
+
+RELATED REFACTORING:
+This change parallels the investment_counter refactoring documented in:
+  .github/spec/v1/tasks/investment-counter-refactor-plan.txt
+
+Both refactorings solve the same architectural issue: using per-relationship
+counters instead of global counters.
+
+================================================================================
+APPENDIX B: SOLANA MCP EXPERT VALIDATION
+================================================================================
+
+From Solana MCP consultation:
+
+"Yes, a similar pattern for dividend tracking is recommended. Create a 
+DividendCounter PDA:
+  - DividendCounter PDA: [b"dividend_counter", investor_pubkey, investment_pda]
+  - Fields: dividend_counter: u64
+
+This approach provides the same benefits as the InvestorFundraiser PDA:
+  - Per-Investment Tracking: Each investment has its own dividend counter
+  - Scalability: You can track an unlimited number of dividends per investment
+  - Deterministic Addresses: You can easily derive the address of any dividend 
+    for a given investment"
+
+NOTE: We further simplified from the MCP recommendation by removing investor_pubkey
+from seeds since investment_pda already uniquely identifies the investor-investment
+relationship.
 
 For questions or clarifications, consult:
 - Solana MCP server (for Solana/Anchor technical questions)

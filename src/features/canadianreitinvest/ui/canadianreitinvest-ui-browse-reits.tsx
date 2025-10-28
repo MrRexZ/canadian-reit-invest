@@ -7,6 +7,7 @@ import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
 import { fetchMetadata } from '@metaplex-foundation/mpl-token-metadata'
 import { publicKey } from '@metaplex-foundation/umi'
 import { fetchAllMaybeFundraiser } from '@/generated/accounts/fundraiser'
+import { fetchAllMaybeInvestment } from '@/generated/accounts/investment'
 import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
@@ -48,6 +49,7 @@ export default function CanadianreitinvestUiBrowseReits() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [loadingMetadata, setLoadingMetadata] = useState(false)
   const [selectedMetadataPda, setSelectedMetadataPda] = useState<string | null>(null)
+  const [totalRaisedByReit, setTotalRaisedByReit] = useState<Map<string, number>>(new Map())
   // const [recoveryTrigger, setRecoveryTrigger] = useState(0)
   const { pendingTx, isCheckingRecovery, clearPendingTx, checkNow } = useUpdateReitMintRecovery(
     dialogOpen && selectedMetadataPda ? selectedMetadataPda : null
@@ -219,6 +221,57 @@ export default function CanadianreitinvestUiBrowseReits() {
           }
         }
 
+        // Fetch investments for each REIT to calculate total raised excluding refunded
+        const reitIds = fetched.map(row => row.id)
+        const { data: allInvestments } = await supabase
+          .from('investments')
+          .select('reit_id, investment_pda')
+          .in('reit_id', reitIds)
+
+        // Calculate total raised for each REIT (excluding refunded investments)
+        const totalsMap = new Map<string, number>()
+
+        if (allInvestments) {
+          // Group investments by REIT
+          const investmentsByReit = allInvestments.reduce((acc, inv) => {
+            if (!acc[inv.reit_id]) acc[inv.reit_id] = []
+            acc[inv.reit_id].push(inv)
+            return acc
+          }, {} as Record<string, typeof allInvestments>)
+
+          // For each REIT, fetch investment accounts and calculate total
+          for (const reitId of reitIds) {
+            const reitInvestments = investmentsByReit[reitId] || []
+            if (reitInvestments.length === 0) {
+              totalsMap.set(reitId, 0)
+              continue
+            }
+
+            // Fetch investment accounts
+            const investmentAddresses = reitInvestments.map(inv => inv.investment_pda as unknown as Address)
+            try {
+              const investmentAccounts = await fetchAllMaybeInvestment(client.rpc, investmentAddresses)
+              
+              // Sum up USDC amounts for non-refunded investments
+              let totalRaised = 0
+              for (const account of investmentAccounts) {
+                if (account.exists && account.data) {
+                  // Status 2 = Refunded, so exclude those
+                  if (account.data.status !== 2) {
+                    totalRaised += Number(account.data.usdcAmount || 0)
+                  }
+                }
+              }
+              
+              totalsMap.set(reitId, totalRaised)
+            } catch (error) {
+              console.warn(`Failed to fetch investments for REIT ${reitId}:`, error)
+              totalsMap.set(reitId, 0)
+            }
+          }
+        }
+
+        setTotalRaisedByReit(totalsMap)
         if (mounted) setRows(fetched)
       } catch (err: any) {
         console.error('Failed to load REITs', err)
@@ -264,9 +317,7 @@ export default function CanadianreitinvestUiBrowseReits() {
               <TableCell className="font-mono">{row.id}</TableCell>
               <TableCell>{row.reit_name ?? '-'}</TableCell>
               <TableCell className="text-right">
-                ${((row.fundraiser?.data?.totalRaised !== undefined
-                  ? Number(row.fundraiser.data.totalRaised)
-                  : 0) / 1_000_000).toFixed(2)}
+                ${((totalRaisedByReit.get(row.id) || 0) / 1_000_000).toFixed(2)}
               </TableCell>
               <TableCell>
                 <Dialog open={dialogOpen} onOpenChange={(open) => {

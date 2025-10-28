@@ -8,5 +8,3 @@
 - pagination
 - security audit
 - support minting REIT token with decimal point
-- If an investment is refunded, reduce the amount of total raised.
-- 

@@ -117,7 +117,7 @@ Option A: KEEP Investor PDA for future data
   Pros:
   - Can store investor-specific data later (KYC status, email hash, etc.)
   - Single source of truth for investor existence
-  - Can track total investments across all fundraisers
+  - Future-proof for additional investor data
   
   Cons:
   - Extra PDA initialization cost
@@ -125,7 +125,6 @@ Option A: KEEP Investor PDA for future data
   
   Modified fields:
   - investor_pubkey: Pubkey
-  - total_investments: u64  ← Count of ALL investments across fundraisers
   - bump: u8
 
 Option B: REMOVE Investor PDA entirely
@@ -139,10 +138,12 @@ Option B: REMOVE Investor PDA entirely
   - Cannot track investor-level statistics on-chain
   - May need to re-add later if requirements change
 
-RECOMMENDATION: Option A (Keep Investor PDA with modified purpose)
-- Rename investment_counter → total_investments (read-only aggregate)
+RECOMMENDATION: Option A (Keep Investor PDA with minimal fields)
+- Remove investment_counter field entirely
 - Use InvestorFundraiser for per-fundraiser tracking
 - Future-proof for additional investor data
+
+DECISION: Use Option A
 
 3.4 FLOW EXAMPLE WITH NEW DESIGN
 ---------------------------------
@@ -153,26 +154,22 @@ Investment 1 in Fundraiser A:
      - investment_counter: 0
   2. Create Investment PDA: [investor_alice, fundraiser_A, 0]
   3. Increment InvestorFundraiser.investment_counter: 0 → 1
-  4. Increment Investor.total_investments: 0 → 1
 
 Investment 2 in Fundraiser B:
   1. Initialize/Get InvestorFundraiser PDA: [investor_alice, fundraiser_B]
      - investment_counter: 0
   2. Create Investment PDA: [investor_alice, fundraiser_B, 0]
   3. Increment InvestorFundraiser.investment_counter: 0 → 1
-  4. Increment Investor.total_investments: 1 → 2
 
 Investment 3 in Fundraiser A (SECOND investment in A):
   1. Get InvestorFundraiser PDA: [investor_alice, fundraiser_A]
      - investment_counter: 1 (from previous investment)
   2. Create Investment PDA: [investor_alice, fundraiser_A, 1] ← Correct counter!
   3. Increment InvestorFundraiser.investment_counter: 1 → 2
-  4. Increment Investor.total_investments: 2 → 3
 
 Result:
 ✓ Fundraiser A investments: counter 0, 1 (sequential!)
 ✓ Fundraiser B investments: counter 0 (sequential!)
-✓ Total investments tracked: 3
 
 ================================================================================
 4. STATE STRUCTURE CHANGES
@@ -215,7 +212,6 @@ AFTER:
 #[derive(InitSpace)]
 pub struct Investor {
     pub investor_pubkey: Pubkey,
-    pub total_investments: u64,        // Total count of investments across ALL fundraisers (read-only aggregate)
     pub bump: u8,
 }
 
@@ -351,7 +347,6 @@ NEW LOGIC:
 let investor = &mut ctx.accounts.investor;
 if investor.investor_pubkey == Pubkey::default() {
     investor.investor_pubkey = ctx.accounts.investor_signer.key();
-    investor.total_investments = 0;  // NEW: Initialize total counter
     investor.bump = ctx.bumps.investor;
 }
 
@@ -367,12 +362,6 @@ if investor_fundraiser.investor == Pubkey::default() {
 // Update per-fundraiser counter
 investor_fundraiser.investment_counter = investor_fundraiser
     .investment_counter
-    .checked_add(1)
-    .ok_or(error!(crate::errors::CustomError::InvestmentCounterOverflow))?;
-
-// Update total investments across all fundraisers
-investor.total_investments = investor
-    .total_investments
     .checked_add(1)
     .ok_or(error!(crate::errors::CustomError::InvestmentCounterOverflow))?;
 ```
@@ -424,7 +413,6 @@ NEW:
 pub fn handler(ctx: Context<InitializeInvestor>) -> Result<()> {
     let investor = &mut ctx.accounts.investor;
     investor.investor_pubkey = ctx.accounts.investor_signer.key();
-    investor.total_investments = 0;  // Changed from investment_counter
     investor.bump = ctx.bumps.investor;
     Ok(())
 }
@@ -582,152 +570,12 @@ After state changes:
 3. Update imports in frontend to use new InvestorFundraiser types
 
 ================================================================================
-8. TESTING STRATEGY
-================================================================================
-
-8.1 UNIT TESTS - NEW TEST CASES
---------------------------------
-File: anchor/tests/canadianreitinvest.test.ts (or new test file)
-
-Test Case 1: Multiple investments in SAME fundraiser
-```typescript
-it("should correctly track multiple investments in same fundraiser", async () => {
-  // Investor makes first investment in Fundraiser A
-  await program.methods.invest(amount1, fundraiserAHash).rpc();
-  
-  // Verify InvestorFundraiser counter = 1
-  const [invFundPda] = deriveInvestorFundraiserPda(investor, fundraiserA);
-  let invFund = await program.account.investorFundraiser.fetch(invFundPda);
-  assert.equal(invFund.investmentCounter.toNumber(), 1);
-  
-  // Investor makes second investment in Fundraiser A
-  await program.methods.invest(amount2, fundraiserAHash).rpc();
-  
-  // Verify counter incremented correctly
-  invFund = await program.account.investorFundraiser.fetch(invFundPda);
-  assert.equal(invFund.investmentCounter.toNumber(), 2);
-  
-  // Verify both investments exist with sequential counters
-  const [inv1Pda] = deriveInvestmentPda(investor, fundraiserA, 0);
-  const [inv2Pda] = deriveInvestmentPda(investor, fundraiserA, 1);
-  
-  const inv1 = await program.account.investment.fetch(inv1Pda);
-  const inv2 = await program.account.investment.fetch(inv2Pda);
-  
-  assert.equal(inv1.usdcAmount.toNumber(), amount1);
-  assert.equal(inv2.usdcAmount.toNumber(), amount2);
-});
-```
-
-Test Case 2: Investments across MULTIPLE fundraisers
-```typescript
-it("should correctly track investments across multiple fundraisers", async () => {
-  // Investment in Fundraiser A
-  await program.methods.invest(amount1, fundraiserAHash).rpc();
-  
-  // Investment in Fundraiser B
-  await program.methods.invest(amount2, fundraiserBHash).rpc();
-  
-  // Another investment in Fundraiser A
-  await program.methods.invest(amount3, fundraiserAHash).rpc();
-  
-  // Verify InvestorFundraiser A has counter = 2
-  const [invFundAPda] = deriveInvestorFundraiserPda(investor, fundraiserA);
-  const invFundA = await program.account.investorFundraiser.fetch(invFundAPda);
-  assert.equal(invFundA.investmentCounter.toNumber(), 2);
-  
-  // Verify InvestorFundraiser B has counter = 1
-  const [invFundBPda] = deriveInvestorFundraiserPda(investor, fundraiserB);
-  const invFundB = await program.account.investorFundraiser.fetch(invFundBPda);
-  assert.equal(invFundB.investmentCounter.toNumber(), 1);
-  
-  // Verify Investor total = 3
-  const [investorPda] = deriveInvestorPda(investor);
-  const investorAcc = await program.account.investor.fetch(investorPda);
-  assert.equal(investorAcc.totalInvestments.toNumber(), 3);
-});
-```
-
-Test Case 3: Sequential counters per fundraiser
-```typescript
-it("should maintain sequential counters per fundraiser", async () => {
-  // Pattern: A, B, A, B, A
-  await program.methods.invest(100, fundraiserAHash).rpc();  // A: 0
-  await program.methods.invest(200, fundraiserBHash).rpc();  // B: 0
-  await program.methods.invest(300, fundraiserAHash).rpc();  // A: 1
-  await program.methods.invest(400, fundraiserBHash).rpc();  // B: 1
-  await program.methods.invest(500, fundraiserAHash).rpc();  // A: 2
-  
-  // Verify Fundraiser A investments: 0, 1, 2 (sequential)
-  const [invA0] = deriveInvestmentPda(investor, fundraiserA, 0);
-  const [invA1] = deriveInvestmentPda(investor, fundraiserA, 1);
-  const [invA2] = deriveInvestmentPda(investor, fundraiserA, 2);
-  
-  assert.ok(await program.account.investment.fetch(invA0));
-  assert.ok(await program.account.investment.fetch(invA1));
-  assert.ok(await program.account.investment.fetch(invA2));
-  
-  // Verify Fundraiser B investments: 0, 1 (sequential)
-  const [invB0] = deriveInvestmentPda(investor, fundraiserB, 0);
-  const [invB1] = deriveInvestmentPda(investor, fundraiserB, 1);
-  
-  assert.ok(await program.account.investment.fetch(invB0));
-  assert.ok(await program.account.investment.fetch(invB1));
-});
-```
-
-8.2 INTEGRATION TESTS
----------------------
-□ Test frontend PDA derivation matches backend
-□ Test fetching all investments per fundraiser
-□ Test UI displays correct investment history
-□ Test investment counter doesn't skip numbers
-
-================================================================================
-9. MIGRATION STRATEGY
-================================================================================
-
-9.1 DEPLOYED PROGRAM CONSIDERATION
------------------------------------
-CRITICAL: This is a BREAKING CHANGE to PDA seeds and structure
-
-If program is already deployed with real data:
-✗ Cannot simply upgrade - Investment PDAs will have wrong seeds
-✗ Old investments will become orphaned/inaccessible
-✗ Need migration strategy
-
-9.2 MIGRATION OPTIONS
-----------------------
-
-Option A: FRESH DEPLOYMENT (if no production data)
-  - Deploy new program with new ID
-  - Update frontend to use new program ID
-  - Start fresh with correct structure
-  - RECOMMENDED if still in testnet/devnet
-
-Option B: DATA MIGRATION (if production data exists)
-  - Deploy new program version
-  - Create migration instruction
-  - Iterate through old investments
-  - Create new Investment PDAs with correct seeds
-  - Close old PDAs
-  - COMPLEX and expensive
-
-Option C: PARALLEL DEPLOYMENT
-  - Keep old program running
-  - Deploy new program alongside
-  - Gradually migrate users to new system
-  - Deprecate old program after migration period
-
-RECOMMENDATION: If still in development/testnet → Option A (fresh deployment)
-
-================================================================================
-10. IMPLEMENTATION CHECKLIST
+8. IMPLEMENTATION CHECKLIST
 ================================================================================
 
 PHASE 1: STATE CHANGES
 □ Add InvestorFundraiser struct to state.rs
-□ Modify Investor struct (investment_counter → total_investments)
+□ Modify Investor struct (remove investment_counter field)
 □ Update InitSpace derives
 □ Add comments documenting PDA seeds
 
@@ -740,7 +588,6 @@ PHASE 2: INSTRUCTION CHANGES
 
 PHASE 3: BUILD & GENERATE TYPES
 □ Build program: anchor build
-□ Run tests: anchor test
 □ Generate TypeScript types: npm run codama:js
 □ Verify generated types include InvestorFundraiser
 
@@ -751,77 +598,9 @@ PHASE 4: FRONTEND UPDATES
 □ Test PDA derivation
 □ Update any hardcoded counter references
 
-PHASE 5: TESTING
-□ Write unit tests for multiple investments per fundraiser
-□ Write unit tests for investments across fundraisers
-□ Write integration tests for frontend queries
-□ Test on localnet with multiple scenarios
-□ Test on devnet before mainnet
-
-PHASE 6: DEPLOYMENT
-□ Decide on migration strategy
+PHASE 5: DEPLOYMENT
 □ Deploy to testnet/devnet
-□ Verify with real transactions
-□ Monitor for issues
-□ Deploy to mainnet (if applicable)
 
-PHASE 7: DOCUMENTATION
-□ Update API documentation
-□ Update PDA seed documentation
-□ Document migration path (if needed)
-□ Update developer guide
-
-================================================================================
-11. ESTIMATED IMPACT
-================================================================================
-
-LINES OF CODE CHANGED:
-- state.rs: +15 lines (new struct), ~5 lines modified
-- invest.rs: +10 lines (new account), ~15 lines modified (logic)
-- initialize_investor.rs: ~3 lines modified
-- Frontend utilities: +30 lines (new functions), ~20 lines modified
-- Tests: +100 lines (new test cases)
-
-TOTAL ESTIMATED: ~200 lines of code changes
-
-GAS COST IMPACT:
-- Invest instruction: +~0.002 SOL (one additional PDA initialization)
-- Query costs: REDUCED (can query per fundraiser efficiently)
-
-MIGRATION EFFORT:
-- Fresh deployment: 1-2 hours
-- With data migration: 1-2 days
-
-================================================================================
-12. RISKS & MITIGATION
-================================================================================
-
-RISK: Breaking existing investments
-MITIGATION: Fresh deployment or careful migration script
-
-RISK: Frontend/backend PDA mismatch
-MITIGATION: Comprehensive integration tests
-
-RISK: Increased transaction costs
-MITIGATION: Acceptable trade-off for correct architecture
-
-RISK: Logic errors in counter management
-MITIGATION: Extensive unit tests before deployment
-
-================================================================================
-13. APPROVAL REQUIRED
-================================================================================
-
-This is a CRITICAL architectural change that affects:
-✓ On-chain program structure
-✓ PDA derivation logic
-✓ Frontend integration
-✓ Existing data (if any)
-
-Approval needed from:
-□ Lead Developer (technical review)
-□ Product Owner (business impact)
-□ DevOps (deployment strategy)
 
 ================================================================================
 END OF INVESTMENT COUNTER REFACTORING PLAN

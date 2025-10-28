@@ -19,6 +19,7 @@ import {
   type ParsedInitializeFundraiserInstruction,
   type ParsedInitializeInvestorInstruction,
   type ParsedInvestInstruction,
+  type ParsedIssueDividendInstruction,
   type ParsedIssueShareInstruction,
   type ParsedRefundInstruction,
   type ParsedReleaseInstruction,
@@ -95,6 +96,7 @@ export enum CanadianreitinvestInstruction {
   InitializeFundraiser,
   InitializeInvestor,
   Invest,
+  IssueDividend,
   IssueShare,
   Refund,
   Release,
@@ -160,6 +162,17 @@ export function identifyCanadianreitinvestInstruction(
     )
   ) {
     return CanadianreitinvestInstruction.Invest;
+  }
+  if (
+    containsBytes(
+      data,
+      fixEncoderSize(getBytesEncoder(), 8).encode(
+        new Uint8Array([143, 141, 2, 140, 130, 248, 167, 67])
+      ),
+      0
+    )
+  ) {
+    return CanadianreitinvestInstruction.IssueDividend;
   }
   if (
     containsBytes(
@@ -239,6 +252,9 @@ export type ParsedCanadianreitinvestInstruction<
   | ({
       instructionType: CanadianreitinvestInstruction.Invest;
     } & ParsedInvestInstruction<TProgram>)
+  | ({
+      instructionType: CanadianreitinvestInstruction.IssueDividend;
+    } & ParsedIssueDividendInstruction<TProgram>)
   | ({
       instructionType: CanadianreitinvestInstruction.IssueShare;
     } & ParsedIssueShareInstruction<TProgram>)

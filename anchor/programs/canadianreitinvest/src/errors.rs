@@ -20,4 +20,6 @@ pub enum CustomError {
     InvalidInvestmentStatus,
     #[msg("Invalid mint")]
     InvalidMint,
+    #[msg("Invalid fundraiser mismatch")]
+    InvalidFundraiserMismatch,
 }

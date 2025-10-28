@@ -1,0 +1,607 @@
+================================================================================
+INVESTMENT COUNTER REFACTORING PLAN
+Canadian REIT Investment Platform
+================================================================================
+
+VERSION: 1.0
+DATE: October 27, 2025
+STATUS: Planning Phase - Critical Bug Fix Required
+
+================================================================================
+1. PROBLEM STATEMENT
+================================================================================
+
+CURRENT DESIGN FLAW:
+--------------------
+The current system uses a single global `investment_counter` on the Investor PDA:
+
+Seeds: [b"investor", investor_pubkey]
+Fields:
+  - investor_pubkey: Pubkey
+  - investment_counter: u64  ← GLOBAL counter across ALL fundraisers
+  - bump: u8
+
+Investment PDA Seeds:
+  [b"investment", investor_pubkey, fundraiser_pubkey, investment_counter]
+
+ISSUE SCENARIO:
+---------------
+Investor Alice invests in TWO different fundraisers:
+
+1. First investment in Fundraiser A:
+   - Counter = 0
+   - Seeds: [b"investment", alice_pubkey, fundraiser_A, 0]
+   - ✓ Works fine
+
+2. First investment in Fundraiser B:
+   - Counter = 1 (globally incremented)
+   - Seeds: [b"investment", alice_pubkey, fundraiser_B, 1]
+   - ✓ Works fine
+
+3. SECOND investment in Fundraiser A:
+   - Counter = 2 (globally incremented)
+   - Seeds: [b"investment", alice_pubkey, fundraiser_A, 2]
+   - ✗ PROBLEM: Counter is NOT per-fundraiser!
+   
+   Expected behavior: Counter should be 1 for Fundraiser A (second investment)
+   Actual behavior: Counter is 2 (global across all fundraisers)
+
+CONSEQUENCES:
+-------------
+✗ Investment PDAs are NOT intuitively organized by fundraiser
+✗ Cannot easily query "all investments by Alice in Fundraiser A"
+✗ Counter values have gaps per fundraiser (0, 2, 4... instead of 0, 1, 2...)
+✗ Breaks logical grouping of investments by fundraiser
+✗ Makes frontend derivation more complex
+✗ Audit and reporting becomes difficult
+
+================================================================================
+2. SOLANA MCP EXPERT RECOMMENDATION
+================================================================================
+
+From consultation, the expert confirms:
+
+"Yes, your proposed solution of introducing an `InvestorFundraiser` PDA is 
+a good approach to solve the problem of per-fundraiser investment tracking. 
+It decouples the global investment counter from the investor's overall activity, 
+allowing you to have a dedicated counter for each investor-fundraiser pair. 
+This eliminates the ambiguity you were facing."
+
+KEY POINTS:
+- Use intermediate PDA to track per-fundraiser counters
+- This is the "most balanced approach in terms of scalability, gas efficiency, 
+  and maintainability"
+- Remove investment_counter from Investor PDA (or keep Investor PDA for other 
+  data if needed)
+
+================================================================================
+3. PROPOSED SOLUTION
+================================================================================
+
+3.1 NEW PDA STRUCTURE: InvestorFundraiser
+------------------------------------------
+Account Name: InvestorFundraiser
+Purpose: Track investment counter per investor-fundraiser pair
+Seeds: [b"investor_fundraiser", investor_pubkey, fundraiser_pubkey]
+
+Fields:
+- investor: Pubkey                    // Investor public key
+- fundraiser: Pubkey                  // Fundraiser public key
+- investment_counter: u64             // Counter SPECIFIC to this investor-fundraiser pair
+- bump: u8                            // PDA bump seed
+
+Space: 32 + 32 + 8 + 1 = 73 bytes + 8 discriminator = 81 bytes
+
+3.2 UPDATED INVESTMENT PDA SEEDS
+---------------------------------
+OLD Seeds:
+  [b"investment", investor_pubkey, fundraiser_pubkey, global_counter]
+
+NEW Seeds:
+  [b"investment", investor_pubkey, fundraiser_pubkey, per_fundraiser_counter]
+                                                       ^^^^^^^^^^^^^^^^^^^^^^
+                                                       From InvestorFundraiser PDA
+
+Same seed structure, but counter now comes from InvestorFundraiser PDA
+
+3.3 INVESTOR PDA DECISION
+--------------------------
+Current Investor PDA only contains:
+- investor_pubkey: Pubkey
+- investment_counter: u64 ← TO BE REMOVED
+- bump: u8
+
+OPTIONS:
+
+Option A: KEEP Investor PDA for future data
+  Pros:
+  - Can store investor-specific data later (KYC status, email hash, etc.)
+  - Single source of truth for investor existence
+  - Future-proof for additional investor data
+  
+  Cons:
+  - Extra PDA initialization cost
+  - Currently only stores minimal data
+  
+  Modified fields:
+  - investor_pubkey: Pubkey
+  - bump: u8
+
+Option B: REMOVE Investor PDA entirely
+  Pros:
+  - One less PDA to manage
+  - Lower initialization costs
+  - Simpler architecture
+  
+  Cons:
+  - No central investor registry
+  - Cannot track investor-level statistics on-chain
+  - May need to re-add later if requirements change
+
+RECOMMENDATION: Option A (Keep Investor PDA with minimal fields)
+- Remove investment_counter field entirely
+- Use InvestorFundraiser for per-fundraiser tracking
+- Future-proof for additional investor data
+
+DECISION: Use Option A
+
+3.4 FLOW EXAMPLE WITH NEW DESIGN
+---------------------------------
+Investor Alice makes investments:
+
+Investment 1 in Fundraiser A:
+  1. Initialize/Get InvestorFundraiser PDA: [investor_alice, fundraiser_A]
+     - investment_counter: 0
+  2. Create Investment PDA: [investor_alice, fundraiser_A, 0]
+  3. Increment InvestorFundraiser.investment_counter: 0 → 1
+
+Investment 2 in Fundraiser B:
+  1. Initialize/Get InvestorFundraiser PDA: [investor_alice, fundraiser_B]
+     - investment_counter: 0
+  2. Create Investment PDA: [investor_alice, fundraiser_B, 0]
+  3. Increment InvestorFundraiser.investment_counter: 0 → 1
+
+Investment 3 in Fundraiser A (SECOND investment in A):
+  1. Get InvestorFundraiser PDA: [investor_alice, fundraiser_A]
+     - investment_counter: 1 (from previous investment)
+  2. Create Investment PDA: [investor_alice, fundraiser_A, 1] ← Correct counter!
+  3. Increment InvestorFundraiser.investment_counter: 1 → 2
+
+Result:
+✓ Fundraiser A investments: counter 0, 1 (sequential!)
+✓ Fundraiser B investments: counter 0 (sequential!)
+
+================================================================================
+4. STATE STRUCTURE CHANGES
+================================================================================
+
+4.1 NEW STRUCTURE: InvestorFundraiser
+--------------------------------------
+File: anchor/programs/canadianreitinvest/src/state.rs
+
+/// Tracks investment activity for a specific investor-fundraiser pair
+/// Seeds: [b"investor_fundraiser", investor_pubkey, fundraiser_pubkey]
+#[account]
+#[derive(InitSpace)]
+pub struct InvestorFundraiser {
+    pub investor: Pubkey,              // The investor's public key
+    pub fundraiser: Pubkey,            // The fundraiser's public key
+    pub investment_counter: u64,       // Counter for investments in THIS fundraiser by THIS investor
+    pub bump: u8,                      // PDA bump seed
+}
+
+4.2 MODIFIED STRUCTURE: Investor
+---------------------------------
+File: anchor/programs/canadianreitinvest/src/state.rs
+
+BEFORE:
+/// Represents an investor's profile on-chain
+/// Seeds: [b"investor", investor_pubkey]
+#[account]
+#[derive(InitSpace)]
+pub struct Investor {
+    pub investor_pubkey: Pubkey,
+    pub investment_counter: u64,  ← REMOVE THIS
+    pub bump: u8,
+}
+
+AFTER:
+/// Represents an investor's profile on-chain
+/// Seeds: [b"investor", investor_pubkey]
+#[account]
+#[derive(InitSpace)]
+pub struct Investor {
+    pub investor_pubkey: Pubkey,
+    pub bump: u8,
+}
+
+4.3 UNCHANGED: Investment
+-------------------------
+Investment PDA structure remains the same, only the counter source changes:
+
+/// Seeds: [b"investment", investor_pubkey, fundraiser_pubkey, investment_counter]
+///         Counter now comes from InvestorFundraiser PDA instead of Investor PDA
+#[account]
+#[derive(InitSpace)]
+pub struct Investment {
+    pub investor: Pubkey,
+    pub fundraiser: Pubkey,
+    pub usdc_amount: u64,
+    pub reit_amount: u32,
+    pub status: InvestmentStatus,
+    pub bump: u8,
+}
+
+================================================================================
+5. INSTRUCTION MODIFICATIONS
+================================================================================
+
+5.1 INVEST INSTRUCTION - MAJOR CHANGES
+---------------------------------------
+File: anchor/programs/canadianreitinvest/src/instructions/invest.rs
+
+CURRENT ACCOUNTS:
+#[derive(Accounts)]
+#[instruction(amount: u64, reit_id_hash: [u8; 16])]
+pub struct Invest<'info> {
+    #[account(mut)]
+    pub investor_signer: Signer<'info>,
+    
+    #[account(
+        init_if_needed,
+        payer = investor_signer,
+        space = 8 + state::Investor::INIT_SPACE,
+        seeds = [b"investor", investor_signer.key().as_ref()],
+        bump
+    )]
+    pub investor: Account<'info, state::Investor>,
+    
+    #[account(
+        mut,
+        seeds = [b"fundraiser", reit_id_hash.as_slice()],
+        bump = fundraiser.bump,
+    )]
+    pub fundraiser: Account<'info, state::Fundraiser>,
+    
+    #[account(
+        init,
+        payer = investor_signer,
+        space = 8 + state::Investment::INIT_SPACE,
+        seeds = [b"investment", investor_signer.key().as_ref(), fundraiser.key().as_ref(), &investor.investment_counter.to_le_bytes()],
+        bump                                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )]                                                                                        OLD: Uses Investor counter
+    pub investment: Account<'info, state::Investment>,
+    
+    // ... other accounts
+}
+
+NEW ACCOUNTS:
+#[derive(Accounts)]
+#[instruction(amount: u64, reit_id_hash: [u8; 16])]
+pub struct Invest<'info> {
+    #[account(mut)]
+    pub investor_signer: Signer<'info>,
+    
+    // Keep Investor PDA but with modified purpose
+    #[account(
+        init_if_needed,
+        payer = investor_signer,
+        space = 8 + state::Investor::INIT_SPACE,
+        seeds = [b"investor", investor_signer.key().as_ref()],
+        bump
+    )]
+    pub investor: Account<'info, state::Investor>,
+    
+    // NEW: InvestorFundraiser PDA for per-fundraiser tracking
+    #[account(
+        init_if_needed,
+        payer = investor_signer,
+        space = 8 + state::InvestorFundraiser::INIT_SPACE,
+        seeds = [b"investor_fundraiser", investor_signer.key().as_ref(), fundraiser.key().as_ref()],
+        bump
+    )]
+    pub investor_fundraiser: Account<'info, state::InvestorFundraiser>,
+    
+    #[account(
+        mut,
+        seeds = [b"fundraiser", reit_id_hash.as_slice()],
+        bump = fundraiser.bump,
+    )]
+    pub fundraiser: Account<'info, state::Fundraiser>,
+    
+    #[account(
+        init,
+        payer = investor_signer,
+        space = 8 + state::Investment::INIT_SPACE,
+        seeds = [b"investment", investor_signer.key().as_ref(), fundraiser.key().as_ref(), &investor_fundraiser.investment_counter.to_le_bytes()],
+        bump                                                                                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+    )]                                                                                        NEW: Uses InvestorFundraiser counter
+    pub investment: Account<'info, state::Investment>,
+    
+    // ... other accounts unchanged
+}
+
+5.2 INVEST HANDLER LOGIC CHANGES
+---------------------------------
+
+CURRENT LOGIC (lines 43-51):
+```rust
+// Initialize investor account if newly created
+let investor = &mut ctx.accounts.investor;
+if investor.investor_pubkey == Pubkey::default() {
+    investor.investor_pubkey = ctx.accounts.investor_signer.key();
+    investor.investment_counter = 0;  ← REMOVE
+    investor.bump = ctx.bumps.investor;
+}
+
+// Update investor counter
+investor.investment_counter = investor
+    .investment_counter
+    .checked_add(1)
+    .ok_or(error!(crate::errors::CustomError::InvestmentCounterOverflow))?;
+```
+
+NEW LOGIC:
+```rust
+// Initialize investor account if newly created
+let investor = &mut ctx.accounts.investor;
+if investor.investor_pubkey == Pubkey::default() {
+    investor.investor_pubkey = ctx.accounts.investor_signer.key();
+    investor.bump = ctx.bumps.investor;
+}
+
+// Initialize InvestorFundraiser account if newly created
+let investor_fundraiser = &mut ctx.accounts.investor_fundraiser;
+if investor_fundraiser.investor == Pubkey::default() {
+    investor_fundraiser.investor = ctx.accounts.investor_signer.key();
+    investor_fundraiser.fundraiser = ctx.accounts.fundraiser.key();
+    investor_fundraiser.investment_counter = 0;
+    investor_fundraiser.bump = ctx.bumps.investor_fundraiser;
+}
+
+// Update per-fundraiser counter
+investor_fundraiser.investment_counter = investor_fundraiser
+    .investment_counter
+    .checked_add(1)
+    .ok_or(error!(crate::errors::CustomError::InvestmentCounterOverflow))?;
+```
+
+5.3 UPDATED INVESTMENT PDA SEEDS (line 104)
+--------------------------------------------
+
+BEFORE:
+```rust
+seeds = [b"investment", investor_signer.key().as_ref(), fundraiser.key().as_ref(), &investor.investment_counter.to_le_bytes()],
+```
+
+AFTER:
+```rust
+seeds = [b"investment", investor_signer.key().as_ref(), fundraiser.key().as_ref(), &investor_fundraiser.investment_counter.to_le_bytes()],
+```
+
+5.4 OTHER INSTRUCTIONS TO CHECK
+--------------------------------
+Need to verify if any other instructions reference investment_counter:
+
+Files to review:
+□ initialize_investor.rs - Sets investment_counter = 0 (NEEDS UPDATE)
+□ close_investor.rs - May check counter (NEEDS REVIEW)
+□ release.rs - No counter usage (NO CHANGE)
+□ refund.rs - No counter usage (NO CHANGE)
+□ wire.rs - No counter usage (NO CHANGE)
+□ issue_share.rs - No counter usage (NO CHANGE)
+
+================================================================================
+6. INITIALIZE_INVESTOR INSTRUCTION CHANGES
+================================================================================
+
+File: anchor/programs/canadianreitinvest/src/instructions/initialize_investor.rs
+
+CURRENT:
+```rust
+pub fn handler(ctx: Context<InitializeInvestor>) -> Result<()> {
+    let investor = &mut ctx.accounts.investor;
+    investor.investor_pubkey = ctx.accounts.investor_signer.key();
+    investor.investment_counter = 0;  ← CHANGE THIS
+    investor.bump = ctx.bumps.investor;
+    Ok(())
+}
+```
+
+NEW:
+```rust
+pub fn handler(ctx: Context<InitializeInvestor>) -> Result<()> {
+    let investor = &mut ctx.accounts.investor;
+    investor.investor_pubkey = ctx.accounts.investor_signer.key();
+    investor.bump = ctx.bumps.investor;
+    Ok(())
+}
+```
+
+Note: This instruction may not be needed anymore since Invest uses init_if_needed
+
+================================================================================
+7. FRONTEND/CLIENT CHANGES
+================================================================================
+
+7.1 PDA DERIVATION UTILITIES
+-----------------------------
+File: src/lib/ or src/utils/ (create helper functions)
+
+NEW FUNCTION: Derive InvestorFundraiser PDA
+```typescript
+export function deriveInvestorFundraiserPda(
+  investor: PublicKey,
+  fundraiser: PublicKey,
+  programId: PublicKey
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("investor_fundraiser"),
+      investor.toBuffer(),
+      fundraiser.toBuffer()
+    ],
+    programId
+  );
+}
+```
+
+UPDATED FUNCTION: Derive Investment PDA
+```typescript
+// BEFORE: Required global counter
+export function deriveInvestmentPda(
+  investor: PublicKey,
+  fundraiser: PublicKey,
+  counter: number,  // Global counter from Investor PDA
+  programId: PublicKey
+): [PublicKey, number] { ... }
+
+// AFTER: Requires per-fundraiser counter
+export function deriveInvestmentPda(
+  investor: PublicKey,
+  fundraiser: PublicKey,
+  perFundraiserCounter: number,  // From InvestorFundraiser PDA
+  programId: PublicKey
+): [PublicKey, number] {
+  return PublicKey.findProgramAddressSync(
+    [
+      Buffer.from("investment"),
+      investor.toBuffer(),
+      fundraiser.toBuffer(),
+      Buffer.from(new Uint8Array(new BigUint64Array([BigInt(perFundraiserCounter)]).buffer))
+    ],
+    programId
+  );
+}
+```
+
+7.2 FETCHING INVESTOR INVESTMENTS
+----------------------------------
+BEFORE:
+```typescript
+// Fetch investor PDA to get global counter
+const investorPda = deriveInvestorPda(walletPubkey, programId);
+const investor = await program.account.investor.fetch(investorPda);
+const globalCounter = investor.investmentCounter.toNumber();
+
+// Iterate through all possible investments (inefficient!)
+for (let i = 0; i < globalCounter; i++) {
+  const investmentPda = deriveInvestmentPda(walletPubkey, fundraiser, i, programId);
+  // Try to fetch... may not exist
+}
+```
+
+AFTER:
+```typescript
+// Fetch InvestorFundraiser PDA for specific fundraiser
+const [investorFundraiserPda] = deriveInvestorFundraiserPda(
+  walletPubkey, 
+  fundraiserPubkey, 
+  programId
+);
+
+try {
+  const investorFundraiser = await program.account.investorFundraiser.fetch(investorFundraiserPda);
+  const perFundraiserCounter = investorFundraiser.investmentCounter.toNumber();
+  
+  // Iterate through investments for THIS fundraiser only
+  const investments = [];
+  for (let i = 0; i < perFundraiserCounter; i++) {
+    const [investmentPda] = deriveInvestmentPda(walletPubkey, fundraiserPubkey, i, programId);
+    const investment = await program.account.investment.fetch(investmentPda);
+    investments.push(investment);
+  }
+  
+  return investments;
+} catch (e) {
+  // InvestorFundraiser doesn't exist = no investments in this fundraiser
+  return [];
+}
+```
+
+7.3 QUERYING ALL INVESTMENTS ACROSS ALL FUNDRAISERS
+----------------------------------------------------
+Option A: Use getProgramAccounts (less efficient but complete)
+```typescript
+const allInvestments = await program.account.investment.all([
+  {
+    memcmp: {
+      offset: 8, // After discriminator
+      bytes: walletPubkey.toBase58()
+    }
+  }
+]);
+```
+
+Option B: Track via InvestorFundraiser PDAs
+```typescript
+// First, get all InvestorFundraiser PDAs for this investor
+const allInvestorFundraisers = await program.account.investorFundraiser.all([
+  {
+    memcmp: {
+      offset: 8, // After discriminator
+      bytes: walletPubkey.toBase58()
+    }
+  }
+]);
+
+// Then fetch investments per fundraiser
+const allInvestments = [];
+for (const invFund of allInvestorFundraisers) {
+  const counter = invFund.account.investmentCounter.toNumber();
+  for (let i = 0; i < counter; i++) {
+    const [investmentPda] = deriveInvestmentPda(
+      walletPubkey,
+      invFund.account.fundraiser,
+      i,
+      programId
+    );
+    const investment = await program.account.investment.fetch(investmentPda);
+    allInvestments.push(investment);
+  }
+}
+```
+
+7.4 CODAMA REGENERATION REQUIRED
+---------------------------------
+After state changes:
+1. Build program: cd anchor && anchor build
+2. Generate types: npm run codama:js (from root)
+3. Update imports in frontend to use new InvestorFundraiser types
+
+================================================================================
+8. IMPLEMENTATION CHECKLIST
+================================================================================
+
+PHASE 1: STATE CHANGES
+□ Add InvestorFundraiser struct to state.rs
+□ Modify Investor struct (remove investment_counter field)
+□ Update InitSpace derives
+□ Add comments documenting PDA seeds
+
+PHASE 2: INSTRUCTION CHANGES
+□ Modify invest.rs accounts struct (add investor_fundraiser)
+□ Update invest.rs handler logic
+□ Update initialize_investor.rs (if kept)
+□ Review close_investor.rs for counter references
+□ Test all modified instructions
+
+PHASE 3: BUILD & GENERATE TYPES
+□ Build program: anchor build
+□ Generate TypeScript types: npm run codama:js
+□ Verify generated types include InvestorFundraiser
+
+PHASE 4: FRONTEND UPDATES
+□ Add PDA derivation utility for InvestorFundraiser
+□ Update investment fetching logic
+□ Update investment history display
+□ Test PDA derivation
+□ Update any hardcoded counter references
+
+PHASE 5: DEPLOYMENT
+□ Deploy to testnet/devnet
+
+
+================================================================================
+END OF INVESTMENT COUNTER REFACTORING PLAN
+================================================================================

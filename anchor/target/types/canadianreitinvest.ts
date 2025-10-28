@@ -360,6 +360,49 @@ export type Canadianreitinvest = {
           }
         },
         {
+          "name": "investorFundraiser",
+          "docs": [
+            "NEW: InvestorFundraiser PDA for per-fundraiser tracking"
+          ],
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "const",
+                "value": [
+                  105,
+                  110,
+                  118,
+                  101,
+                  115,
+                  116,
+                  111,
+                  114,
+                  95,
+                  102,
+                  117,
+                  110,
+                  100,
+                  114,
+                  97,
+                  105,
+                  115,
+                  101,
+                  114
+                ]
+              },
+              {
+                "kind": "account",
+                "path": "investorSigner"
+              },
+              {
+                "kind": "account",
+                "path": "fundraiser"
+              }
+            ]
+          }
+        },
+        {
           "name": "fundraiser",
           "writable": true,
           "pda": {
@@ -415,9 +458,8 @@ export type Canadianreitinvest = {
                 "path": "fundraiser"
               },
               {
-                "kind": "account",
-                "path": "investor.investment_counter",
-                "account": "investor"
+                "kind": "arg",
+                "path": "counter"
               }
             ]
           }
@@ -555,6 +597,10 @@ export type Canadianreitinvest = {
               16
             ]
           }
+        },
+        {
+          "name": "counter",
+          "type": "u64"
         }
       ]
     },
@@ -1167,6 +1213,19 @@ export type Canadianreitinvest = {
         26,
         196
       ]
+    },
+    {
+      "name": "investorFundraiser",
+      "discriminator": [
+        9,
+        157,
+        88,
+        28,
+        2,
+        147,
+        58,
+        109
+      ]
     }
   ],
   "errors": [
@@ -1266,7 +1325,8 @@ export type Canadianreitinvest = {
       "name": "investment",
       "docs": [
         "Represents an individual investment in a fundraiser",
-        "Seeds: [b\"investment\", investor_pubkey, fundraiser_pubkey, investment_counter]"
+        "Seeds: [b\"investment\", investor_pubkey, fundraiser_pubkey, investment_counter]",
+        "Counter now comes from InvestorFundraiser PDA instead of Investor PDA"
       ],
       "type": {
         "kind": "struct",
@@ -1343,6 +1403,30 @@ export type Canadianreitinvest = {
         "fields": [
           {
             "name": "investorPubkey",
+            "type": "pubkey"
+          },
+          {
+            "name": "bump",
+            "type": "u8"
+          }
+        ]
+      }
+    },
+    {
+      "name": "investorFundraiser",
+      "docs": [
+        "Tracks investment activity for a specific investor-fundraiser pair",
+        "Seeds: [b\"investor_fundraiser\", investor_pubkey, fundraiser_pubkey]"
+      ],
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "investor",
+            "type": "pubkey"
+          },
+          {
+            "name": "fundraiser",
             "type": "pubkey"
           },
           {

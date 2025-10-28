@@ -19,12 +19,23 @@ pub struct Fundraiser {
 #[derive(InitSpace)]
 pub struct Investor {
     pub investor_pubkey: Pubkey, // The public key of the investor
-    pub investment_counter: u64, // Counter for generating unique investment PDA seeds
     pub bump: u8, // PDA bump seed for the investor account
+}
+
+/// Tracks investment activity for a specific investor-fundraiser pair
+/// Seeds: [b"investor_fundraiser", investor_pubkey, fundraiser_pubkey]
+#[account]
+#[derive(InitSpace)]
+pub struct InvestorFundraiser {
+    pub investor: Pubkey,              // The investor's public key
+    pub fundraiser: Pubkey,            // The fundraiser's public key
+    pub investment_counter: u64,       // Counter for investments in THIS fundraiser by THIS investor
+    pub bump: u8,                      // PDA bump seed
 }
 
 /// Represents an individual investment in a fundraiser
 /// Seeds: [b"investment", investor_pubkey, fundraiser_pubkey, investment_counter]
+///         Counter now comes from InvestorFundraiser PDA instead of Investor PDA
 #[account]
 #[derive(InitSpace)]
 pub struct Investment {

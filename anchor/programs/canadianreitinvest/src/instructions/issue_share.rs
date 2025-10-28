@@ -14,16 +14,8 @@ pub fn handler(ctx: Context<IssueShare>, investor_pubkey: Pubkey, _reit_id_hash:
         crate::errors::CustomError::InvalidAuthority
     );
     
-    msg!("Admin: {}", ctx.accounts.admin.key());
-    msg!("Investment: {}", ctx.accounts.investment.key());
-    msg!("REIT mint: {}", ctx.accounts.reit_mint.key());
-    msg!("Fundraiser: {}", ctx.accounts.fundraiser.key());
-    msg!("Fundraiser REIT mint: {}", ctx.accounts.fundraiser.reit_mint);
-    
     // Validate reit_mint is owned by Token Program
     let token_program_id = anchor_spl::token::ID;
-    msg!("Token Program ID: {}", token_program_id);
-    msg!("REIT mint owner: {}", ctx.accounts.reit_mint.to_account_info().owner);
     
     if ctx.accounts.reit_mint.to_account_info().owner != &token_program_id {
         msg!("ERROR: REIT mint not owned by Token Program!");
@@ -32,14 +24,7 @@ pub fn handler(ctx: Context<IssueShare>, investor_pubkey: Pubkey, _reit_id_hash:
         return Err(error!(crate::errors::CustomError::InvalidInvestmentStatus));
     }
     
-    msg!("REIT mint account lamports: {}", ctx.accounts.reit_mint.to_account_info().lamports());
-    msg!("REIT mint account data len: {}", ctx.accounts.reit_mint.to_account_info().data.borrow().len());
-
     let investment = &mut ctx.accounts.investment;
-    msg!("Investment data - Investor: {}, Amount: {}, Status: {:?}", investment.investor, investment.usdc_amount, investment.status);
-    msg!("Investment fundraiser link: {}", investment.fundraiser);
-    msg!("Checking if fundraiser matches - expected: {}, actual: {}", ctx.accounts.fundraiser.key(), investment.fundraiser);
-
     // Verify investment is in wired status
     if investment.status != state::InvestmentStatus::Wired {
         msg!("ERROR: Investment status is not wired. Current status: {:?}", investment.status);
@@ -72,7 +57,6 @@ pub fn handler(ctx: Context<IssueShare>, investor_pubkey: Pubkey, _reit_id_hash:
     investment.status = state::InvestmentStatus::ShareIssued;
 
     msg!("Minted {} REIT tokens to {}", reit_amount, ctx.accounts.investor_ata.key());
-    msg!("Investment status updated to ShareIssued");
     msg!("Issue share handler complete");
 
     Ok(())

@@ -78,7 +78,7 @@ export default function InvestorPage() {
           </div>
         ) : (
           <div>
-            <BrowseInvestments />
+            <BrowseInvestments userId={user?.id} />
           </div>
         )}
       </section>

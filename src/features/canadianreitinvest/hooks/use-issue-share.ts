@@ -1,4 +1,4 @@
-import { useMutation } from '@tanstack/react-query'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { getIssueShareInstructionAsync } from '@/generated'
 import { useWalletUiSigner, useWalletUiSignAndSend } from '@wallet-ui/react-gill'
 import { UiWalletAccount } from '@wallet-ui/react'
@@ -17,6 +17,7 @@ export function useIssueShare({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
   const { client, cluster } = useSolana()
+  const queryClient = useQueryClient()
 
   return useMutation({
     mutationFn: async ({ investmentPda, reitId, sharePrice }: { investmentPda: string; reitId: string; sharePrice: number }) => {
@@ -184,6 +185,46 @@ export function useIssueShare({ account }: { account: UiWalletAccount }) {
       console.log('[ISSUE SHARE DEBUG] Transaction signature:', sig)
       console.log('[ISSUE SHARE DEBUG] Transaction URL:', `https://explorer.solana.com/tx/${sig}?cluster=localnet`)
 
+      // CRITICAL: Wait for transaction confirmation before proceeding
+      console.log('[ISSUE SHARE DEBUG] Waiting for transaction confirmation...')
+      let confirmationStatus = null
+      let retries = 0
+      const maxRetries = 30 // ~30 seconds with 1 second polling
+
+      while (retries < maxRetries) {
+        try {
+          const signatureStatus = await client.rpc.getSignatureStatuses([sig as any]).send()
+          const status = signatureStatus.value?.[0]
+
+          if (status?.err) {
+            console.error('[ISSUE SHARE DEBUG] Transaction failed with error:', status.err)
+            throw new Error(`Transaction failed: ${JSON.stringify(status.err)}`)
+          }
+
+          if (status?.confirmationStatus === 'confirmed' || status?.confirmationStatus === 'finalized') {
+            confirmationStatus = status.confirmationStatus
+            console.log(`[ISSUE SHARE DEBUG] Transaction confirmed at "${confirmationStatus}" commitment level`)
+            break
+          }
+
+          retries++
+          if (retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000)) // Wait 1 second before retry
+          }
+        } catch (statusError) {
+          console.warn('[ISSUE SHARE DEBUG] Error checking transaction status:', statusError)
+          retries++
+          if (retries < maxRetries) {
+            await new Promise(resolve => setTimeout(resolve, 1000))
+          }
+        }
+      }
+
+      if (!confirmationStatus) {
+        console.error('[ISSUE SHARE DEBUG] Transaction confirmation timeout - did not reach confirmed status within 30 seconds')
+        throw new Error('Transaction confirmation timeout. The shares may not have been issued.')
+      }
+
       // Verify the transaction was successful
       console.log('[ISSUE SHARE DEBUG] Verifying transaction results...')
       const updatedInvestmentAccount = await fetchMaybeInvestment(
@@ -201,6 +242,11 @@ export function useIssueShare({ account }: { account: UiWalletAccount }) {
       toast.success(`Shares issued successfully! TX: ${sig.slice(0, 8)}...${sig.slice(-8)}`)
 
       return sig
+    },
+    onSuccess: () => {
+      // Invalidate queries to trigger refetch for all users
+      queryClient.invalidateQueries({ queryKey: ['investments'] })
+      queryClient.invalidateQueries({ queryKey: ['fundraiser'] })
     },
     onError: (err) => {
       console.error(err)

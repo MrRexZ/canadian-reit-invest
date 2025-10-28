@@ -7,4 +7,5 @@
 - users supabase table, ensure investor_pda has the investor PDA address.
 - pagination
 - security audit
+- support minting REIT token with decimal point
 - 

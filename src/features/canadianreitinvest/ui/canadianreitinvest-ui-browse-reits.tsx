@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSolana } from '@/components/solana/use-solana'
 import { useWalletUi } from '@wallet-ui/react'
@@ -19,6 +19,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button'
 import { parse as uuidParse } from 'uuid'
 import { getMetadataPdaForMint } from '@/lib/metaplex-update'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 
 const SYSTEM_PROGRAM_ID = SystemProgram.programId.toBase58()
 
@@ -35,11 +36,8 @@ type ReitRow = {
 export default function CanadianreitinvestUiBrowseReits() {
   const { client, cluster } = useSolana()
   const { account } = useWalletUi()
-  const createReitMintMutation = useCreateReitMint({ account: account! })
-  const updateReitMintMutation = useUpdateReitMint({ account: account! })
-  const [loading, setLoading] = useState(false)
-  const [rows, setRows] = useState<ReitRow[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  
   const [selectedReit, setSelectedReit] = useState<ReitRow | null>(null)
   const [name, setName] = useState('')
   const [symbol, setSymbol] = useState('')
@@ -49,7 +47,148 @@ export default function CanadianreitinvestUiBrowseReits() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [loadingMetadata, setLoadingMetadata] = useState(false)
   const [selectedMetadataPda, setSelectedMetadataPda] = useState<string | null>(null)
-  const [totalRaisedByReit, setTotalRaisedByReit] = useState<Map<string, number>>(new Map())
+  
+  // React Query hook to fetch REITs data
+  const { data: rows = [], isLoading: loading, error } = useQuery({
+    queryKey: ['browse-reits', cluster.id],
+    queryFn: async () => {
+      const { data: reits, error: dbError } = await supabase.from('reits').select('*')
+      if (dbError) throw new Error(dbError.message)
+
+      if (!reits || reits.length === 0) {
+        return []
+      }
+
+      // Step 1: Derive all fundraiser PDAs locally
+      const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
+      const pdaPairs = await Promise.all(
+        reits.map(async (r: any) => {
+          const id: string = r.id
+          const reitName: string | undefined = r.reit_name
+          const idBytes = uuidParse(id) as unknown as Uint8Array
+          const [fundraiserPda] = await PublicKey.findProgramAddress(
+            [Buffer.from('fundraiser'), Buffer.from(idBytes)],
+            programId
+          )
+          return {
+            id,
+            reit_name: reitName,
+            fundraiserAddress: fundraiserPda.toBase58() as unknown as Address,
+          }
+        })
+      )
+
+      // Step 2: Batch fetch all fundraiser accounts
+      const chunkSize = 100
+      const fetched: ReitRow[] = []
+
+      for (let i = 0; i < pdaPairs.length; i += chunkSize) {
+        const chunk = pdaPairs.slice(i, i + chunkSize)
+        const addresses = chunk.map((p) => p.fundraiserAddress)
+
+        try {
+          const accounts = await fetchAllMaybeFundraiser(client.rpc, addresses)
+          for (let j = 0; j < chunk.length; j++) {
+            fetched.push({
+              id: chunk[j].id,
+              reit_name: chunk[j].reit_name,
+              fundraiser: accounts[j],
+            })
+          }
+        } catch (e) {
+          // If batch fails, add rows without fundraiser data
+          for (const pair of chunk) {
+            fetched.push({
+              id: pair.id,
+              reit_name: pair.reit_name,
+              fundraiser: null,
+            })
+          }
+        }
+      }
+
+      return fetched
+    },
+    staleTime: 10000, // Consider data fresh for 10 seconds
+    refetchOnWindowFocus: true,
+  })
+
+  // Separate query for total raised amounts
+  const { data: totalRaisedByReit = new Map() } = useQuery({
+    queryKey: ['browse-reits-totals', cluster.id, rows.map(r => r.id).join(',')],
+    queryFn: async () => {
+      if (rows.length === 0) return new Map<string, number>()
+
+      const reitIds = rows.map(row => row.id)
+      const { data: allInvestments } = await supabase
+        .from('investments')
+        .select('reit_id, investment_pda')
+        .in('reit_id', reitIds)
+
+      const totalsMap = new Map<string, number>()
+
+      if (allInvestments) {
+        // Group investments by REIT
+        const investmentsByReit = allInvestments.reduce((acc, inv) => {
+          if (!acc[inv.reit_id]) acc[inv.reit_id] = []
+          acc[inv.reit_id].push(inv)
+          return acc
+        }, {} as Record<string, typeof allInvestments>)
+
+        // For each REIT, fetch investment accounts and calculate total
+        for (const reitId of reitIds) {
+          const reitInvestments = investmentsByReit[reitId] || []
+          if (reitInvestments.length === 0) {
+            totalsMap.set(reitId, 0)
+            continue
+          }
+
+          // Fetch investment accounts
+          const investmentAddresses = reitInvestments.map(inv => inv.investment_pda as unknown as Address)
+          try {
+            const investmentAccounts = await fetchAllMaybeInvestment(client.rpc, investmentAddresses)
+            
+            // Sum up USDC amounts for non-refunded investments
+            let totalRaised = 0
+            for (const account of investmentAccounts) {
+              if (account.exists && account.data) {
+                // Status 2 = Refunded, so exclude those
+                if (account.data.status !== 2) {
+                  totalRaised += Number(account.data.usdcAmount || 0)
+                }
+              }
+            }
+            
+            totalsMap.set(reitId, totalRaised)
+          } catch (error) {
+            console.warn(`Failed to fetch investments for REIT ${reitId}:`, error)
+            totalsMap.set(reitId, 0)
+          }
+        }
+      }
+
+      return totalsMap
+    },
+    enabled: rows.length > 0,
+    staleTime: 10000,
+  })
+  
+  const createReitMintMutation = useCreateReitMint({ 
+    account: account!,
+    onSuccess: () => {
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ['browse-reits'] })
+    }
+  })
+  
+  const updateReitMintMutation = useUpdateReitMint({ 
+    account: account!,
+    onSuccess: () => {
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ['browse-reits'] })
+    }
+  })
+  
   // const [recoveryTrigger, setRecoveryTrigger] = useState(0)
   const { pendingTx, isCheckingRecovery, clearPendingTx, checkNow } = useUpdateReitMintRecovery(
     dialogOpen && selectedMetadataPda ? selectedMetadataPda : null
@@ -159,136 +298,8 @@ export default function CanadianreitinvestUiBrowseReits() {
     setCurrency('')
   }
 
-  useEffect(() => {
-    let mounted = true
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const { data: reits, error: dbError } = await supabase.from('reits').select('*')
-        if (dbError) throw new Error(dbError.message)
-
-        if (!reits || reits.length === 0) {
-          if (mounted) setRows([])
-          return
-        }
-
-        // Step 1: Derive all fundraiser PDAs locally
-        const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
-        const pdaPairs = await Promise.all(
-          reits.map(async (r: any) => {
-            const id: string = r.id
-            const reitName: string | undefined = r.reit_name
-            const idBytes = uuidParse(id) as unknown as Uint8Array
-            const [fundraiserPda] = await PublicKey.findProgramAddress(
-              [Buffer.from('fundraiser'), Buffer.from(idBytes)],
-              programId
-            )
-            return {
-              id,
-              reit_name: reitName,
-              fundraiserAddress: fundraiserPda.toBase58() as unknown as Address,
-            }
-          })
-        )
-
-        // Step 2: Batch fetch all fundraiser accounts
-        const chunkSize = 100
-        const fetched: ReitRow[] = []
-
-        for (let i = 0; i < pdaPairs.length; i += chunkSize) {
-          const chunk = pdaPairs.slice(i, i + chunkSize)
-          const addresses = chunk.map((p) => p.fundraiserAddress)
-
-          try {
-            const accounts = await fetchAllMaybeFundraiser(client.rpc, addresses)
-            for (let j = 0; j < chunk.length; j++) {
-              fetched.push({
-                id: chunk[j].id,
-                reit_name: chunk[j].reit_name,
-                fundraiser: accounts[j],
-              })
-            }
-          } catch (e) {
-            // If batch fails, add rows without fundraiser data
-            for (const pair of chunk) {
-              fetched.push({
-                id: pair.id,
-                reit_name: pair.reit_name,
-                fundraiser: null,
-              })
-            }
-          }
-        }
-
-        // Fetch investments for each REIT to calculate total raised excluding refunded
-        const reitIds = fetched.map(row => row.id)
-        const { data: allInvestments } = await supabase
-          .from('investments')
-          .select('reit_id, investment_pda')
-          .in('reit_id', reitIds)
-
-        // Calculate total raised for each REIT (excluding refunded investments)
-        const totalsMap = new Map<string, number>()
-
-        if (allInvestments) {
-          // Group investments by REIT
-          const investmentsByReit = allInvestments.reduce((acc, inv) => {
-            if (!acc[inv.reit_id]) acc[inv.reit_id] = []
-            acc[inv.reit_id].push(inv)
-            return acc
-          }, {} as Record<string, typeof allInvestments>)
-
-          // For each REIT, fetch investment accounts and calculate total
-          for (const reitId of reitIds) {
-            const reitInvestments = investmentsByReit[reitId] || []
-            if (reitInvestments.length === 0) {
-              totalsMap.set(reitId, 0)
-              continue
-            }
-
-            // Fetch investment accounts
-            const investmentAddresses = reitInvestments.map(inv => inv.investment_pda as unknown as Address)
-            try {
-              const investmentAccounts = await fetchAllMaybeInvestment(client.rpc, investmentAddresses)
-              
-              // Sum up USDC amounts for non-refunded investments
-              let totalRaised = 0
-              for (const account of investmentAccounts) {
-                if (account.exists && account.data) {
-                  // Status 2 = Refunded, so exclude those
-                  if (account.data.status !== 2) {
-                    totalRaised += Number(account.data.usdcAmount || 0)
-                  }
-                }
-              }
-              
-              totalsMap.set(reitId, totalRaised)
-            } catch (error) {
-              console.warn(`Failed to fetch investments for REIT ${reitId}:`, error)
-              totalsMap.set(reitId, 0)
-            }
-          }
-        }
-
-        setTotalRaisedByReit(totalsMap)
-        if (mounted) setRows(fetched)
-      } catch (err: any) {
-        console.error('Failed to load REITs', err)
-        if (mounted) setError(err?.message ?? String(err))
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      mounted = false
-    }
-  }, [client, cluster])
-
   if (loading) return <span className="loading loading-spinner loading-md" />
-  if (error) return <div className="text-red-600">Error: {error}</div>
+  if (error) return <div className="text-red-600">Error: {error instanceof Error ? error.message : String(error)}</div>
 
   if (!loading && rows.length === 0) {
     return (

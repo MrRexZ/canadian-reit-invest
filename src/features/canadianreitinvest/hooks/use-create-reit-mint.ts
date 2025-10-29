@@ -11,7 +11,10 @@ import { uploadReitMetadataToSupabase, ReitMetadata } from '@/lib/supabase-file-
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { useSolana } from '@/components/solana/use-solana'
 
-export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
+export function useCreateReitMint({ account, onSuccess }: { 
+  account: UiWalletAccount;
+  onSuccess?: () => void;
+}) {
   const signer = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
   const { client } = useSolana()
@@ -150,6 +153,12 @@ export function useCreateReitMint({ account }: { account: UiWalletAccount }) {
       toast.success(`REIT mint created successfully! TX: ${signature.slice(0, 8)}...${signature.slice(-8)}`)
 
       return signature
+    },
+    onSuccess: () => {
+      // Call the optional onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess()
+      }
     },
     onError: (err) => {
       console.error(err)

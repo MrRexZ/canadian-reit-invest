@@ -10,6 +10,9 @@ import { AppFooter } from './app-footer'
 export function AppLayout({ children }: { children: React.ReactNode }) {
   const { role, user } = useAuth()
 
+  // Don't show AppHeader when user is authenticated with a role (dashboard layout has its own header)
+  const showAppHeader = !user || !role
+
   // Only show tabs if user is logged in and has a role
   const links: { label: string; path: string }[] = []
   if (user && role) {
@@ -23,14 +26,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <div className="flex flex-col min-h-screen">
-        <AppHeader links={links} />
-        <main className="flex-grow container mx-auto p-4">
+        {showAppHeader && <AppHeader links={links} />}
+        <main className={showAppHeader ? 'flex-grow container mx-auto p-4' : 'flex-grow'}>
           <ClusterUiChecker>
             <AccountUiChecker />
           </ClusterUiChecker>
           {children}
         </main>
-        <AppFooter />
+        {showAppHeader && <AppFooter />}
       </div>
       <Toaster closeButton />
     </ThemeProvider>

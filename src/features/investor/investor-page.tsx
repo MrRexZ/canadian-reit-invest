@@ -5,6 +5,15 @@ import BrowseReitsInvestor from '@/features/canadianreitinvest/ui/canadianreitin
 import BrowseInvestments from '@/features/canadianreitinvest/ui/canadianreitinvest-ui-browse-investments'
 import { InitializeInvestorView } from './ui/initialize-investor-view'
 import { useState } from 'react'
+import { DashboardLayout } from '@/components/dashboard-layout'
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 
 export default function InvestorPage() {
   const { user } = useAuth()
@@ -23,47 +32,72 @@ export default function InvestorPage() {
     )
   }
 
+  // Type-safe wrapper for setTab
+  const handleTabChange = (newTab: string) => {
+    if (newTab === 'browse' || newTab === 'investments') {
+      setTab(newTab)
+    }
+  }
+
+  const breadcrumbMap: Record<string, { label: string }[]> = {
+    'browse': [{ label: 'Browse REITs' }],
+    'investments': [{ label: 'My Investments' }],
+  }
+
+  const currentBreadcrumbs = breadcrumbMap[tab] || breadcrumbMap['browse']
+
+  const breadcrumb = (
+    <Breadcrumb>
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink asChild>
+            <button onClick={() => handleTabChange('browse')} className="hover:underline">
+              Dashboard
+            </button>
+          </BreadcrumbLink>
+        </BreadcrumbItem>
+        {currentBreadcrumbs.map((crumb, idx) => (
+          <div key={idx} className="flex items-center gap-1.5">
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </div>
+        ))}
+      </BreadcrumbList>
+    </Breadcrumb>
+  )
+
+  const renderContent = () => {
+    switch (tab) {
+      case 'browse':
+        return <BrowseReitsInvestor account={account} />
+      case 'investments':
+        return <BrowseInvestments userId={user?.id} />
+      default:
+        return null
+    }
+  }
+
   return (
-    <div className="flex gap-0">
-      <aside className="p-4 bg-sidebar border-r fixed left-0 top-[52px] bottom-0 w-[220px] z-10 overflow-y-auto">
-        <nav className="flex flex-col space-y-2">
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'browse' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('browse')}
-          >
-            Browse REITs
-          </button>
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'investments' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('investments')}
-          >
-            Browse Investments
-          </button>
-        </nav>
-      </aside>
+    <DashboardLayout
+      role="investor"
+      activeTab={tab}
+      onTabChange={handleTabChange}
+      breadcrumb={breadcrumb}
+    >
+      <div className="pb-4 mb-6 border-b">
+        <h1 className="text-4xl font-bold">Investor Dashboard</h1>
+        <p className="text-muted-foreground mt-2">
+          {user?.email ? `Welcome, ${user.email}` : 'Welcome to your investment dashboard'}
+        </p>
+      </div>
 
-      <section className="ml-[220px] flex-1 p-6">
-        <div className="pb-4 mb-6 border-b">
-          <h1 className="text-4xl font-bold">Investor Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            {user?.email ? `Welcome, ${user.email}` : 'Welcome to your investment dashboard'}
-          </p>
-        </div>
+      <div className="mb-6">
+        <InitializeInvestorView />
+      </div>
 
-        <div className="mb-6">
-          <InitializeInvestorView />
-        </div>
-
-        {tab === 'browse' ? (
-          <div>
-            <BrowseReitsInvestor account={account} />
-          </div>
-        ) : (
-          <div>
-            <BrowseInvestments userId={user?.id} />
-          </div>
-        )}
-      </section>
-    </div>
+      {renderContent()}
+    </DashboardLayout>
   )
 }

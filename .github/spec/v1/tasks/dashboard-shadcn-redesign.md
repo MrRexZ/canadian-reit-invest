@@ -504,14 +504,6 @@ src/
 17. Empty states for charts
 18. Advanced table features
 
-## Rollback Plan
-
-If issues arise during implementation:
-1. Keep old layout components in `*-old.tsx` files
-2. Use feature flag to toggle between old/new layouts
-3. Test thoroughly in development before deploying
-4. Have backup branch before major refactoring
-
 ## Dependencies to Install
 
 ```bash
@@ -564,4 +556,4 @@ npm install class-variance-authority
 - Shadcn Sidebar Documentation: https://ui.shadcn.com/docs/components/sidebar
 - Shadcn Chart Documentation: https://ui.shadcn.com/docs/components/chart
 - Dashboard Block Example: `@shadcn/dashboard-01`
-- Reference Image: `/Users/anthonytjuatja/Library/Application Support/CleanShot/media/media_nkZtatu2VF/CleanShot 2025-10-28 at 19.06.10@2x.png`
+- Reference Image: `/Users/anthonytjuatja/Dev/hackathon/canadian-reit-invest/.github/spec/v1/tasks/ref_image.png`

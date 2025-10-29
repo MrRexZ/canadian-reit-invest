@@ -11,6 +11,15 @@ import { useLocation } from 'react-router'
 import { useState } from 'react'
 import BrowseReits from './ui/canadianreitinvest-ui-browse-reits'
 import BrowseInvestments from './ui/canadianreitinvest-ui-browse-investments'
+import { DashboardLayout } from '@/components/dashboard-layout'
+import {
+  Breadcrumb,
+  BreadcrumbList,
+  BreadcrumbItem,
+  BreadcrumbLink,
+  BreadcrumbPage,
+  BreadcrumbSeparator,
+} from '@/components/ui/breadcrumb'
 
 export default function CanadianreitinvestFeature() {
   const { account } = useSolana()
@@ -91,59 +100,65 @@ export default function CanadianreitinvestFeature() {
 function AdminTabs({ account }: { account: any }) {
   const [tab, setTab] = useState<'create' | 'browse' | 'investments' | 'dividends'>('create')
 
-  return (
-    <div className="flex gap-0">
-      <aside className="p-4 bg-sidebar border-r fixed left-0 top-[52px] bottom-0 w-[220px] z-10 overflow-y-auto">
-        <nav className="flex flex-col space-y-2">
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'create' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('create')}
-          >
-            Create REIT
-          </button>
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'browse' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('browse')}
-          >
-            Browse REITs
-          </button>
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'investments' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('investments')}
-          >
-            Browse Investments
-          </button>
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'dividends' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('dividends')}
-          >
-            Issue Dividends
-          </button>
-        </nav>
-      </aside>
+  // Type-safe wrapper for setTab
+  const handleTabChange = (newTab: string) => {
+    if (newTab === 'create' || newTab === 'browse' || newTab === 'investments' || newTab === 'dividends') {
+      setTab(newTab)
+    }
+  }
 
-      <section className="ml-[220px] flex-1 p-6">
-        {tab === 'create' ? (
+  const breadcrumbMap: Record<string, { label: string }[]> = {
+    'create': [{ label: 'Create REIT' }],
+    'browse': [{ label: 'Browse REITs' }],
+    'investments': [{ label: 'Browse Investments' }],
+    'dividends': [{ label: 'Issue Dividends' }],
+  }
+
+  const currentBreadcrumbs = breadcrumbMap[tab] || breadcrumbMap['create']
+
+  const breadcrumb = (
+    <Breadcrumb>
+      <BreadcrumbList>
+        <BreadcrumbItem>
+          <BreadcrumbLink asChild>
+            <button onClick={() => setTab('create')} className="hover:underline">
+              Dashboard
+            </button>
+          </BreadcrumbLink>
+        </BreadcrumbItem>
+        {currentBreadcrumbs.map((crumb, idx) => (
+          <div key={idx} className="flex items-center gap-1.5">
+            <BreadcrumbSeparator />
+            <BreadcrumbItem>
+              <BreadcrumbPage>{crumb.label}</BreadcrumbPage>
+            </BreadcrumbItem>
+          </div>
+        ))}
+      </BreadcrumbList>
+    </Breadcrumb>
+  )
+
+  const renderContent = () => {
+    switch (tab) {
+      case 'create':
+        return (
           <div>
             <div className="pb-4">
               <h1 className="text-4xl font-bold">Create REIT</h1>
               <p className="mt-2 text-muted-foreground">Create a new REIT and initialize its fundraiser</p>
               <div className="mt-3"><CanadianreitinvestUiProgramExplorerLink /></div>
             </div>
-
             <div className="space-y-6 max-w-md">
               <CanadianreitinvestUiInitializeFundraiser account={account} />
             </div>
           </div>
-        ) : tab === 'browse' ? (
-          <div>
-            <BrowseReits />
-          </div>
-        ) : tab === 'investments' ? (
-          <div>
-            <BrowseInvestments isAdmin={true} />
-          </div>
-        ) : tab === 'dividends' ? (
+        )
+      case 'browse':
+        return <BrowseReits />
+      case 'investments':
+        return <BrowseInvestments isAdmin={true} />
+      case 'dividends':
+        return (
           <div>
             <div className="pb-4">
               <h1 className="text-4xl font-bold">Issue Dividends</h1>
@@ -151,8 +166,20 @@ function AdminTabs({ account }: { account: any }) {
             </div>
             <AdminDividendPage account={account} />
           </div>
-        ) : null}
-      </section>
-    </div>
+        )
+      default:
+        return null
+    }
+  }
+
+  return (
+    <DashboardLayout
+      role="admin"
+      activeTab={tab}
+      onTabChange={handleTabChange}
+      breadcrumb={breadcrumb}
+    >
+      {renderContent()}
+    </DashboardLayout>
   )
 }

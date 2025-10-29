@@ -341,7 +341,17 @@ export default function CanadianreitinvestUiBrowseReits() {
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.id}>
-              <TableCell className="font-mono">{row.fundraiserAddress}</TableCell>
+              <TableCell className="font-mono">
+                <a
+                  href={getSolanaExplorerUrl(row.fundraiserAddress, cluster.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                >
+                  {row.fundraiserAddress}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </TableCell>
               <TableCell>{row.reit_name ?? '-'}</TableCell>
               <TableCell className="text-right">
                 ${((totalRaisedByReit.get(row.id) || 0) / 1_000_000).toFixed(2)}

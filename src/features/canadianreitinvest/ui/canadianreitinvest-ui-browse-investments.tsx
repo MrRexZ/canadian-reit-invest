@@ -13,9 +13,11 @@ import { useSolana } from '@/components/solana/use-solana'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { useInvestmentsQuery } from '../data-access/use-investments-query'
 import { Address } from 'gill'
+import { getSolanaExplorerUrl } from '@/lib/cluster-endpoints'
+import { ExternalLink } from 'lucide-react'
 
 export default function BrowseInvestments({ isAdmin = false, userId }: { isAdmin?: boolean; userId?: string }) {
-  const { client } = useSolana()
+  const { client, cluster } = useSolana()
   const { account } = useSolana()
   
   // Use React Query hook for data fetching and automatic polling/invalidation
@@ -91,7 +93,15 @@ export default function BrowseInvestments({ isAdmin = false, userId }: { isAdmin
                   <TableRow key={row.id}>
                     {isAdmin && (
                       <TableCell className="font-mono text-xs">
-                        {row.investment_pda}
+                        <a
+                          href={getSolanaExplorerUrl(row.investment_pda, cluster.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                        >
+                          {row.investment_pda}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
                       </TableCell>
                     )}
                     {isAdmin && <TableCell>{row.user_name || 'Unknown'}</TableCell>}

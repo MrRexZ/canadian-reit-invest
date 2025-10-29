@@ -20,6 +20,7 @@ import { Button } from '@/components/ui/button'
 import { parse as uuidParse } from 'uuid'
 import { getMetadataPdaForMint } from '@/lib/metaplex-update'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
 
 const SYSTEM_PROGRAM_ID = SystemProgram.programId.toBase58()
 
@@ -196,6 +197,30 @@ export default function CanadianreitinvestUiBrowseReits() {
   const { pendingTx, isCheckingRecovery, clearPendingTx, checkNow } = useUpdateReitMintRecovery(
     dialogOpen && selectedMetadataPda ? selectedMetadataPda : null
   )
+  
+  // Track previous pendingTx status to detect finalization
+  const prevPendingTxRef = useRef(pendingTx)
+  
+  useEffect(() => {
+    const prevStatus = prevPendingTxRef.current?.status
+    const currentStatus = pendingTx?.status
+    
+    // If transaction was pending and is now finalized (null) or explicitly finalized
+    if (prevStatus === 'pending' && (currentStatus === null || currentStatus === 'finalized' || !pendingTx)) {
+      console.log('[BROWSE REITS] Transaction finalized, refreshing data...')
+      // Invalidate queries to refresh the table with updated metadata
+      queryClient.invalidateQueries({ queryKey: ['browse-reits'] })
+      
+      // Also refetch metadata if modal is still open with selectedMetadataPda
+      if (dialogOpen && selectedMetadataPda && selectedReit?.fundraiser?.data?.reitMint) {
+        fetchTokenMetadata(selectedReit.fundraiser.data.reitMint)
+      }
+    }
+    
+    // Update ref for next comparison
+    prevPendingTxRef.current = pendingTx
+  }, [pendingTx, queryClient, dialogOpen, selectedMetadataPda, selectedReit])
+  
   const fetchTokenMetadata = async (mintAddress: string) => {
     try {
       setLoadingMetadata(true)

@@ -127,16 +127,7 @@ function AdminTabs({ account, user }: { account: any; user?: User | null }) {
     dividends: 'Distribute accrued returns to eligible investors.',
   }
 
-  const headerActions = (
-    <div className="flex items-center gap-2">
-      {tab !== 'create' ? (
-        <Button size="sm" onClick={() => setTab('create')}>
-          Quick Create
-        </Button>
-      ) : null}
-      <WalletDropdown />
-    </div>
-  )
+  const headerActions = undefined
 
   let content: ReactNode = null
 

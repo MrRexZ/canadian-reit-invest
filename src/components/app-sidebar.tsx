@@ -1,4 +1,4 @@
-import { Avatar, AvatarFallback } from '@/components/ui/avatar'
+
 import {
   Sidebar,
   SidebarContent,
@@ -12,6 +12,8 @@ import {
   SidebarMenuItem,
   SidebarRail,
 } from '@/components/ui/sidebar'
+import { WalletDropdown } from '@/components/wallet-dropdown'
+import { UserDropdown } from '@/components/user-dropdown'
 import type { ReactNode } from 'react'
 import { BarChart3, Building2, DollarSign, Home, Users } from 'lucide-react'
 
@@ -52,11 +54,10 @@ const investorNavigation: NavigationConfig[] = [
   { icon: <Users className="size-4" />, label: 'My Investments', value: 'investments' },
 ]
 
-export function AppSidebar({ role, activeItem, onSelect, userEmail, userName }: AppSidebarProps) {
+export function AppSidebar({ role, activeItem, onSelect }: AppSidebarProps) {
   const navigation = role === 'admin' ? adminNavigation : investorNavigation
-  const initials = (userName || userEmail)?.[0]?.toUpperCase() ?? 'U'
-  const displayName = userName ?? userEmail ?? 'User'
-  const consoleLabel = role === 'admin' ? 'Admin Console' : 'Investor Console'
+
+  const consoleLabel = role === 'admin' ? 'Admin Dashboard' : 'Investor Console'
 
   return (
     <Sidebar collapsible="icon">
@@ -65,8 +66,8 @@ export function AppSidebar({ role, activeItem, onSelect, userEmail, userName }: 
           <div className="size-8 rounded-md bg-primary/10 flex items-center justify-center font-semibold text-primary">
             CR
           </div>
-          <div className="flex flex-col">
-            <span className="text-sm font-semibold tracking-tight">Canadian REIT</span>
+          <div className="flex flex-col group-data-[collapsible=icon]:hidden">
+            <span className="text-sm font-semibold tracking-tight">CAD REITs</span>
             <span className="text-xs text-muted-foreground">{consoleLabel}</span>
           </div>
         </div>
@@ -92,16 +93,9 @@ export function AppSidebar({ role, activeItem, onSelect, userEmail, userName }: 
         </SidebarGroup>
       </SidebarContent>
       <SidebarFooter>
-        <div className="flex items-center gap-3 rounded-md px-2 py-2">
-          <Avatar className="size-8">
-            <AvatarFallback>{initials}</AvatarFallback>
-          </Avatar>
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium text-sidebar-foreground">{displayName}</p>
-            {userEmail ? (
-              <p className="truncate text-xs text-muted-foreground">{userEmail}</p>
-            ) : null}
-          </div>
+        <div className="flex flex-col gap-2">
+          <WalletDropdown variant="icon" />
+          <UserDropdown variant="sidebar" />
         </div>
       </SidebarFooter>
       <SidebarRail />

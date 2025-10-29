@@ -16,7 +16,10 @@ import type { Address } from 'gill'
  * Handles updating both the JSON metadata file in Supabase Storage AND the on-chain Metaplex metadata
  * Transaction status is recovered via the useUpdateReitMintRecovery hook
  */
-export function useUpdateReitMint({ account }: { account: UiWalletAccount }) {
+export function useUpdateReitMint({ account, onSuccess }: { 
+  account: UiWalletAccount;
+  onSuccess?: () => void;
+}) {
   const signer = account ? useWalletUiSigner({ account }) : null
   const signAndSend = useWalletUiSignAndSend()
 
@@ -119,6 +122,12 @@ export function useUpdateReitMint({ account }: { account: UiWalletAccount }) {
       console.log('[UPDATE MINT DEBUG] Transaction status will be checked via the recovery hook')
 
       return metadataUri
+    },
+    onSuccess: () => {
+      // Call the optional onSuccess callback if provided
+      if (onSuccess) {
+        onSuccess()
+      }
     },
     onError: (err) => {
       console.error(err)

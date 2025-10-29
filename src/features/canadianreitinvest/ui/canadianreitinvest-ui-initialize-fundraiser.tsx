@@ -72,14 +72,6 @@ export function CanadianreitinvestUiInitializeFundraiser({ account }: { account:
           />
         </div>
       )}
-      {(isDevnet || isLocalnet) && (
-        <div>
-          <Label>USDC Mint Address ({cluster.label})</Label>
-          <div className="text-sm text-muted-foreground bg-muted p-2 rounded font-mono break-all">
-            {defaultUsdcMint}
-          </div>
-        </div>
-      )}
       <Button
         onClick={handleInitialize}
         disabled={initializeMutation.isPending || !reitName || (!(isDevnet || isLocalnet) && !usdcMint) || ((isDevnet || isLocalnet) && !defaultUsdcMint)}

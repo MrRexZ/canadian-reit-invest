@@ -64,7 +64,7 @@ export default function BrowseInvestments({ isAdmin = false, userId }: { isAdmin
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Investment ID</TableHead>
+                {isAdmin && <TableHead>Investment ID</TableHead>}
                 {isAdmin && <TableHead>Investor Name</TableHead>}
                 {isAdmin && <TableHead>Investor Email</TableHead>}
                 <TableHead>REIT</TableHead>
@@ -89,9 +89,11 @@ export default function BrowseInvestments({ isAdmin = false, userId }: { isAdmin
 
                 return (
                   <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">
-                      {row.investment_pda.slice(0, 8)}...{row.investment_pda.slice(-8)}
-                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="font-mono text-xs">
+                        {row.investment_pda}
+                      </TableCell>
+                    )}
                     {isAdmin && <TableCell>{row.user_name || 'Unknown'}</TableCell>}
                     {isAdmin && <TableCell className="font-mono text-xs">{row.user_email || 'Unknown'}</TableCell>}
                     <TableCell>{row.reit_name || 'Unknown REIT'}</TableCell>

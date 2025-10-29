@@ -164,15 +164,6 @@ function AdminTabs({ account, user }: { account: any; user?: User | null }) {
               </Button>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Program Explorer</CardTitle>
-              <CardDescription>Inspect the on-chain state for the Canadian REIT program.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CanadianreitinvestUiProgramExplorerLink />
-            </CardContent>
-          </Card>
         </div>
       )
       break
@@ -180,17 +171,6 @@ function AdminTabs({ account, user }: { account: any; user?: User | null }) {
     case 'create': {
       content = (
         <div className="space-y-6 max-w-2xl">
-          <Card>
-            <CardHeader>
-              <CardTitle>Program Explorer</CardTitle>
-              <CardDescription>
-                Reference on-chain accounts while configuring a new fundraiser.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CanadianreitinvestUiProgramExplorerLink />
-            </CardContent>
-          </Card>
           <CanadianreitinvestUiInitializeFundraiser account={account} />
         </div>
       )

@@ -26,6 +26,7 @@ const SYSTEM_PROGRAM_ID = SystemProgram.programId.toBase58()
 type ReitRow = {
   id: string
   reit_name?: string
+  fundraiserAddress: string
   fundraiser?: any
 }
 
@@ -92,6 +93,7 @@ export default function CanadianreitinvestUiBrowseReits() {
             fetched.push({
               id: chunk[j].id,
               reit_name: chunk[j].reit_name,
+              fundraiserAddress: chunk[j].fundraiserAddress,
               fundraiser: accounts[j],
             })
           }
@@ -101,6 +103,7 @@ export default function CanadianreitinvestUiBrowseReits() {
             fetched.push({
               id: pair.id,
               reit_name: pair.reit_name,
+              fundraiserAddress: pair.fundraiserAddress,
               fundraiser: null,
             })
           }
@@ -316,7 +319,7 @@ export default function CanadianreitinvestUiBrowseReits() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>REIT ID</TableHead>
+            <TableHead>Fundraiser PDA ID</TableHead>
             <TableHead>REIT Name</TableHead>
             <TableHead className="text-right">Total Raised (USDC)</TableHead>
             <TableHead>Actions</TableHead>
@@ -325,7 +328,7 @@ export default function CanadianreitinvestUiBrowseReits() {
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.id}>
-              <TableCell className="font-mono">{row.id}</TableCell>
+              <TableCell className="font-mono">{row.fundraiserAddress}</TableCell>
               <TableCell>{row.reit_name ?? '-'}</TableCell>
               <TableCell className="text-right">
                 ${((totalRaisedByReit.get(row.id) || 0) / 1_000_000).toFixed(2)}

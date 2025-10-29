@@ -1,6 +1,5 @@
 import { useAuth } from '@/components/auth-provider'
 import { useSolana } from '@/components/solana/use-solana'
-import { WalletDropdown } from '@/components/wallet-dropdown'
 import BrowseReitsInvestor from '@/features/canadianreitinvest/ui/canadianreitinvest-ui-browse-reits-investor'
 import BrowseInvestments from '@/features/canadianreitinvest/ui/canadianreitinvest-ui-browse-investments'
 import { InitializeInvestorView } from './ui/initialize-investor-view'
@@ -21,7 +20,10 @@ export default function InvestorPage() {
       <div className="max-w-4xl mx-auto">
         <div className="hero py-[64px]">
           <div className="hero-content text-center">
-            <WalletDropdown />
+            <div>
+              <h1 className="text-3xl font-bold mb-4">Connect Your Wallet</h1>
+              <p className="text-muted-foreground mb-4">Please connect your wallet to access the investor dashboard.</p>
+            </div>
           </div>
         </div>
       </div>
@@ -59,7 +61,6 @@ export default function InvestorPage() {
           Browse REITs
         </Button>
       ) : null}
-      <WalletDropdown />
     </div>
   )
 

@@ -51,9 +51,6 @@ export function UserDropdown({ variant = 'default' }: UserDropdownProps) {
             {/* Details visible only when expanded */}
             <div className="min-w-0 text-left group-data-[collapsible=icon]:hidden">
               <p className="truncate text-sm font-medium leading-none">{displayName}</p>
-              {user.email ? (
-                <p className="truncate text-xs leading-none text-muted-foreground">{user.email}</p>
-              ) : null}
             </div>
           </Button>
         ) : (

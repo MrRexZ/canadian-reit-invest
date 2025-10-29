@@ -21,6 +21,8 @@ import { parse as uuidParse } from 'uuid'
 import { getMetadataPdaForMint } from '@/lib/metaplex-update'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef } from 'react'
+import { ExternalLink } from 'lucide-react'
+import { getRpcEndpoint, getSolanaExplorerUrl } from '@/lib/cluster-endpoints'
 
 const SYSTEM_PROGRAM_ID = SystemProgram.programId.toBase58()
 
@@ -226,20 +228,6 @@ export default function CanadianreitinvestUiBrowseReits() {
       setLoadingMetadata(true)
       
       // Create UMI instance with the current RPC endpoint
-      // Map cluster ID to RPC endpoint
-      const getRpcEndpoint = (clusterId: string) => {
-        switch (clusterId) {
-          case 'solana:mainnet':
-            return 'https://api.mainnet-beta.solana.com'
-          case 'solana:devnet':
-            return 'https://api.devnet.solana.com'
-          case 'solana:testnet':
-            return 'https://api.testnet.solana.com'
-          case 'solana:localnet':
-          default:
-            return 'http://localhost:8899'
-        }
-      }
       const rpcEndpoint = getRpcEndpoint(cluster.id)
       console.log('[METADATA FETCH] Cluster ID:', cluster.id, 'RPC Endpoint:', rpcEndpoint)
       const umi = createUmi(rpcEndpoint)
@@ -416,11 +404,27 @@ export default function CanadianreitinvestUiBrowseReits() {
                           ? 'Update REIT Mint' 
                           : 'Create REIT Mint'}
                       </DialogTitle>
-                      <DialogDescription>
+                      <DialogDescription className="space-y-2">
+                        <div>
+                          {selectedReit?.fundraiser?.data?.reitMint && 
+                           selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                            ? 'Update the REIT mint token details.' 
+                            : 'Enter the REIT mint token details. Only name and symbol are required to create the mint.'}
+                        </div>
                         {selectedReit?.fundraiser?.data?.reitMint && 
-                         selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
-                          ? 'Update the REIT mint token details.' 
-                          : 'Enter the REIT mint token details. Only name and symbol are required to create the mint.'}
+                         selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID && (
+                          <div>
+                            <a
+                              href={getSolanaExplorerUrl(selectedReit.fundraiser.data.reitMint, cluster.id)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                            >
+                              View Mint Token
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        )}
                       </DialogDescription>
                     </DialogHeader>
                     {loadingMetadata ? (
@@ -447,6 +451,16 @@ export default function CanadianreitinvestUiBrowseReits() {
                               <p className="text-xs text-yellow-700 mt-1">
                                 Signature: {pendingTx.signature.slice(0, 20)}...
                               </p>
+                              {selectedReit?.fundraiser?.data?.reitMint && (
+                                <a
+                                  href={getSolanaExplorerUrl(selectedReit.fundraiser.data.reitMint, cluster.id)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-yellow-700 hover:text-yellow-900 underline mt-2 inline-block"
+                                >
+                                  View Mint Token on Explorer →
+                                </a>
+                              )}
                             </div>
                           )}
 

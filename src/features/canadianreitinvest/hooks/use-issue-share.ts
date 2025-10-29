@@ -11,6 +11,7 @@ import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { fetchMaybeInvestment } from '@/generated/accounts/investment'
 import { Address } from 'gill'
 import { parse as uuidParse } from 'uuid'
+import { getRpcEndpoint } from '@/lib/cluster-endpoints'
 import { getSharePriceFromMetadata } from '@/lib/metaplex-update'
 
 export function useIssueShare({ account }: { account: UiWalletAccount }) {
@@ -56,21 +57,8 @@ export function useIssueShare({ account }: { account: UiWalletAccount }) {
       }
 
       // Map cluster ID to RPC endpoint
-      const getRpcEndpoint = (clusterId: string) => {
-        switch (clusterId) {
-          case 'solana:mainnet':
-            return 'https://api.mainnet-beta.solana.com'
-          case 'solana:devnet':
-            return 'https://api.devnet.solana.com'
-          case 'solana:testnet':
-            return 'https://api.testnet.solana.com'
-          case 'solana:localnet':
-          default:
-            return 'http://localhost:8899'
-        }
-      }
 
-      // If sharePrice is not provided, fetch it from REIT metadata
+            // If sharePrice is not provided, fetch it from REIT metadata
       let finalSharePrice = sharePrice;
       if (!finalSharePrice) {
         console.log('[ISSUE SHARE DEBUG] Share price not provided, fetching from metadata...');

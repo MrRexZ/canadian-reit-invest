@@ -8,9 +8,14 @@ import AuthFeature from '@/features/auth/auth-feature'
 import { useAuth } from '@/components/auth-provider'
 import InvestorPage from '@/features/investor/investor-page'
 import { useLocation } from 'react-router'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
 import BrowseReits from './ui/canadianreitinvest-ui-browse-reits'
 import BrowseInvestments from './ui/canadianreitinvest-ui-browse-investments'
+import { DashboardLayout, type DashboardBreadcrumb } from '@/components/dashboard-layout'
+import type { AppSidebarNavKey } from '@/components/app-sidebar'
+import { Button } from '@/components/ui/button'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import type { User } from '@supabase/supabase-js'
 
 export default function CanadianreitinvestFeature() {
   const { account } = useSolana()
@@ -50,12 +55,7 @@ export default function CanadianreitinvestFeature() {
         </div>
       )
     }
-    return (
-      <div>
-        {/* Top-level admin tabs: Create REIT and Browse REITs */}
-        <AdminTabs account={account} />
-      </div>
-    )
+    return <AdminTabs account={account} user={user} />
   }
 
   if (role === 'investor') {
@@ -88,71 +88,152 @@ export default function CanadianreitinvestFeature() {
   )
 }
 
-function AdminTabs({ account }: { account: any }) {
-  const [tab, setTab] = useState<'create' | 'browse' | 'investments' | 'dividends'>('create')
+function AdminTabs({ account, user }: { account: any; user?: User | null }) {
+  const [tab, setTab] = useState<AppSidebarNavKey>('dashboard')
+
+  const breadcrumbs: Record<AppSidebarNavKey, DashboardBreadcrumb[]> = {
+    dashboard: [{ label: 'Dashboard' }],
+    create: [
+      { label: 'Dashboard' },
+      { label: 'Create REIT' },
+    ],
+    browse: [
+      { label: 'Dashboard' },
+      { label: 'Browse REITs' },
+    ],
+    investments: [
+      { label: 'Dashboard' },
+      { label: 'Investments' },
+    ],
+    dividends: [
+      { label: 'Dashboard' },
+      { label: 'Issue Dividends' },
+    ],
+  }
+
+  const titles: Record<AppSidebarNavKey, string> = {
+    dashboard: 'Dashboard Overview',
+    create: 'Create REIT',
+    browse: 'Browse REITs',
+    investments: 'Browse Investments',
+    dividends: 'Issue Dividends',
+  }
+
+  const descriptions: Partial<Record<AppSidebarNavKey, string>> = {
+    dashboard: 'High-level view of the fundraising program and quick links to key workflows.',
+    create: 'Set up a new fundraiser and REIT mint for investors to join.',
+    browse: 'Review existing REIT fundraisers and manage their metadata.',
+    investments: 'Inspect investor commitments, statuses, and payout readiness.',
+    dividends: 'Distribute accrued returns to eligible investors.',
+  }
+
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      {tab !== 'create' ? (
+        <Button size="sm" onClick={() => setTab('create')}>
+          Quick Create
+        </Button>
+      ) : null}
+      <WalletDropdown />
+    </div>
+  )
+
+  let content: ReactNode = null
+
+  switch (tab) {
+    case 'dashboard': {
+      content = (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="lg:col-span-2">
+            <CardHeader>
+              <CardTitle>Welcome back</CardTitle>
+              <CardDescription>
+                Monitor your fundraising activity and manage investor actions from this console.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm text-muted-foreground">
+              We are working on richer analytics for this dashboard. In the meantime, use the quick
+              actions and navigation to manage REITs and payouts.
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick actions</CardTitle>
+              <CardDescription>Jump directly into common admin workflows.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => setTab('create')}>
+                Create REIT
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setTab('browse')}>
+                Browse REITs
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setTab('dividends')}>
+                Issue Dividends
+              </Button>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Program Explorer</CardTitle>
+              <CardDescription>Inspect the on-chain state for the Canadian REIT program.</CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CanadianreitinvestUiProgramExplorerLink />
+            </CardContent>
+          </Card>
+        </div>
+      )
+      break
+    }
+    case 'create': {
+      content = (
+        <div className="space-y-6 max-w-2xl">
+          <Card>
+            <CardHeader>
+              <CardTitle>Program Explorer</CardTitle>
+              <CardDescription>
+                Reference on-chain accounts while configuring a new fundraiser.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <CanadianreitinvestUiProgramExplorerLink />
+            </CardContent>
+          </Card>
+          <CanadianreitinvestUiInitializeFundraiser account={account} />
+        </div>
+      )
+      break
+    }
+    case 'browse': {
+      content = <BrowseReits />
+      break
+    }
+    case 'investments': {
+      content = <BrowseInvestments isAdmin={true} />
+      break
+    }
+    case 'dividends': {
+      content = <AdminDividendPage account={account} />
+      break
+    }
+    default:
+      content = null
+  }
 
   return (
-    <div className="flex gap-0">
-      <aside className="p-4 bg-sidebar border-r fixed left-0 top-[52px] bottom-0 w-[220px] z-10 overflow-y-auto">
-        <nav className="flex flex-col space-y-2">
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'create' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('create')}
-          >
-            Create REIT
-          </button>
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'browse' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('browse')}
-          >
-            Browse REITs
-          </button>
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'investments' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('investments')}
-          >
-            Browse Investments
-          </button>
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'dividends' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('dividends')}
-          >
-            Issue Dividends
-          </button>
-        </nav>
-      </aside>
-
-      <section className="ml-[220px] flex-1 p-6">
-        {tab === 'create' ? (
-          <div>
-            <div className="pb-4">
-              <h1 className="text-4xl font-bold">Create REIT</h1>
-              <p className="mt-2 text-muted-foreground">Create a new REIT and initialize its fundraiser</p>
-              <div className="mt-3"><CanadianreitinvestUiProgramExplorerLink /></div>
-            </div>
-
-            <div className="space-y-6 max-w-md">
-              <CanadianreitinvestUiInitializeFundraiser account={account} />
-            </div>
-          </div>
-        ) : tab === 'browse' ? (
-          <div>
-            <BrowseReits />
-          </div>
-        ) : tab === 'investments' ? (
-          <div>
-            <BrowseInvestments isAdmin={true} />
-          </div>
-        ) : tab === 'dividends' ? (
-          <div>
-            <div className="pb-4">
-              <h1 className="text-4xl font-bold">Issue Dividends</h1>
-              <p className="mt-2 text-muted-foreground">Transfer USDC dividends to investors</p>
-            </div>
-            <AdminDividendPage account={account} />
-          </div>
-        ) : null}
-      </section>
-    </div>
+    <DashboardLayout
+      role="admin"
+      activeItem={tab}
+      onSelect={setTab}
+      breadcrumbs={breadcrumbs[tab]}
+      title={titles[tab]}
+      description={descriptions[tab]}
+      headerActions={headerActions}
+      userEmail={user?.email}
+      userName={typeof user?.user_metadata?.full_name === 'string' ? user?.user_metadata?.full_name : undefined}
+    >
+      {content}
+    </DashboardLayout>
   )
 }

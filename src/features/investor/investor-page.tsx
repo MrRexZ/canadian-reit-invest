@@ -4,12 +4,17 @@ import { WalletDropdown } from '@/components/wallet-dropdown'
 import BrowseReitsInvestor from '@/features/canadianreitinvest/ui/canadianreitinvest-ui-browse-reits-investor'
 import BrowseInvestments from '@/features/canadianreitinvest/ui/canadianreitinvest-ui-browse-investments'
 import { InitializeInvestorView } from './ui/initialize-investor-view'
-import { useState } from 'react'
+import { useState, type ReactNode } from 'react'
+import { DashboardLayout, type DashboardBreadcrumb } from '@/components/dashboard-layout'
+import type { AppSidebarNavKey } from '@/components/app-sidebar'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Button } from '@/components/ui/button'
 
 export default function InvestorPage() {
   const { user } = useAuth()
   const { account } = useSolana()
-  const [tab, setTab] = useState<'browse' | 'investments'>('browse')
+  type InvestorTab = 'dashboard' | 'browse' | 'investments'
+  const [tab, setTab] = useState<InvestorTab>('dashboard')
 
   if (!account) {
     return (
@@ -23,47 +28,108 @@ export default function InvestorPage() {
     )
   }
 
-  return (
-    <div className="flex gap-0">
-      <aside className="p-4 bg-sidebar border-r fixed left-0 top-[52px] bottom-0 w-[220px] z-10 overflow-y-auto">
-        <nav className="flex flex-col space-y-2">
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'browse' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('browse')}
-          >
-            Browse REITs
-          </button>
-          <button
-            className={`text-left px-3 py-2 rounded-md ${tab === 'investments' ? 'bg-sidebar-primary text-sidebar-primary-foreground' : 'hover:bg-sidebar-accent'}`}
-            onClick={() => setTab('investments')}
-          >
-            Browse Investments
-          </button>
-        </nav>
-      </aside>
+  const breadcrumbs: Record<InvestorTab, DashboardBreadcrumb[]> = {
+    dashboard: [{ label: 'Dashboard' }],
+    browse: [
+      { label: 'Dashboard' },
+      { label: 'Browse REITs' },
+    ],
+    investments: [
+      { label: 'Dashboard' },
+      { label: 'My Investments' },
+    ],
+  }
 
-      <section className="ml-[220px] flex-1 p-6">
-        <div className="pb-4 mb-6 border-b">
-          <h1 className="text-4xl font-bold">Investor Dashboard</h1>
-          <p className="text-muted-foreground mt-2">
-            {user?.email ? `Welcome, ${user.email}` : 'Welcome to your investment dashboard'}
-          </p>
-        </div>
+  const titles: Record<InvestorTab, string> = {
+    dashboard: 'Investor Dashboard',
+    browse: 'Browse REIT Opportunities',
+    investments: 'My Investments',
+  }
 
-        <div className="mb-6">
-          <InitializeInvestorView />
-        </div>
+  const descriptions: Partial<Record<InvestorTab, string>> = {
+    dashboard: 'Track your investor profile and stay informed about new offerings.',
+    browse: 'Discover active Canadian REIT fundraisers and invest using your connected wallet.',
+    investments: 'Review the status of your investments and upcoming dividend events.',
+  }
 
-        {tab === 'browse' ? (
-          <div>
-            <BrowseReitsInvestor account={account} />
-          </div>
-        ) : (
-          <div>
-            <BrowseInvestments userId={user?.id} />
-          </div>
-        )}
-      </section>
+  const headerActions = (
+    <div className="flex items-center gap-2">
+      {tab !== 'browse' ? (
+        <Button size="sm" onClick={() => setTab('browse')}>
+          Browse REITs
+        </Button>
+      ) : null}
+      <WalletDropdown />
     </div>
+  )
+
+  let content: ReactNode = null
+
+  switch (tab) {
+    case 'dashboard': {
+      content = (
+        <div className="space-y-6">
+          <Card>
+            <CardHeader>
+              <CardTitle>Welcome {user?.email ? user.email : 'Investor'}</CardTitle>
+              <CardDescription>
+                Complete the investor setup steps below to start participating in Canadian REIT
+                offerings.
+              </CardDescription>
+            </CardHeader>
+            <CardContent>
+              <InitializeInvestorView />
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle>Quick actions</CardTitle>
+              <CardDescription>Access frequent investor tasks.</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => setTab('browse')}>
+                Explore REITs
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setTab('investments')}>
+                View My Investments
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
+      )
+      break
+    }
+    case 'browse': {
+      content = <BrowseReitsInvestor account={account} />
+      break
+    }
+    case 'investments': {
+      content = <BrowseInvestments userId={user?.id} />
+      break
+    }
+    default:
+      content = null
+  }
+
+  const handleSelect = (value: AppSidebarNavKey) => {
+    if (value === 'dashboard' || value === 'browse' || value === 'investments') {
+      setTab(value)
+    }
+  }
+
+  return (
+    <DashboardLayout
+      role="investor"
+      activeItem={tab}
+      onSelect={handleSelect}
+      breadcrumbs={breadcrumbs[tab]}
+      title={titles[tab]}
+      description={descriptions[tab]}
+      headerActions={headerActions}
+      userEmail={user?.email}
+      userName={typeof user?.user_metadata?.full_name === 'string' ? user?.user_metadata?.full_name : undefined}
+    >
+      {content}
+    </DashboardLayout>
   )
 }

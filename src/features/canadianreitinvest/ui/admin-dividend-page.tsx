@@ -20,6 +20,7 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [dividendAmount, setDividendAmount] = useState<string>('')
   const [lastTxSig, setLastTxSig] = useState<string>('')
+  const [explorerUrl, setExplorerUrl] = useState<string>('')
 
   const { mutate: issueDividend, isPending: isIssuing } = useIssueDividend({
     account,
@@ -92,6 +93,7 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
       {
         onSuccess: (result) => {
           setLastTxSig(result.sig)
+          setExplorerUrl(result.explorerUrl)
           setDividendAmount('')
           setSelectedInvestmentPda('')
           setSearchInput('')
@@ -304,7 +306,7 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
       </Card>
 
       {/* Transaction History Alert */}
-      {lastTxSig && (
+      {lastTxSig && explorerUrl && (
         <Alert className="bg-green-50 border-green-200">
           <Check className="h-4 w-4 text-green-600" />
           <AlertDescription className="text-green-900">
@@ -313,10 +315,10 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
               <div className="flex items-center gap-2">
                 <span className="text-sm font-mono">{lastTxSig.slice(0, 20)}...{lastTxSig.slice(-20)}</span>
                 <a
-                  href={`https://explorer.solana.com/tx/${lastTxSig}`}
+                  href={explorerUrl}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-sm hover:underline"
+                  className="inline-flex items-center gap-1 text-sm hover:underline text-green-600"
                 >
                   View on Explorer
                   <ExternalLink className="h-3 w-3" />

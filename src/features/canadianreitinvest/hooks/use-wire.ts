@@ -9,12 +9,13 @@ import { useSolana } from '@/components/solana/use-solana'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { fetchMaybeInvestment } from '@/generated/accounts/investment'
+import { getSolanaExplorerUrl } from '@/lib/cluster-endpoints'
 import { parse as uuidParse } from 'uuid'
 
 export function useWire({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
-  const { client } = useSolana()
+  const { client, cluster } = useSolana()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -166,7 +167,14 @@ export function useWire({ account }: { account: UiWalletAccount }) {
 
       console.log('[WIRE DEBUG] Transaction verification complete')
 
-      toast.success(`Investment wired successfully! TX: ${sig.slice(0, 8)}...${sig.slice(-8)}`)
+      // Show success toast with explorer link pointing to Investment PDA
+      const explorerUrl = getSolanaExplorerUrl(investmentPda, cluster.id, 'address')
+      toast.success('Investment wired successfully', {
+        action: {
+          label: 'View PDA on Explorer',
+          onClick: () => window.open(explorerUrl, '_blank'),
+        },
+      })
 
       return sig
     },

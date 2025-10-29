@@ -11,11 +11,12 @@ import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadia
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { fetchMaybeInvestment } from '@/generated/accounts/investment'
 import { parse as uuidParse } from 'uuid'
+import { getSolanaExplorerUrl } from '@/lib/cluster-endpoints'
 
 export function useRelease({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
-  const { client } = useSolana()
+  const { client, cluster } = useSolana()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -212,7 +213,14 @@ export function useRelease({ account }: { account: UiWalletAccount }) {
 
       console.log('[RELEASE DEBUG] Transaction verification complete')
 
-      toast.success(`Investment released successfully! TX: ${sig.slice(0, 8)}...${sig.slice(-8)}`)
+      // Show success toast with explorer link
+      const explorerUrl = getSolanaExplorerUrl(sig, cluster.id, 'tx')
+      toast.success('Investment released successfully', {
+        action: {
+          label: 'View on Explorer',
+          onClick: () => window.open(explorerUrl, '_blank'),
+        },
+      })
 
       return sig
     },

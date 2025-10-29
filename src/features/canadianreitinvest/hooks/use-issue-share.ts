@@ -11,7 +11,7 @@ import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { fetchMaybeInvestment } from '@/generated/accounts/investment'
 import { Address } from 'gill'
 import { parse as uuidParse } from 'uuid'
-import { getRpcEndpoint } from '@/lib/cluster-endpoints'
+import { getRpcEndpoint, getSolanaExplorerUrl } from '@/lib/cluster-endpoints'
 import { getSharePriceFromMetadata } from '@/lib/metaplex-update'
 
 export function useIssueShare({ account }: { account: UiWalletAccount }) {
@@ -227,7 +227,14 @@ export function useIssueShare({ account }: { account: UiWalletAccount }) {
 
       console.log('[ISSUE SHARE DEBUG] Transaction verification complete')
 
-      toast.success(`Shares issued successfully! TX: ${sig.slice(0, 8)}...${sig.slice(-8)}`)
+      // Show success toast with explorer link
+      const explorerUrl = getSolanaExplorerUrl(sig, cluster.id, 'tx')
+      toast.success('Shares issued successfully', {
+        action: {
+          label: 'View on Explorer',
+          onClick: () => window.open(explorerUrl, '_blank'),
+        },
+      })
 
       return sig
     },

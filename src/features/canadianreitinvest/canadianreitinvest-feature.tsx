@@ -121,7 +121,7 @@ function AdminTabs({ account, user }: { account: any; user?: User | null }) {
 
   const descriptions: Partial<Record<AppSidebarNavKey, string>> = {
     dashboard: 'High-level view of the fundraising program and quick links to key workflows.',
-    create: 'Set up a new fundraiser and REIT mint for investors to join.',
+    create: 'Set up a new fundraiser for investors to join.',
     browse: 'Review existing REIT fundraisers and manage their metadata.',
     investments: 'Inspect investor commitments, statuses, and payout readiness.',
     dividends: 'Distribute accrued returns to eligible investors.',

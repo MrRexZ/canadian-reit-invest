@@ -12,11 +12,12 @@ import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { fetchMaybeInvestorFundraiser } from '@/generated/accounts/investorFundraiser'
 import { supabase } from '@/lib/supabase'
 import { deriveInvestorFundraiserPda, deriveInvestmentPda } from '@/lib/pda-utils'
+import { getSolanaExplorerUrl } from '@/lib/cluster-endpoints'
 
 export function useInvest({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
-  const { client } = useSolana()
+  const { client, cluster } = useSolana()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -186,7 +187,15 @@ export function useInvest({ account }: { account: UiWalletAccount }) {
       console.log('[INVEST] Instruction built successfully, sending transaction...')
       const sig = await signAndSend(instruction, signer)
       console.log('[INVEST] Transaction sent with signature:', sig)
-      toast.success('Investment submitted')
+      
+      // Show success toast with explorer link
+      const explorerUrl = getSolanaExplorerUrl(sig, cluster.id, 'tx')
+      toast.success('Investment submitted', {
+        action: {
+          label: 'View on Explorer',
+          onClick: () => window.open(explorerUrl, '_blank'),
+        },
+      })
 
       // Wait for transaction to be confirmed before completing mutation
       console.log('[INVEST] Waiting for transaction confirmation...')

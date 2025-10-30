@@ -8,4 +8,4 @@
 - pagination
 - security audit
 - support minting REIT token with decimal point
-- 
+- remove unneded fields from Fundraiser PDA: total_raised and released_amount

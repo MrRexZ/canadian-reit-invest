@@ -2,26 +2,10 @@ import { PublicKey } from '@solana/web3.js'
 import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
 import { fetchMetadata } from '@metaplex-foundation/mpl-token-metadata'
 import { publicKey } from '@metaplex-foundation/umi'
+import { getRpcEndpoint } from './cluster-endpoints'
 
 // Metaplex Token Metadata Program ID
 const TOKEN_METADATA_PROGRAM_ID = new PublicKey('metaqbxxUerdq28cj1RbAWkYQm3ybzjb6a8bt518x1s')
-
-/**
- * Map cluster ID to RPC endpoint
- */
-function getRpcEndpoint(clusterId: string): string {
-  switch (clusterId) {
-    case 'solana:mainnet':
-      return 'https://api.mainnet-beta.solana.com'
-    case 'solana:devnet':
-      return 'https://api.devnet.solana.com'
-    case 'solana:testnet':
-      return 'https://api.testnet.solana.com'
-    case 'solana:localnet':
-    default:
-      return 'http://localhost:8899'
-  }
-}
 
 /**
  * Get the Metaplex metadata PDA for a given mint

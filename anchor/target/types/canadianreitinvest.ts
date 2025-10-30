@@ -903,6 +903,39 @@ export type Canadianreitinvest = {
         {
           "name": "investment",
           "writable": true
+        },
+        {
+          "name": "investor",
+          "docs": [
+            "Investor receiving the refund (derived from investment)"
+          ]
+        },
+        {
+          "name": "adminUsdcAta",
+          "docs": [
+            "Admin's USDC token account (source of refund)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "investorUsdcAta",
+          "docs": [
+            "Investor's USDC token account (destination for refund)"
+          ],
+          "writable": true
+        },
+        {
+          "name": "usdcMint",
+          "docs": [
+            "USDC mint for validation"
+          ]
+        },
+        {
+          "name": "tokenProgram",
+          "docs": [
+            "Token program for transfer"
+          ],
+          "address": "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA"
         }
       ],
       "args": [

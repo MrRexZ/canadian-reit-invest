@@ -44,7 +44,7 @@ export default function BrowseReitsInvestor({ account }: { account: UiWalletAcco
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {reits.map((reit) => {
-          const totalRaisedBigInt = reit.fundraiser?.data?.totalRaised ?? 0n
+          const totalRaisedBigInt = reit.calculatedTotalRaised ?? 0
           const totalRaised = typeof totalRaisedBigInt === 'bigint' ? Number(totalRaisedBigInt) : totalRaisedBigInt
           // Convert from minor units (6 decimals) to major units (dollars)
           const totalRaisedDollars = totalRaised / 1_000_000
@@ -146,15 +146,7 @@ export default function BrowseReitsInvestor({ account }: { account: UiWalletAcco
                   <div className="flex justify-between">
                     <span>Raised:</span>
                     <span className="font-medium">
-                      ${((selectedReit.fundraiser?.data?.totalRaised !== undefined 
-                        ? Number(selectedReit.fundraiser.data.totalRaised) 
-                        : 0) / 1000000).toFixed(2)} USDC
-                    </span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span>Investments:</span>
-                    <span className="font-medium">
-                      {selectedReit.fundraiser?.data?.investment_counter ?? 0}
+                      ${((selectedReit.calculatedTotalRaised || 0) / 1000000).toFixed(2)} USDC
                     </span>
                   </div>
                 </div>

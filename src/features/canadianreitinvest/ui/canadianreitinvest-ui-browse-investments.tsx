@@ -13,9 +13,11 @@ import { useSolana } from '@/components/solana/use-solana'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { useInvestmentsQuery } from '../data-access/use-investments-query'
 import { Address } from 'gill'
+import { getSolanaExplorerUrl } from '@/lib/cluster-endpoints'
+import { ExternalLink } from 'lucide-react'
 
 export default function BrowseInvestments({ isAdmin = false, userId }: { isAdmin?: boolean; userId?: string }) {
-  const { client } = useSolana()
+  const { client, cluster } = useSolana()
   const { account } = useSolana()
   
   // Use React Query hook for data fetching and automatic polling/invalidation
@@ -64,7 +66,7 @@ export default function BrowseInvestments({ isAdmin = false, userId }: { isAdmin
           <Table>
             <TableHeader>
               <TableRow>
-                <TableHead>Investment ID</TableHead>
+                {isAdmin && <TableHead>Investment ID</TableHead>}
                 {isAdmin && <TableHead>Investor Name</TableHead>}
                 {isAdmin && <TableHead>Investor Email</TableHead>}
                 <TableHead>REIT</TableHead>
@@ -89,9 +91,19 @@ export default function BrowseInvestments({ isAdmin = false, userId }: { isAdmin
 
                 return (
                   <TableRow key={row.id}>
-                    <TableCell className="font-mono text-xs">
-                      {row.investment_pda.slice(0, 8)}...{row.investment_pda.slice(-8)}
-                    </TableCell>
+                    {isAdmin && (
+                      <TableCell className="font-mono text-xs">
+                        <a
+                          href={getSolanaExplorerUrl(row.investment_pda, cluster.id)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                        >
+                          {row.investment_pda}
+                          <ExternalLink className="h-3 w-3" />
+                        </a>
+                      </TableCell>
+                    )}
                     {isAdmin && <TableCell>{row.user_name || 'Unknown'}</TableCell>}
                     {isAdmin && <TableCell className="font-mono text-xs">{row.user_email || 'Unknown'}</TableCell>}
                     <TableCell>{row.reit_name || 'Unknown REIT'}</TableCell>

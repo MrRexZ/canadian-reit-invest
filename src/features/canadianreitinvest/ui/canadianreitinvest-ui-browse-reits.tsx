@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useState } from 'react'
 import { supabase } from '@/lib/supabase'
 import { useSolana } from '@/components/solana/use-solana'
 import { useWalletUi } from '@wallet-ui/react'
@@ -7,6 +7,7 @@ import { createUmi } from '@metaplex-foundation/umi-bundle-defaults'
 import { fetchMetadata } from '@metaplex-foundation/mpl-token-metadata'
 import { publicKey } from '@metaplex-foundation/umi'
 import { fetchAllMaybeFundraiser } from '@/generated/accounts/fundraiser'
+import { fetchAllMaybeInvestment } from '@/generated/accounts/investment'
 import { Address } from 'gill'
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from '@/components/ui/table'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
@@ -18,12 +19,17 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Button } from '@/components/ui/button'
 import { parse as uuidParse } from 'uuid'
 import { getMetadataPdaForMint } from '@/lib/metaplex-update'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
+import { ExternalLink } from 'lucide-react'
+import { getRpcEndpoint, getSolanaExplorerUrl } from '@/lib/cluster-endpoints'
 
 const SYSTEM_PROGRAM_ID = SystemProgram.programId.toBase58()
 
 type ReitRow = {
   id: string
   reit_name?: string
+  fundraiserAddress: string
   fundraiser?: any
 }
 
@@ -34,11 +40,8 @@ type ReitRow = {
 export default function CanadianreitinvestUiBrowseReits() {
   const { client, cluster } = useSolana()
   const { account } = useWalletUi()
-  const createReitMintMutation = useCreateReitMint({ account: account! })
-  const updateReitMintMutation = useUpdateReitMint({ account: account! })
-  const [loading, setLoading] = useState(false)
-  const [rows, setRows] = useState<ReitRow[]>([])
-  const [error, setError] = useState<string | null>(null)
+  const queryClient = useQueryClient()
+  
   const [selectedReit, setSelectedReit] = useState<ReitRow | null>(null)
   const [name, setName] = useState('')
   const [symbol, setSymbol] = useState('')
@@ -48,29 +51,183 @@ export default function CanadianreitinvestUiBrowseReits() {
   const [dialogOpen, setDialogOpen] = useState(false)
   const [loadingMetadata, setLoadingMetadata] = useState(false)
   const [selectedMetadataPda, setSelectedMetadataPda] = useState<string | null>(null)
+  
+  // React Query hook to fetch REITs data
+  const { data: rows = [], isLoading: loading, error } = useQuery({
+    queryKey: ['browse-reits', cluster.id],
+    queryFn: async () => {
+      const { data: reits, error: dbError } = await supabase.from('reits').select('*')
+      if (dbError) throw new Error(dbError.message)
+
+      if (!reits || reits.length === 0) {
+        return []
+      }
+
+      // Step 1: Derive all fundraiser PDAs locally
+      const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
+      const pdaPairs = await Promise.all(
+        reits.map(async (r: any) => {
+          const id: string = r.id
+          const reitName: string | undefined = r.reit_name
+          const idBytes = uuidParse(id) as unknown as Uint8Array
+          const [fundraiserPda] = await PublicKey.findProgramAddress(
+            [Buffer.from('fundraiser'), Buffer.from(idBytes)],
+            programId
+          )
+          return {
+            id,
+            reit_name: reitName,
+            fundraiserAddress: fundraiserPda.toBase58() as unknown as Address,
+          }
+        })
+      )
+
+      // Step 2: Batch fetch all fundraiser accounts
+      const chunkSize = 100
+      const fetched: ReitRow[] = []
+
+      for (let i = 0; i < pdaPairs.length; i += chunkSize) {
+        const chunk = pdaPairs.slice(i, i + chunkSize)
+        const addresses = chunk.map((p) => p.fundraiserAddress)
+
+        try {
+          const accounts = await fetchAllMaybeFundraiser(client.rpc, addresses)
+          for (let j = 0; j < chunk.length; j++) {
+            fetched.push({
+              id: chunk[j].id,
+              reit_name: chunk[j].reit_name,
+              fundraiserAddress: chunk[j].fundraiserAddress,
+              fundraiser: accounts[j],
+            })
+          }
+        } catch (e) {
+          // If batch fails, add rows without fundraiser data
+          for (const pair of chunk) {
+            fetched.push({
+              id: pair.id,
+              reit_name: pair.reit_name,
+              fundraiserAddress: pair.fundraiserAddress,
+              fundraiser: null,
+            })
+          }
+        }
+      }
+
+      return fetched
+    },
+    staleTime: 10000, // Consider data fresh for 10 seconds
+    refetchOnWindowFocus: true,
+  })
+
+  // Separate query for total raised amounts
+  const { data: totalRaisedByReit = new Map() } = useQuery({
+    queryKey: ['browse-reits-totals', cluster.id, rows.map(r => r.id).join(',')],
+    queryFn: async () => {
+      if (rows.length === 0) return new Map<string, number>()
+
+      const reitIds = rows.map(row => row.id)
+      const { data: allInvestments } = await supabase
+        .from('investments')
+        .select('reit_id, investment_pda')
+        .in('reit_id', reitIds)
+
+      const totalsMap = new Map<string, number>()
+
+      if (allInvestments) {
+        // Group investments by REIT
+        const investmentsByReit = allInvestments.reduce((acc, inv) => {
+          if (!acc[inv.reit_id]) acc[inv.reit_id] = []
+          acc[inv.reit_id].push(inv)
+          return acc
+        }, {} as Record<string, typeof allInvestments>)
+
+        // For each REIT, fetch investment accounts and calculate total
+        for (const reitId of reitIds) {
+          const reitInvestments = investmentsByReit[reitId] || []
+          if (reitInvestments.length === 0) {
+            totalsMap.set(reitId, 0)
+            continue
+          }
+
+          // Fetch investment accounts
+          const investmentAddresses = reitInvestments.map(inv => inv.investment_pda as unknown as Address)
+          try {
+            const investmentAccounts = await fetchAllMaybeInvestment(client.rpc, investmentAddresses)
+            
+            // Sum up USDC amounts for non-refunded investments
+            let totalRaised = 0
+            for (const account of investmentAccounts) {
+              if (account.exists && account.data) {
+                // Status 2 = Refunded, so exclude those
+                if (account.data.status !== 2) {
+                  totalRaised += Number(account.data.usdcAmount || 0)
+                }
+              }
+            }
+            
+            totalsMap.set(reitId, totalRaised)
+          } catch (error) {
+            console.warn(`Failed to fetch investments for REIT ${reitId}:`, error)
+            totalsMap.set(reitId, 0)
+          }
+        }
+      }
+
+      return totalsMap
+    },
+    enabled: rows.length > 0,
+    staleTime: 10000,
+  })
+  
+  const createReitMintMutation = useCreateReitMint({ 
+    account: account!,
+    onSuccess: () => {
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ['browse-reits'] })
+    }
+  })
+  
+  const updateReitMintMutation = useUpdateReitMint({ 
+    account: account!,
+    onSuccess: () => {
+      // Invalidate queries to refetch data
+      queryClient.invalidateQueries({ queryKey: ['browse-reits'] })
+    }
+  })
+  
   // const [recoveryTrigger, setRecoveryTrigger] = useState(0)
   const { pendingTx, isCheckingRecovery, clearPendingTx, checkNow } = useUpdateReitMintRecovery(
     dialogOpen && selectedMetadataPda ? selectedMetadataPda : null
   )
+  
+  // Track previous pendingTx status to detect finalization
+  const prevPendingTxRef = useRef(pendingTx)
+  
+  useEffect(() => {
+    const prevStatus = prevPendingTxRef.current?.status
+    const currentStatus = pendingTx?.status
+    
+    // If transaction was pending and is now finalized (null) or explicitly finalized
+    if (prevStatus === 'pending' && (currentStatus === null || currentStatus === 'finalized' || !pendingTx)) {
+      console.log('[BROWSE REITS] Transaction finalized, refreshing data...')
+      // Invalidate queries to refresh the table with updated metadata
+      queryClient.invalidateQueries({ queryKey: ['browse-reits'] })
+      
+      // Also refetch metadata if modal is still open with selectedMetadataPda
+      if (dialogOpen && selectedMetadataPda && selectedReit?.fundraiser?.data?.reitMint) {
+        fetchTokenMetadata(selectedReit.fundraiser.data.reitMint)
+      }
+    }
+    
+    // Update ref for next comparison
+    prevPendingTxRef.current = pendingTx
+  }, [pendingTx, queryClient, dialogOpen, selectedMetadataPda, selectedReit])
+  
   const fetchTokenMetadata = async (mintAddress: string) => {
     try {
       setLoadingMetadata(true)
       
       // Create UMI instance with the current RPC endpoint
-      // Map cluster ID to RPC endpoint
-      const getRpcEndpoint = (clusterId: string) => {
-        switch (clusterId) {
-          case 'solana:mainnet':
-            return 'https://api.mainnet-beta.solana.com'
-          case 'solana:devnet':
-            return 'https://api.devnet.solana.com'
-          case 'solana:testnet':
-            return 'https://api.testnet.solana.com'
-          case 'solana:localnet':
-          default:
-            return 'http://localhost:8899'
-        }
-      }
       const rpcEndpoint = getRpcEndpoint(cluster.id)
       console.log('[METADATA FETCH] Cluster ID:', cluster.id, 'RPC Endpoint:', rpcEndpoint)
       const umi = createUmi(rpcEndpoint)
@@ -157,85 +314,8 @@ export default function CanadianreitinvestUiBrowseReits() {
     setCurrency('')
   }
 
-  useEffect(() => {
-    let mounted = true
-    async function load() {
-      setLoading(true)
-      setError(null)
-      try {
-        const { data: reits, error: dbError } = await supabase.from('reits').select('*')
-        if (dbError) throw new Error(dbError.message)
-
-        if (!reits || reits.length === 0) {
-          if (mounted) setRows([])
-          return
-        }
-
-        // Step 1: Derive all fundraiser PDAs locally
-        const programId = new PublicKey(CANADIANREITINVEST_PROGRAM_ADDRESS as string)
-        const pdaPairs = await Promise.all(
-          reits.map(async (r: any) => {
-            const id: string = r.id
-            const reitName: string | undefined = r.reit_name
-            const idBytes = uuidParse(id) as unknown as Uint8Array
-            const [fundraiserPda] = await PublicKey.findProgramAddress(
-              [Buffer.from('fundraiser'), Buffer.from(idBytes)],
-              programId
-            )
-            return {
-              id,
-              reit_name: reitName,
-              fundraiserAddress: fundraiserPda.toBase58() as unknown as Address,
-            }
-          })
-        )
-
-        // Step 2: Batch fetch all fundraiser accounts
-        const chunkSize = 100
-        const fetched: ReitRow[] = []
-
-        for (let i = 0; i < pdaPairs.length; i += chunkSize) {
-          const chunk = pdaPairs.slice(i, i + chunkSize)
-          const addresses = chunk.map((p) => p.fundraiserAddress)
-
-          try {
-            const accounts = await fetchAllMaybeFundraiser(client.rpc, addresses)
-            for (let j = 0; j < chunk.length; j++) {
-              fetched.push({
-                id: chunk[j].id,
-                reit_name: chunk[j].reit_name,
-                fundraiser: accounts[j],
-              })
-            }
-          } catch (e) {
-            // If batch fails, add rows without fundraiser data
-            for (const pair of chunk) {
-              fetched.push({
-                id: pair.id,
-                reit_name: pair.reit_name,
-                fundraiser: null,
-              })
-            }
-          }
-        }
-
-        if (mounted) setRows(fetched)
-      } catch (err: any) {
-        console.error('Failed to load REITs', err)
-        if (mounted) setError(err?.message ?? String(err))
-      } finally {
-        if (mounted) setLoading(false)
-      }
-    }
-
-    load()
-    return () => {
-      mounted = false
-    }
-  }, [client, cluster])
-
   if (loading) return <span className="loading loading-spinner loading-md" />
-  if (error) return <div className="text-red-600">Error: {error}</div>
+  if (error) return <div className="text-red-600">Error: {error instanceof Error ? error.message : String(error)}</div>
 
   if (!loading && rows.length === 0) {
     return (
@@ -252,7 +332,7 @@ export default function CanadianreitinvestUiBrowseReits() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>REIT ID</TableHead>
+            <TableHead>Fundraiser PDA ID</TableHead>
             <TableHead>REIT Name</TableHead>
             <TableHead className="text-right">Total Raised (USDC)</TableHead>
             <TableHead>Actions</TableHead>
@@ -261,12 +341,20 @@ export default function CanadianreitinvestUiBrowseReits() {
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.id}>
-              <TableCell className="font-mono">{row.id}</TableCell>
+              <TableCell className="font-mono">
+                <a
+                  href={getSolanaExplorerUrl(row.fundraiserAddress, cluster.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                >
+                  {row.fundraiserAddress}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </TableCell>
               <TableCell>{row.reit_name ?? '-'}</TableCell>
               <TableCell className="text-right">
-                ${((row.fundraiser?.data?.totalRaised !== undefined
-                  ? Number(row.fundraiser.data.totalRaised)
-                  : 0) / 1_000_000).toFixed(2)}
+                ${((totalRaisedByReit.get(row.id) || 0) / 1_000_000).toFixed(2)}
               </TableCell>
               <TableCell>
                 <Dialog open={dialogOpen} onOpenChange={(open) => {
@@ -326,11 +414,27 @@ export default function CanadianreitinvestUiBrowseReits() {
                           ? 'Update REIT Mint' 
                           : 'Create REIT Mint'}
                       </DialogTitle>
-                      <DialogDescription>
+                      <DialogDescription className="space-y-2">
+                        <div>
+                          {selectedReit?.fundraiser?.data?.reitMint && 
+                           selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                            ? 'Update the REIT mint token details.' 
+                            : 'Enter the REIT mint token details. Only name and symbol are required to create the mint.'}
+                        </div>
                         {selectedReit?.fundraiser?.data?.reitMint && 
-                         selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
-                          ? 'Update the REIT mint token details.' 
-                          : 'Enter the REIT mint token details. Only name and symbol are required to create the mint.'}
+                         selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID && (
+                          <div>
+                            <a
+                              href={getSolanaExplorerUrl(selectedReit.fundraiser.data.reitMint, cluster.id)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                            >
+                              View Mint Token
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        )}
                       </DialogDescription>
                     </DialogHeader>
                     {loadingMetadata ? (
@@ -357,6 +461,16 @@ export default function CanadianreitinvestUiBrowseReits() {
                               <p className="text-xs text-yellow-700 mt-1">
                                 Signature: {pendingTx.signature.slice(0, 20)}...
                               </p>
+                              {selectedReit?.fundraiser?.data?.reitMint && (
+                                <a
+                                  href={getSolanaExplorerUrl(selectedReit.fundraiser.data.reitMint, cluster.id)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-yellow-700 hover:text-yellow-900 underline mt-2 inline-block"
+                                >
+                                  View Mint Token on Explorer →
+                                </a>
+                              )}
                             </div>
                           )}
 

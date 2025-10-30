@@ -10,6 +10,7 @@ import { useSolana } from '@/components/solana/use-solana'
 import { CANADIANREITINVEST_PROGRAM_ADDRESS } from '@/generated/programs/canadianreitinvest'
 import { fetchMaybeFundraiser } from '@/generated/accounts/fundraiser'
 import { fetchMaybeInvestment } from '@/generated/accounts/investment'
+import { getSolanaExplorerUrl } from '@/lib/cluster-endpoints'
 
 /**
  * V1 Simple Dividend Distribution Hook
@@ -19,7 +20,7 @@ import { fetchMaybeInvestment } from '@/generated/accounts/investment'
 export function useIssueDividend({ account }: { account: UiWalletAccount }) {
   const signer = useWalletUiSigner({ account })
   const signAndSend = useWalletUiSignAndSend()
-  const { client } = useSolana()
+  const { client, cluster } = useSolana()
   const queryClient = useQueryClient()
 
   return useMutation({
@@ -142,7 +143,6 @@ export function useIssueDividend({ account }: { account: UiWalletAccount }) {
       console.log('[DIVIDEND] Instruction built successfully, sending transaction...')
       const sig = await signAndSend(instruction, signer)
       console.log('[DIVIDEND] Transaction sent with signature:', sig)
-      toast.success('Dividend issued successfully')
 
       // Wait for transaction confirmation
       console.log('[DIVIDEND] Waiting for transaction confirmation...')
@@ -193,7 +193,8 @@ export function useIssueDividend({ account }: { account: UiWalletAccount }) {
       console.log('[DIVIDEND] Transaction signature:', sig)
       console.log('[DIVIDEND] Audit trail available on Solana explorer')
       console.log('=== ISSUE DIVIDEND MUTATION END ===')
-      return { sig, amount: amountUSDC, investor: investor.toBase58() }
+      const explorerUrl = getSolanaExplorerUrl(sig, cluster.id, 'tx')
+      return { sig, amount: amountUSDC, investor: investor.toBase58(), explorerUrl }
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['investments'] })

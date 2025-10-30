@@ -9,6 +9,7 @@ import { ellipsify, UiWallet, useWalletUi, useWalletUiWallet } from '@wallet-ui/
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
+import { Wallet as WalletIcon } from 'lucide-react'
 
 function WalletAvatar({ className, wallet }: { className?: string; wallet: UiWallet }) {
   return (
@@ -36,15 +37,35 @@ function WalletDropdownItem({ wallet }: { wallet: UiWallet }) {
   )
 }
 
-function WalletDropdown() {
+type WalletDropdownProps = {
+  // default: shows text label/address. icon: square icon button only (for sidebar footer)
+  variant?: 'default' | 'icon'
+}
+
+function WalletDropdown({ variant = 'default' }: WalletDropdownProps) {
   const { account, connected, copy, disconnect, wallet, wallets } = useWalletUi()
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <Button variant="outline" className="cursor-pointer">
-          {wallet?.icon ? <WalletAvatar wallet={wallet} /> : null}
-          {connected ? (account ? ellipsify(account.address) : wallet?.name) : 'Select Wallet'}
-        </Button>
+        {variant === 'icon' ? (
+          <Button
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-md px-2 gap-2 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:px-0"
+          >
+            {wallet?.icon ? (
+              <WalletAvatar wallet={wallet} className="h-5 w-5" />
+            ) : (
+              <WalletIcon className="h-5 w-5" />
+            )}
+            <span className="text-sm group-data-[collapsible=icon]:hidden">Web3 Wallet</span>
+          </Button>
+        ) : (
+          <Button variant="outline" className="cursor-pointer">
+            {wallet?.icon ? <WalletAvatar wallet={wallet} /> : null}
+            {connected ? (account ? ellipsify(account.address) : wallet?.name) : 'Select Wallet'}
+          </Button>
+        )}
       </DropdownMenuTrigger>
       <DropdownMenuContent>
         {account ? (

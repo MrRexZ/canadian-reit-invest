@@ -10,6 +10,7 @@ import {
 } from '@/components/ui/dropdown-menu'
 import { Avatar, AvatarFallback } from '@/components/ui/avatar'
 import { LogOut } from 'lucide-react'
+import { useNavigate } from 'react-router'
 
 type UserDropdownProps = {
   // default: small circular icon trigger; sidebar: full-width with name/email shown when expanded
@@ -18,11 +19,20 @@ type UserDropdownProps = {
 
 export function UserDropdown({ variant = 'default' }: UserDropdownProps) {
   const { user, signOut } = useAuth()
+  const navigate = useNavigate()
 
   if (!user) return null
 
   const handleSignOut = async () => {
-    await signOut()
+    try {
+      await signOut()
+      // Navigate to home, which will show the login page due to !user check
+      navigate('/', { replace: true })
+    } catch (error) {
+      console.error('Error during sign out:', error)
+      // Still navigate even if there's an error to ensure user sees login page
+      navigate('/', { replace: true })
+    }
   }
 
   const getInitials = (email: string) => {
@@ -51,9 +61,6 @@ export function UserDropdown({ variant = 'default' }: UserDropdownProps) {
             {/* Details visible only when expanded */}
             <div className="min-w-0 text-left group-data-[collapsible=icon]:hidden">
               <p className="truncate text-sm font-medium leading-none">{displayName}</p>
-              {user.email ? (
-                <p className="truncate text-xs leading-none text-muted-foreground">{user.email}</p>
-              ) : null}
             </div>
           </Button>
         ) : (

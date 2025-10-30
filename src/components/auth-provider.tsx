@@ -122,9 +122,26 @@ export const AuthProvider: React.FC<AuthProviderProps> = ({ children }) => {
   }
 
   const signOut = async () => {
-    await supabase.auth.signOut()
-    setRole(null)
-    setRoleLoading(false)
+    try {
+      // Check if user is logged in before signing out
+      const { data: { user: currentUser } } = await supabase.auth.getUser()
+      
+      if (currentUser) {
+        // Use local scope to only clear current session
+        const { error } = await supabase.auth.signOut({ scope: 'local' })
+        if (error) {
+          console.error('Error signing out:', error)
+        }
+      }
+    } catch (error) {
+      console.error('Exception during sign out:', error)
+    } finally {
+      // Always clear local state regardless of API success
+      setUser(null)
+      setSession(null)
+      setRole(null)
+      setRoleLoading(false)
+    }
   }
 
   const value = {

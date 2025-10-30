@@ -149,12 +149,6 @@ export default function BrowseReitsInvestor({ account }: { account: UiWalletAcco
                       ${((selectedReit.calculatedTotalRaised || 0) / 1000000).toFixed(2)} USDC
                     </span>
                   </div>
-                  <div className="flex justify-between">
-                    <span>Investments:</span>
-                    <span className="font-medium">
-                      {selectedReit.fundraiser?.data?.investment_counter ?? 0}
-                    </span>
-                  </div>
                 </div>
               </div>
 

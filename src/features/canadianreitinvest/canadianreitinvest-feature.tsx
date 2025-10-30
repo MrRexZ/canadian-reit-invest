@@ -7,8 +7,8 @@ import { AdminDividendPage } from './ui/admin-dividend-page'
 import AuthFeature from '@/features/auth/auth-feature'
 import { useAuth } from '@/components/auth-provider'
 import InvestorPage from '@/features/investor/investor-page'
-import { useLocation } from 'react-router'
-import { useState, type ReactNode } from 'react'
+import { useLocation, useNavigate } from 'react-router'
+import { type ReactNode } from 'react'
 import BrowseReits from './ui/canadianreitinvest-ui-browse-reits'
 import BrowseInvestments from './ui/canadianreitinvest-ui-browse-investments'
 import { DashboardLayout, type DashboardBreadcrumb } from '@/components/dashboard-layout'
@@ -89,7 +89,21 @@ export default function CanadianreitinvestFeature() {
 }
 
 function AdminTabs({ account, user }: { account: any; user?: User | null }) {
-  const [tab, setTab] = useState<AppSidebarNavKey>('dashboard')
+  const location = useLocation()
+  const navigate = useNavigate()
+  
+  // Read tab from URL, default to 'dashboard'
+  const params = new URLSearchParams(location.search)
+  const urlTab = params.get('tab') as AppSidebarNavKey | null
+  const validTabs: AppSidebarNavKey[] = ['dashboard', 'create', 'browse', 'investments', 'dividends']
+  const tab = urlTab && validTabs.includes(urlTab) ? urlTab : 'dashboard'
+
+  // Update tab by changing URL
+  const setTab = (newTab: AppSidebarNavKey) => {
+    const newParams = new URLSearchParams(location.search)
+    newParams.set('tab', newTab)
+    navigate({ search: newParams.toString() }, { replace: true })
+  }
 
   const breadcrumbs: Record<AppSidebarNavKey, DashboardBreadcrumb[]> = {
     dashboard: [{ label: 'Dashboard' }],
@@ -121,7 +135,7 @@ function AdminTabs({ account, user }: { account: any; user?: User | null }) {
 
   const descriptions: Partial<Record<AppSidebarNavKey, string>> = {
     dashboard: 'High-level view of the fundraising program and quick links to key workflows.',
-    create: 'Set up a new fundraiser and REIT mint for investors to join.',
+    create: 'Set up a new fundraiser for investors to join.',
     browse: 'Review existing REIT fundraisers and manage their metadata.',
     investments: 'Inspect investor commitments, statuses, and payout readiness.',
     dividends: 'Distribute accrued returns to eligible investors.',
@@ -164,15 +178,6 @@ function AdminTabs({ account, user }: { account: any; user?: User | null }) {
               </Button>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>Program Explorer</CardTitle>
-              <CardDescription>Inspect the on-chain state for the Canadian REIT program.</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CanadianreitinvestUiProgramExplorerLink />
-            </CardContent>
-          </Card>
         </div>
       )
       break
@@ -180,17 +185,6 @@ function AdminTabs({ account, user }: { account: any; user?: User | null }) {
     case 'create': {
       content = (
         <div className="space-y-6 max-w-2xl">
-          <Card>
-            <CardHeader>
-              <CardTitle>Program Explorer</CardTitle>
-              <CardDescription>
-                Reference on-chain accounts while configuring a new fundraiser.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <CanadianreitinvestUiProgramExplorerLink />
-            </CardContent>
-          </Card>
           <CanadianreitinvestUiInitializeFundraiser account={account} />
         </div>
       )

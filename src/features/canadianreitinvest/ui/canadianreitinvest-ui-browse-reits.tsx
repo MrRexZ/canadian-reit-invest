@@ -20,12 +20,16 @@ import { Button } from '@/components/ui/button'
 import { parse as uuidParse } from 'uuid'
 import { getMetadataPdaForMint } from '@/lib/metaplex-update'
 import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { useEffect, useRef } from 'react'
+import { ExternalLink } from 'lucide-react'
+import { getRpcEndpoint, getSolanaExplorerUrl } from '@/lib/cluster-endpoints'
 
 const SYSTEM_PROGRAM_ID = SystemProgram.programId.toBase58()
 
 type ReitRow = {
   id: string
   reit_name?: string
+  fundraiserAddress: string
   fundraiser?: any
 }
 
@@ -92,6 +96,7 @@ export default function CanadianreitinvestUiBrowseReits() {
             fetched.push({
               id: chunk[j].id,
               reit_name: chunk[j].reit_name,
+              fundraiserAddress: chunk[j].fundraiserAddress,
               fundraiser: accounts[j],
             })
           }
@@ -101,6 +106,7 @@ export default function CanadianreitinvestUiBrowseReits() {
             fetched.push({
               id: pair.id,
               reit_name: pair.reit_name,
+              fundraiserAddress: pair.fundraiserAddress,
               fundraiser: null,
             })
           }
@@ -193,25 +199,35 @@ export default function CanadianreitinvestUiBrowseReits() {
   const { pendingTx, isCheckingRecovery, clearPendingTx, checkNow } = useUpdateReitMintRecovery(
     dialogOpen && selectedMetadataPda ? selectedMetadataPda : null
   )
+  
+  // Track previous pendingTx status to detect finalization
+  const prevPendingTxRef = useRef(pendingTx)
+  
+  useEffect(() => {
+    const prevStatus = prevPendingTxRef.current?.status
+    const currentStatus = pendingTx?.status
+    
+    // If transaction was pending and is now finalized (null) or explicitly finalized
+    if (prevStatus === 'pending' && (currentStatus === null || currentStatus === 'finalized' || !pendingTx)) {
+      console.log('[BROWSE REITS] Transaction finalized, refreshing data...')
+      // Invalidate queries to refresh the table with updated metadata
+      queryClient.invalidateQueries({ queryKey: ['browse-reits'] })
+      
+      // Also refetch metadata if modal is still open with selectedMetadataPda
+      if (dialogOpen && selectedMetadataPda && selectedReit?.fundraiser?.data?.reitMint) {
+        fetchTokenMetadata(selectedReit.fundraiser.data.reitMint)
+      }
+    }
+    
+    // Update ref for next comparison
+    prevPendingTxRef.current = pendingTx
+  }, [pendingTx, queryClient, dialogOpen, selectedMetadataPda, selectedReit])
+  
   const fetchTokenMetadata = async (mintAddress: string) => {
     try {
       setLoadingMetadata(true)
       
       // Create UMI instance with the current RPC endpoint
-      // Map cluster ID to RPC endpoint
-      const getRpcEndpoint = (clusterId: string) => {
-        switch (clusterId) {
-          case 'solana:mainnet':
-            return 'https://api.mainnet-beta.solana.com'
-          case 'solana:devnet':
-            return 'https://api.devnet.solana.com'
-          case 'solana:testnet':
-            return 'https://api.testnet.solana.com'
-          case 'solana:localnet':
-          default:
-            return 'http://localhost:8899'
-        }
-      }
       const rpcEndpoint = getRpcEndpoint(cluster.id)
       console.log('[METADATA FETCH] Cluster ID:', cluster.id, 'RPC Endpoint:', rpcEndpoint)
       const umi = createUmi(rpcEndpoint)
@@ -316,7 +332,7 @@ export default function CanadianreitinvestUiBrowseReits() {
       <Table>
         <TableHeader>
           <TableRow>
-            <TableHead>REIT ID</TableHead>
+            <TableHead>Fundraiser PDA ID</TableHead>
             <TableHead>REIT Name</TableHead>
             <TableHead className="text-right">Total Raised (USDC)</TableHead>
             <TableHead>Actions</TableHead>
@@ -325,7 +341,17 @@ export default function CanadianreitinvestUiBrowseReits() {
         <TableBody>
           {rows.map((row) => (
             <TableRow key={row.id}>
-              <TableCell className="font-mono">{row.id}</TableCell>
+              <TableCell className="font-mono">
+                <a
+                  href={getSolanaExplorerUrl(row.fundraiserAddress, cluster.id)}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                >
+                  {row.fundraiserAddress}
+                  <ExternalLink className="h-3 w-3" />
+                </a>
+              </TableCell>
               <TableCell>{row.reit_name ?? '-'}</TableCell>
               <TableCell className="text-right">
                 ${((totalRaisedByReit.get(row.id) || 0) / 1_000_000).toFixed(2)}
@@ -388,11 +414,27 @@ export default function CanadianreitinvestUiBrowseReits() {
                           ? 'Update REIT Mint' 
                           : 'Create REIT Mint'}
                       </DialogTitle>
-                      <DialogDescription>
+                      <DialogDescription className="space-y-2">
+                        <div>
+                          {selectedReit?.fundraiser?.data?.reitMint && 
+                           selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
+                            ? 'Update the REIT mint token details.' 
+                            : 'Enter the REIT mint token details. Only name and symbol are required to create the mint.'}
+                        </div>
                         {selectedReit?.fundraiser?.data?.reitMint && 
-                         selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID 
-                          ? 'Update the REIT mint token details.' 
-                          : 'Enter the REIT mint token details. Only name and symbol are required to create the mint.'}
+                         selectedReit.fundraiser.data.reitMint !== SYSTEM_PROGRAM_ID && (
+                          <div>
+                            <a
+                              href={getSolanaExplorerUrl(selectedReit.fundraiser.data.reitMint, cluster.id)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-xs text-blue-600 hover:text-blue-800 hover:underline inline-flex items-center gap-1"
+                            >
+                              View Mint Token
+                              <ExternalLink className="h-3 w-3" />
+                            </a>
+                          </div>
+                        )}
                       </DialogDescription>
                     </DialogHeader>
                     {loadingMetadata ? (
@@ -419,6 +461,16 @@ export default function CanadianreitinvestUiBrowseReits() {
                               <p className="text-xs text-yellow-700 mt-1">
                                 Signature: {pendingTx.signature.slice(0, 20)}...
                               </p>
+                              {selectedReit?.fundraiser?.data?.reitMint && (
+                                <a
+                                  href={getSolanaExplorerUrl(selectedReit.fundraiser.data.reitMint, cluster.id)}
+                                  target="_blank"
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-yellow-700 hover:text-yellow-900 underline mt-2 inline-block"
+                                >
+                                  View Mint Token on Explorer →
+                                </a>
+                              )}
                             </div>
                           )}
 

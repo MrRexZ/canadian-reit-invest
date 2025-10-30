@@ -50,15 +50,15 @@ function WalletDropdown({ variant = 'default' }: WalletDropdownProps) {
         {variant === 'icon' ? (
           <Button
             variant="outline"
-            size="icon"
-            className="h-8 w-8 rounded-md p-0"
+            size="sm"
+            className="h-8 rounded-md px-2 gap-2 group-data-[collapsible=icon]:w-8 group-data-[collapsible=icon]:px-0"
           >
             {wallet?.icon ? (
               <WalletAvatar wallet={wallet} className="h-5 w-5" />
             ) : (
               <WalletIcon className="h-5 w-5" />
             )}
-            <span className="sr-only">Wallet</span>
+            <span className="text-sm group-data-[collapsible=icon]:hidden">Web3 Wallet</span>
           </Button>
         ) : (
           <Button variant="outline" className="cursor-pointer">

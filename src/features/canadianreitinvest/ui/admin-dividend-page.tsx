@@ -140,7 +140,7 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
             <div className="space-y-2">
               <label className="block text-sm font-medium">Select Investment</label>
               <div className="relative">
-                <div className="border rounded-md bg-white">
+                <div className="border rounded-md bg-background">
                   <div className="flex items-center">
                     <Input
                       type="text"
@@ -198,8 +198,8 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
                               key={inv.investment_pda}
                               type="button"
                               onClick={() => handleSelectInvestment(inv.investment_pda)}
-                              className={`w-full text-left px-4 py-3 hover:bg-slate-100 border-b last:border-b-0 transition ${
-                                isSelected ? 'bg-blue-50' : ''
+                              className={`w-full text-left px-4 py-3 hover:bg-accent border-b last:border-b-0 transition ${
+                                isSelected ? 'bg-secondary' : ''
                               }`}
                             >
                               <div className="flex items-start justify-between gap-2">
@@ -231,9 +231,9 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
 
             {/* Selected Investment Details */}
             {selectedInvestment && (
-              <Alert className="bg-blue-50 border-blue-200">
-                <AlertCircle className="h-4 w-4 text-blue-600" />
-                <AlertDescription className="text-blue-900">
+              <Alert className="bg-secondary border-border">
+                <AlertCircle className="h-4 w-4 text-primary" />
+                <AlertDescription className="text-foreground">
                   <div className="space-y-2 text-sm">
                     <div>
                       <strong>Investment ID:</strong> {selectedInvestment.investment_pda}
@@ -333,7 +333,7 @@ export function AdminDividendPage({ account }: AdminDividendPageProps) {
       )}
 
       {/* Information Card */}
-      <Card className="bg-slate-50">
+      <Card className="bg-secondary">
         <CardHeader>
           <CardTitle className="text-base">How It Works</CardTitle>
         </CardHeader>

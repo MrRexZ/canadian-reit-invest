@@ -1,6 +1,6 @@
 # User flow
 
-This document explains how the Canadian REIT Invest app works for regular users (investors) and for the admin team. It avoids technical terms and focuses on what people actually do and see.
+This document explains how the North American REIT Invest app works for regular users (investors) and for the admin team. It avoids technical terms and focuses on what people actually do and see.
 
 ## Quick overview
 
@@ -46,7 +46,7 @@ This document explains how the Canadian REIT Invest app works for regular users 
    - When ready, the admin moves the collected USDC from the escrow holding area into the admin’s wallet to start the off-platform conversion and bank wiring process. This is a manual operation and typically happens only when there is enough money or at agreed scheduling intervals.
 
 4. Off-platform conversion and wiring
-   - The admin (or their partner) converts USDC to the REIT’s required currency (for example, CAD) and wires the funds to the REIT in the real world.
+   - The admin (or their partner) converts USDC to the REIT's required fiat currency (for example, USD or CAD) and wires the funds to the REIT in the real world.
 
 5. Confirm and mint tokens
    - After the admin confirms the bank wiring succeeded, they create the REIT tokens and send them to each investor based on the amount each investor contributed.

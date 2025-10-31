@@ -14,6 +14,7 @@ import {
 } from '@/components/ui/sidebar'
 import { WalletDropdown } from '@/components/wallet-dropdown'
 import { UserDropdown } from '@/components/user-dropdown'
+import { NetworkSelector } from '@/components/network-selector'
 import type { ReactNode } from 'react'
 import { BarChart3, Building2, DollarSign, Home, Users } from 'lucide-react'
 
@@ -94,6 +95,7 @@ export function AppSidebar({ role, activeItem, onSelect }: AppSidebarProps) {
       </SidebarContent>
       <SidebarFooter>
         <div className="flex flex-col gap-2">
+          <NetworkSelector variant="icon" />
           <WalletDropdown variant="icon" />
           <UserDropdown variant="sidebar" />
         </div>

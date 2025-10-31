@@ -9,7 +9,8 @@ import { ellipsify, UiWallet, useWalletUi, useWalletUiWallet } from '@wallet-ui/
 import { Button } from '@/components/ui/button'
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { cn } from '@/lib/utils'
-import { Wallet as WalletIcon } from 'lucide-react'
+import { Wallet as WalletIcon, RefreshCw } from 'lucide-react'
+import { useState } from 'react'
 
 function WalletAvatar({ className, wallet }: { className?: string; wallet: UiWallet }) {
   return (
@@ -44,6 +45,14 @@ type WalletDropdownProps = {
 
 function WalletDropdown({ variant = 'default' }: WalletDropdownProps) {
   const { account, connected, copy, disconnect, wallet, wallets } = useWalletUi()
+  const [isRefreshing, setIsRefreshing] = useState(false)
+
+  const handleRefresh = () => {
+    setIsRefreshing(true)
+    // Reload the page to detect newly installed wallets
+    window.location.reload()
+  }
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -80,13 +89,26 @@ function WalletDropdown({ variant = 'default' }: WalletDropdownProps) {
           </>
         ) : null}
         {wallets.length ? (
-          wallets.map((wallet) => <WalletDropdownItem key={wallet.name} wallet={wallet} />)
+          <>
+            {wallets.map((wallet) => <WalletDropdownItem key={wallet.name} wallet={wallet} />)}
+            <DropdownMenuSeparator />
+            <DropdownMenuItem className="cursor-pointer" onClick={handleRefresh} disabled={isRefreshing}>
+              <RefreshCw className={cn('mr-2 h-4 w-4', isRefreshing && 'animate-spin')} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh wallet list'}
+            </DropdownMenuItem>
+          </>
         ) : (
-          <DropdownMenuItem className="cursor-pointer" asChild>
-            <a href="https://solana.com/solana-wallets" target="_blank" rel="noopener noreferrer">
-              Get a Solana wallet to connect.
-            </a>
-          </DropdownMenuItem>
+          <>
+            <DropdownMenuItem className="cursor-pointer" asChild>
+              <a href="https://solana.com/solana-wallets" target="_blank" rel="noopener noreferrer">
+                Get a Solana wallet
+              </a>
+            </DropdownMenuItem>
+            <DropdownMenuItem className="cursor-pointer" onClick={handleRefresh} disabled={isRefreshing}>
+              <RefreshCw className={cn('mr-2 h-4 w-4', isRefreshing && 'animate-spin')} />
+              {isRefreshing ? 'Refreshing...' : 'Refresh wallet list'}
+            </DropdownMenuItem>
+          </>
         )}
       </DropdownMenuContent>
     </DropdownMenu>

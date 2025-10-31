@@ -12,8 +12,8 @@ import { cn } from '@/lib/utils'
 import { useQueryClient } from '@tanstack/react-query'
 
 type NetworkSelectorProps = {
-  // default: shows text label. icon: square icon button only (for sidebar footer)
-  variant?: 'default' | 'icon'
+  // default: shows text label. icon: square icon button only (for sidebar footer). compact: smaller centered button for login pages
+  variant?: 'default' | 'icon' | 'compact'
 }
 
 export function NetworkSelector({ variant = 'default' }: NetworkSelectorProps) {
@@ -59,6 +59,11 @@ export function NetworkSelector({ variant = 'default' }: NetworkSelectorProps) {
             <span className="text-sm group-data-[collapsible=icon]:hidden">
               {cluster.label}
             </span>
+          </Button>
+        ) : variant === 'compact' ? (
+          <Button variant="outline" size="sm" className="gap-2">
+            <Globe className="h-4 w-4" />
+            <span>{cluster.label}</span>
           </Button>
         ) : (
           <Button variant="outline" className="w-full justify-start">

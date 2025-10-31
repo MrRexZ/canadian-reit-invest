@@ -1,5 +1,6 @@
 import { useSolana } from '@/components/solana/use-solana'
 import { WalletDropdown } from '@/components/wallet-dropdown'
+import { NetworkSelector } from '@/components/network-selector'
 import { AppHero } from '@/components/app-hero'
 import { CanadianreitinvestUiProgramExplorerLink } from './ui/canadianreitinvest-ui-program-explorer-link'
 import { CanadianreitinvestUiInitializeFundraiser } from './ui/canadianreitinvest-ui-initialize-fundraiser'
@@ -49,10 +50,13 @@ export default function CanadianreitinvestFeature() {
         <div className="max-w-4xl mx-auto">
           <div className="hero py-[64px]">
             <div className="hero-content text-center">
-              <div>
+              <div className="w-full">
                 <h1 className="text-3xl font-bold mb-4">Connect Your Wallet</h1>
                 <p className="text-muted-foreground mb-6">Please connect your wallet to access the admin dashboard.</p>
-                <WalletDropdown />
+                <div className="flex flex-col items-center gap-4">
+                  <NetworkSelector variant="compact" />
+                  <WalletDropdown />
+                </div>
               </div>
             </div>
           </div>
@@ -71,10 +75,13 @@ export default function CanadianreitinvestFeature() {
       <div className="max-w-4xl mx-auto">
         <div className="hero py-[64px]">
           <div className="hero-content text-center">
-            <div>
+            <div className="w-full">
               <h1 className="text-3xl font-bold mb-4">Connect Your Wallet</h1>
               <p className="text-muted-foreground mb-6">Please connect your wallet to access the dashboard.</p>
-              <WalletDropdown />
+              <div className="flex flex-col items-center gap-4">
+                <NetworkSelector variant="compact" />
+                <WalletDropdown />
+              </div>
             </div>
           </div>
         </div>

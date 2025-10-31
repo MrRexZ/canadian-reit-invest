@@ -1,6 +1,6 @@
 # Canadian REIT Invest
 
-A decentralized Real Estate Investment Trust (REIT) platform on Solana blockchain. Users invest USDC, which is converted to CAD off-chain and wired to Canadian REITs. Investors receive tokenized REIT shares and earn dividends proportional to their holdings.
+A decentralized Real Estate Investment Trust (REIT) platform on Solana blockchain. Users invest USDC, which is converted to fiat off-chain and wired to North American REITs. Investors receive tokenized REIT shares and earn dividends proportional to their holdings.
 
 ## Documentation
 
